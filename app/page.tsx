@@ -1,101 +1,179 @@
-import Image from "next/image";
+"use client"
+
+"use client"
+
+import React, { useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [inputValue, setInputValue] = useState('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const keys = [
+    ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'backspace'],
+    ['tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'],
+    ['caps', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'enter'],
+    ['lshift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'rshift'],
+    ['space'],
+  ];
+
+  const handleKeyClick = (key: string) => {
+    if (key === 'backspace') {
+      setInputValue((prev) => prev.slice(0, -1));
+    } else if (key === 'space') {
+      setInputValue((prev) => prev + ' ');
+    } else if (key === 'enter') {
+      setInputValue((prev) => prev + '\n');
+    } else if (key === 'tab') {
+      setInputValue((prev) => prev + '\t');
+    } else if (key === 'caps' || key === 'lshift' || key === 'rshift') {
+      // Caps and shift can be handled here if needed
+    } else {
+      setInputValue((prev) => prev + key);
+    }
+  };
+
+  return (
+    <div className="container">
+      <textarea
+        id="inputArea"
+        rows={2}
+        value={inputValue}
+        placeholder="Type here..."
+        readOnly
+        className="input-area"
+      ></textarea>
+
+      <div className="keyboard">
+        {keys.map((row, rowIndex) => (
+          <div key={rowIndex} className={`keyboard-row row-${rowIndex}`}>
+            {row.map((key) => (
+              <button
+                key={key}
+                className={`key ${key}`}
+                onClick={() => handleKeyClick(key)}
+              >
+                {key === 'space' ? '' : key === 'lshift' ? '⇧ shift' : key === 'rshift' ? '⇧ shift' : key === 'tab' ? '⇥' : key === 'backspace' ? '⌫' : key === 'enter' ? '↵' : key}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        /* Container styling */
+        .container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 20px;
+          min-height: 100vh;
+          justify-content: center;
+          background-color: rgba(30, 30, 30, 0.9); /* Dark translucent background */
+          padding: 20px;
+          min-width: 100%;
+          margin: auto;
+          width: 100%;
+        }
+
+        /* Input text area styling */
+        .input-area {
+          width: 100%;
+          padding: 15px;
+          font-size: 1.2em;
+          color: #ffffff;
+          background-color: rgba(50, 50, 50, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          backdrop-filter: blur(10px);
+          outline: none;
+          height: 150px;
+        }
+
+        /* Keyboard styling */
+        .keyboard {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
+          padding: 20px;
+          background-color: rgba(40, 40, 40, 0.8);
+          border-radius: 12px;
+          backdrop-filter: blur(15px);
+        }
+
+        /* Row-specific styling for symmetrical layout */
+        .keyboard-row {
+          display: grid;
+          gap: 8px;
+        }
+
+        .row-0 {
+          grid-template-columns: repeat(13, 1fr) 2fr;
+        }
+        .row-1 {
+          grid-template-columns: 1.5fr repeat(13, 1fr);
+        }
+        .row-2 {
+          grid-template-columns: 2fr repeat(11, 1fr) 2fr;
+        }
+        .row-3 {
+          grid-template-columns: 2.5fr repeat(10, 1fr) 2.5fr;
+        }
+        .row-4 {
+          grid-template-columns: 1fr 1fr 7fr;
+        }
+
+        /* Key button styling */
+        .key {
+          padding: 15px 0;
+          font-size: 1em;
+          color: #ffffff;
+          background-color: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background 0.3s, transform 0.1s;
+          text-transform: capitalize;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(5px);
+          height: 70px;
+        }
+
+        .key.space {
+          grid-column: span 5;
+          height: 70px;
+        }
+
+        .key.backspace {
+          grid-column: span 1.5;
+        }
+
+        .key.tab,
+        .key.caps,
+        .key.enter,
+        .key.lshift,
+        .key.rshift {
+          grid-column: span 1.5;
+        }
+
+        /* Hover and active animations for keys */
+        .key:hover {
+          background-color: rgba(255, 255, 255, 0.3);
+          transform: translateY(-2px); /* Subtle lift effect on hover */
+        }
+
+        .key:active {
+          background-color: rgba(255, 255, 255, 0.2);
+          transform: translateY(0); /* Pressed effect */
+        }
+
+        /* Subtle shadow effect for keys */
+        .key {
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+      `}</style>
     </div>
   );
 }
+
