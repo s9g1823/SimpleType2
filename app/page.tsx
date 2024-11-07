@@ -1,7 +1,5 @@
 "use client"
 
-"use client"
-
 import React, { useState } from 'react';
 
 export default function Home() {
@@ -67,7 +65,7 @@ export default function Home() {
           gap: 20px;
           min-height: 100vh;
           justify-content: center;
-          background-color: rgba(30, 30, 30, 0.9); /* Dark translucent background */
+          background-color: rgba(30, 30, 30, 0.9);
           padding: 20px;
           min-width: 100%;
           margin: auto;
@@ -78,7 +76,8 @@ export default function Home() {
         .input-area {
           width: 100%;
           padding: 15px;
-          font-size: 1.2em;
+          font-size: 3.5em; /* Increased font size */
+          font-weight: bold; /* Bold font */
           color: #ffffff;
           background-color: rgba(50, 50, 50, 0.7);
           border: 1px solid rgba(255, 255, 255, 0.2);
@@ -124,8 +123,9 @@ export default function Home() {
 
         /* Key button styling */
         .key {
-          padding: 15px 0;
-          font-size: 1em;
+          padding: 20px 0; /* Increased padding for larger text */
+          font-size: 2em; /* Increased font size */
+          font-weight: bold; /* Bold font */
           color: #ffffff;
           background-color: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(255, 255, 255, 0.2);
@@ -137,12 +137,12 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           backdrop-filter: blur(5px);
-          height: 70px;
+          height: 120px;
         }
 
         .key.space {
           grid-column: span 5;
-          height: 70px;
+          height: 120px;
         }
 
         .key.backspace {
@@ -176,4 +176,3 @@ export default function Home() {
     </div>
   );
 }
-
