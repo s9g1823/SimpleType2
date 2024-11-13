@@ -1,9 +1,10 @@
-"use client"
+"use client";
 
 import React, { useState } from 'react';
 
 export default function Home() {
-  const [inputValue, setInputValue] = useState('');
+  const [hoverStart, setHoverStart] = useState<number | null>(null); // Track hover start time
+  const [hoverLogs, setHoverLogs] = useState<string[]>([]); // Store hover logs
 
   const keys = [
     ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'backspace'],
@@ -13,33 +14,37 @@ export default function Home() {
     ['space'],
   ];
 
-  const handleKeyClick = (key: string) => {
-    if (key === 'backspace') {
-      setInputValue((prev) => prev.slice(0, -1));
-    } else if (key === 'space') {
-      setInputValue((prev) => prev + ' ');
-    } else if (key === 'enter') {
-      setInputValue((prev) => prev + '\n');
-    } else if (key === 'tab') {
-      setInputValue((prev) => prev + '\t');
-    } else if (key === 'caps' || key === 'lshift' || key === 'rshift') {
-      // Caps and shift can be handled here if needed
-    } else {
-      setInputValue((prev) => prev + key);
+  const handleMouseEnter = (key: string) => {
+    setHoverStart(Date.now()); // Record hover start time
+  };
+
+  const handleMouseLeave = (key: string) => {
+    if (hoverStart) {
+      const duration = Date.now() - hoverStart; // Calculate hover duration
+      const logEntry = `Hovered over ${key} for ${duration} ms`; // Create log entry
+      console.log(logEntry); // Log to the console
+
+      // Add log entry to hoverLogs state
+      setHoverLogs((prevLogs) => [...prevLogs, logEntry]);
+
+      setHoverStart(null); // Reset hover start time
     }
+  };
+
+  // Function to copy logs to clipboard
+  const copyToClipboard = () => {
+    const logsText = hoverLogs.join("\n"); // Join logs with line breaks
+    navigator.clipboard.writeText(logsText)
+      .then(() => {
+        alert("Hover logs copied to clipboard!");
+      })
+      .catch((error) => {
+        console.error("Failed to copy logs:", error);
+      });
   };
 
   return (
     <div className="container">
-      <textarea
-        id="inputArea"
-        rows={2}
-        value={inputValue}
-        placeholder="Type here..."
-        readOnly
-        className="input-area"
-      ></textarea>
-
       <div className="keyboard">
         {keys.map((row, rowIndex) => (
           <div key={rowIndex} className={`keyboard-row row-${rowIndex}`}>
@@ -47,16 +52,37 @@ export default function Home() {
               <button
                 key={key}
                 className={`key ${key}`}
-                onClick={() => handleKeyClick(key)}
+                onMouseEnter={() => handleMouseEnter(key)}
+                onMouseLeave={() => handleMouseLeave(key)}
               >
-                {key === 'space' ? '' : key === 'lshift' ? '⇧ shift' : key === 'rshift' ? '⇧ shift' : key === 'tab' ? '⇥' : key === 'backspace' ? '⌫' : key === 'enter' ? '↵' : key}
+                {key === 'space'
+                  ? ''
+                  : key === 'lshift'
+                  ? '⇧ shift'
+                  : key === 'rshift'
+                  ? '⇧ shift'
+                  : key === 'tab'
+                  ? '⇥'
+                  : key === 'backspace'
+                  ? '⌫'
+                  : key === 'enter'
+                  ? '↵'
+                  : key}
               </button>
             ))}
           </div>
         ))}
       </div>
+     
+      {/* Copy to Clipboard Button */}
+      {hoverLogs.length > 0 && (
+        <button onClick={copyToClipboard} className="copy-button">
+          Copy
+        </button>
+      )}
 
       <style jsx>{`
+        
         /* Container styling */
         .container {
           display: flex;
@@ -138,6 +164,7 @@ export default function Home() {
           justify-content: center;
           backdrop-filter: blur(5px);
           height: 120px;
+          transition-delay: 0.35s; 
         }
 
         .key.space {
@@ -157,12 +184,6 @@ export default function Home() {
           grid-column: span 1.5;
         }
 
-        /* Hover and active animations for keys */
-        .key:hover {
-          background-color: rgba(255, 255, 255, 0.3);
-          transform: translateY(-2px); /* Subtle lift effect on hover */
-        }
-
         .key:active {
           background-color: rgba(255, 255, 255, 0.2);
           transform: translateY(0); /* Pressed effect */
@@ -171,6 +192,25 @@ export default function Home() {
         /* Subtle shadow effect for keys */
         .key {
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .copy-button {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          padding: 5px 10px;
+          font-size: 12px;
+          cursor: pointer;
+          background-color: #888; /* Less conspicuous color */
+          color: white;
+          border: none;
+          border-radius: 3px;
+          opacity: 0.7; /* Make it slightly transparent */
+          transition: opacity 0.3s ease;
+        }
+
+        .copy-button:hover {
+          opacity: 1; /* Increase opacity on hover */
         }
       `}</style>
     </div>
