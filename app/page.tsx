@@ -23,7 +23,7 @@ export default function Home() {
   ];
 
   // Autocorrect function to find the closest word
-  const autocorrect = (word) => {
+  const autocorrect = (word: any) => {
     if (wordList.includes(word)) return word; // If it's correctly spelled, return it
     
     // Find the closest word by calculating the edit distance
@@ -42,7 +42,7 @@ export default function Home() {
   };
 
   // Calculate Levenshtein Distance
-  const levenshteinDistance = (a, b) => {
+  const levenshteinDistance = (a:any, b:any) => {
     const matrix = Array.from({ length: a.length + 1 }, (_, i) => Array(b.length + 1).fill(i));
     for (let j = 1; j <= b.length; j++) matrix[0][j] = j;
 
