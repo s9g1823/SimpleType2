@@ -10,6 +10,7 @@ export default function Home() {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null); // Track the key being hovered
   const [activeKey, setActiveKey] = useState<string | null>(null); // Track the active key for highlight
   const [deleteInterval, setDeleteInterval] = useState<NodeJS.Timeout | null>(null); // Track the interval for holding delete
+  const [cutoffTime, setCutoffTime] = useState(9001); // Key click cutoff time
 
   // Convert the word list object keys to an array
   const wordList = Object.keys(wordListData);
@@ -67,7 +68,7 @@ export default function Home() {
             setDeleteInterval(interval);
           }, 700);
           setDeleteInterval(holdDeleteTimeout);
-        }, 300);
+        }, cutoffTime);
 
         return () => {
           clearTimeout(singleDeleteTimeout);
@@ -76,12 +77,12 @@ export default function Home() {
       } else {
         const timer = setTimeout(() => {
           handleKeyClick(hoveredKey);
-        }, 300);
+        }, cutoffTime);
 
         return () => clearTimeout(timer);
       }
     }
-  }, [hoveredKey, hoverStart]);
+  }, [hoveredKey, hoverStart, cutoffTime]);
 
   const handleKeyClick = (key: string) => {
     setActiveKey(key);
@@ -142,8 +143,14 @@ export default function Home() {
   const copyToClipboard = () => {
     const logsText = hoverLogs.join("\n");
     navigator.clipboard.writeText(logsText)
-      .then(() => alert("Hover logs copied to clipboard!"))
       .catch((error) => console.error("Failed to copy logs:", error));
+  };
+
+  const handleCutoffTimeChange = (value: string | number) => {
+    const numValue = typeof value === "string" ? parseInt(value, 10) : value;
+    if (!isNaN(numValue) && numValue >= 40 && numValue <= 10000) {
+      setCutoffTime(numValue);
+    }
   };
 
   return (
@@ -168,6 +175,7 @@ export default function Home() {
                 className={`key ${key} ${activeKey === key ? 'active' : ''}`}
                 onMouseEnter={() => handleMouseEnter(key)}
                 onMouseLeave={() => handleMouseLeave(key)}
+                onClick={() => handleKeyClick(key)} // Trigger click immediately
               >
                 {key === 'space'
                   ? ''
@@ -187,7 +195,30 @@ export default function Home() {
           </div>
         ))}
       </div>
-     
+
+      <div className="cutoff-slider">
+        <label>
+          Key Click Cutoff Time:
+          <input
+            type="number"
+            min="40"
+            max="10000"
+            value={cutoffTime}
+            onChange={(e) => handleCutoffTimeChange(e.target.value)}
+            style={{ margin: "10px" }}
+          />
+          ms
+          <input
+            type="range"
+            min="40"
+            max="10000"
+            value={cutoffTime}
+            onChange={(e) => handleCutoffTimeChange(e.target.value)}
+            style={{ marginLeft: "10px" }}
+          />
+        </label>
+      </div>
+
       {hoverLogs.length > 0 && (
         <button onClick={copyToClipboard} className="copy-button">
           Copy
@@ -195,6 +226,26 @@ export default function Home() {
       )}
 
       <style jsx>{`
+       .cutoff-slider {
+          margin-top: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #ffffff;
+        }
+
+        .cutoff-slider input[type="range"] {
+          cursor: pointer;
+        }
+
+        .cutoff-slider input[type="number"] {
+          text-align: center;
+          padding: 2px;
+          border-radius: 5px;
+          border: 1px solid #ccc;
+          color: black;
+        }
+
         /* Container styling */
         .container {
           display: flex;
