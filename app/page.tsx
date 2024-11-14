@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import wordListData from './wordList.json'; // Import the JSON file as an object
+import wordListData from './word_dict.json'; // Import the JSON file as an object
 
 export default function Home() {
   const [hoverStart, setHoverStart] = useState<number | null>(null); // Track hover start time
@@ -91,7 +91,7 @@ export default function Home() {
       deleteCharacter();
     } else if (key === 'space') {
       autocorrectLastWord(); // Apply autocorrect on pressing space
-      setInputValue((prev) => prev + ' ');
+      setInputValue((prev) => prev);
     } else if (key === 'enter') {
       setInputValue((prev) => prev + '\n');
     } else if (key === 'tab') {
