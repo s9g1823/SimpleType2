@@ -111,7 +111,7 @@ export default function Home() {
 
      console.log(inputLength.current)
      autocorrectLastWord();
-   } else if (key === 'Del Word') {
+   } else if (key === 'del-word') {
     deleteWord(); // New functionality
   }else if (key === 'enter') {
      inputLength.current = inputValueRef.current.length;
