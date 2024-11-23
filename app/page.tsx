@@ -25,7 +25,7 @@ export default function Home() {
    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
    ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'backspace'],
-   ['space', 'del-word'],
+   ['clear', 'space', 'del-word'],
  ];
 
 
@@ -117,10 +117,8 @@ export default function Home() {
     }
    } else if (key === 'del-word') {
     deleteWord(); // New functionality
-  }else if (key === 'enter') {
-     inputLength.current = inputValueRef.current.length;
-     console.log(inputLength.current)
-     //autocorrectLastWord();
+  }else if (key === 'clear') {
+     clearInput();
    } else { //if character
      inputValueRef.current = inputValueRef.current + key;
      //setInputValue((prev) => prev + key);
@@ -140,8 +138,10 @@ export default function Home() {
 };
 
 const clearInput = () => {
-  inputValueRef.current = ''; // Clear the reference value
-  setInputValue(''); // Update the displayed input
+  while (inputValueRef.current.length > 0) {
+    deleteCharacter();
+  }
+  setInputValue(inputValueRef.current);
 };
 
  const autocorrectLastWord = async () => {
@@ -258,7 +258,6 @@ const clearInput = () => {
       style={{ marginLeft: "10px" }}
     />
   </label>
-  <button onClick={clearInput} className="clear-button">Clear</button>
 </div>
 
 
@@ -495,6 +494,11 @@ const clearInput = () => {
       }
 
       .key.del-word {
+        font-size: 2.7em;
+
+      }
+
+      .key.clear {
         font-size: 2.7em;
 
       }
