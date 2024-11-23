@@ -17,6 +17,8 @@ export default function Home() {
  const [curr, setCurr] = useState<string>('');
  const inputLength = useRef(0);
  const inputValueRef = useRef('');
+ const [isGPTEnabled, setIsGPTEnabled] = useState(false); // State to toggle GPT
+
 
 
  const keys = [
@@ -110,7 +112,9 @@ export default function Home() {
 
 
      console.log(inputLength.current)
-     autocorrectLastWord();
+     if (isGPTEnabled) {
+      autocorrectLastWord(); // Only call autocorrect if GPT is enabled
+    }
    } else if (key === 'del-word') {
     deleteWord(); // New functionality
   }else if (key === 'enter') {
@@ -178,10 +182,13 @@ const clearInput = () => {
 
 
  const copyToClipboard = () => {
-   const logsText = hoverLogs.join("\n");
-   navigator.clipboard.writeText(logsText)
-     .catch((error) => console.error("Failed to copy logs:", error));
- };
+  const logsText = hoverLogs.join("\n");
+  navigator.clipboard.writeText(logsText)
+    .then(() => {
+      clearInput(); // Clear the text input after copying logs
+    })
+    .catch((error) => console.error("Failed to copy logs:", error));
+};
 
 
  const handleCutoffTimeChange = (value: string | number) => {
@@ -269,6 +276,13 @@ const clearInput = () => {
          Copy
        </button>
      )}
+
+<button
+  onClick={() => setIsGPTEnabled((prev) => !prev)}
+  className={`gpt-button ${isGPTEnabled ? 'enabled' : ''}`}
+>
+  GPT {isGPTEnabled ? 'On' : 'Off'}
+</button>
 
 
      <style jsx>{`
@@ -553,25 +567,48 @@ const clearInput = () => {
        }
 
 
-       .copy-button {
-         position: fixed;
-         bottom: 20px;
-         right: 20px;
-         padding: 5px 10px;
-         font-size: 12px;
-         cursor: pointer;
-         background-color: #888; /* Less conspicuous color */
-         color: white;
-         border: none;
-         border-radius: 3px;
-         opacity: 0.7; /* Make it slightly transparent */
-         transition: opacity 0.3s ease;
-       }
+  .copy-button {
+    margin-left: 20px; /* Add spacing to the left of the button */
+    padding: 10px 20px; /* Adjust padding for size */
+    font-size: 1em; /* Adjust font size */
+    font-weight: bold;
+    color: white;
+    background-color: #f04a4a; /* Bright red color */
+    border: none;
+    border-radius: 20px; /* Make the button rounded */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  .copy-button:hover {
+    background-color: #d43b3b; /* Darker red on hover */
+    transform: scale(1.05); /* Slight enlargement on hover */
+  }
+
+  .gpt-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 1em;
+    font-weight: bold;
+    color: white;
+    background-color: #32CD32; /* Green color */
+    border: none;
+    border-radius: 20px; /* Make the button rounded */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+
+  .gpt-button:hover {
+    background-color: #28a745; /* Darker green on hover */
+    transform: scale(1.05); /* Slight enlargement on hover */
+  }
+
+  .gpt-button.enabled {
+    background-color: #28a745; /* Darker green for enabled state */
+  }
 
 
-       .copy-button:hover {
-         opacity: 0; /* Increase opacity on hover */
-       }
+  
      `}</style>
    </div>
  );
