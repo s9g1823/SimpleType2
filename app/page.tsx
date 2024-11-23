@@ -181,14 +181,6 @@ const clearInput = () => {
  };
 
 
- const copyToClipboard = () => {
-  const logsText = hoverLogs.join("\n");
-  navigator.clipboard.writeText(logsText)
-    .then(() => {
-      clearInput(); // Clear the text input after copying logs
-    })
-    .catch((error) => console.error("Failed to copy logs:", error));
-};
 
 
  const handleCutoffTimeChange = (value: string | number) => {
@@ -269,13 +261,6 @@ const clearInput = () => {
   <button onClick={clearInput} className="clear-button">Clear</button>
 </div>
 
-
-
-     {hoverLogs.length > 0 && (
-       <button onClick={copyToClipboard} className="copy-button">
-         Copy
-       </button>
-     )}
 
 <button
   onClick={() => setIsGPTEnabled((prev) => !prev)}
@@ -567,24 +552,6 @@ const clearInput = () => {
        }
 
 
-  .copy-button {
-    margin-left: 20px; /* Add spacing to the left of the button */
-    padding: 10px 20px; /* Adjust padding for size */
-    font-size: 1em; /* Adjust font size */
-    font-weight: bold;
-    color: white;
-    background-color: #f04a4a; /* Bright red color */
-    border: none;
-    border-radius: 20px; /* Make the button rounded */
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-  }
-
-  .copy-button:hover {
-    background-color: #d43b3b; /* Darker red on hover */
-    transform: scale(1.05); /* Slight enlargement on hover */
-  }
-
   .gpt-button {
     margin-top: 20px;
     padding: 10px 20px;
@@ -607,7 +574,26 @@ const clearInput = () => {
     background-color: #28a745; /* Darker green for enabled state */
   }
 
+  .clear-button {
+    position: fixed; /* Make the button fixed in position */
+    bottom: 60px; /* Distance from the bottom */
+    left: 30px; /* Distance from the right */
+    padding: 20px 40px; /* Adjust padding for size */
+    font-size: 1.4em; /* Adjust font size */
+    font-weight: bold;
+    color: white;
+    background-color: #f04a4a; /* Bright red color */
+    border: none;
+    border-radius: 20px; /* Make the button rounded */
+    cursor: pointer;
+    z-index: 1000; /* Ensure it stays above other elements */
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
 
+  .clear-button:hover {
+    background-color: #d43b3b; /* Darker red on hover */
+    transform: scale(1.05); /* Slight enlargement on hover */
+  }
   
      `}</style>
    </div>
