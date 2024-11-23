@@ -5,7 +5,6 @@ console.log("Loaded API Key:", process.env.NEXT_PUBLIC_OPENAI_API_KEY);
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-
 export default function Home() {
  const [hoverStart, setHoverStart] = useState<number | null>(null); // Track hover start time
  const [hoverLogs, setHoverLogs] = useState<string[]>([]); // Store hover logs
@@ -13,7 +12,7 @@ export default function Home() {
  const [hoveredKey, setHoveredKey] = useState<string | null>(null); // Track the key being hovered
  const [activeKey, setActiveKey] = useState<string | null>(null); // Track the active key for highlight
  const [deleteInterval, setDeleteInterval] = useState<NodeJS.Timeout | null>(null); // Track the interval for holding delete
- const [cutoffTime, setCutoffTime] = useState(220); // Key click cutoff time
+ const [cutoffTime, setCutoffTime] = useState(1000); // Key click cutoff time
  const [history, setHistory] = useState<string>('');;
  const [curr, setCurr] = useState<string>('');
  const inputLength = useRef(0);
@@ -24,7 +23,7 @@ export default function Home() {
    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
    ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'backspace'],
-   ['space'],
+   ['space', 'del-word'],
  ];
 
 
@@ -81,29 +80,12 @@ export default function Home() {
 
  useEffect(() => {
    if (hoveredKey && hoverStart) {
-     if (hoveredKey === 'backspace') {
-       const singleDeleteTimeout = setTimeout(() => {
-         handleKeyClick(hoveredKey);
-         const holdDeleteTimeout = setTimeout(() => {
-           const interval = setInterval(deleteCharacter, 100);
-           setDeleteInterval(interval);
-         }, 700);
-         setDeleteInterval(holdDeleteTimeout);
-       }, cutoffTime);
+      const timer = setTimeout(() => {
+        handleKeyClick(hoveredKey);
+      }, cutoffTime);
 
 
-       return () => {
-         clearTimeout(singleDeleteTimeout);
-         if (deleteInterval) clearTimeout(deleteInterval);
-       };
-     } else {
-       const timer = setTimeout(() => {
-         handleKeyClick(hoveredKey);
-       }, cutoffTime);
-
-
-       return () => clearTimeout(timer);
-     }
+      return () => clearTimeout(timer);
    }
  }, [hoveredKey, hoverStart, cutoffTime]);
 
@@ -129,10 +111,12 @@ export default function Home() {
 
      console.log(inputLength.current)
      autocorrectLastWord();
-   } else if (key === 'enter') {
+   } else if (key === 'Del Word') {
+    deleteWord(); // New functionality
+  }else if (key === 'enter') {
      inputLength.current = inputValueRef.current.length;
      console.log(inputLength.current)
-     autocorrectLastWord();
+     //autocorrectLastWord();
    } else { //if character
      inputValueRef.current = inputValueRef.current + key;
      //setInputValue((prev) => prev + key);
@@ -145,7 +129,16 @@ export default function Home() {
  const deleteCharacter = () => {
    inputValueRef.current = inputValueRef.current.slice(0, -1);
  };
+ const deleteWord = () => {
+  // Remove only the last word, keeping the space before it
+  inputValueRef.current = inputValueRef.current.replace(/(\S+)\s*$/, ''); 
+  setInputValue(inputValueRef.current); // Update the displayed input
+};
 
+const clearInput = () => {
+  inputValueRef.current = ''; // Clear the reference value
+  setInputValue(''); // Update the displayed input
+};
 
  const autocorrectLastWord = async () => {
    try {
@@ -198,7 +191,6 @@ export default function Home() {
    }
  };
 
-
  return (
    <div className="container">
      <div className="input-wrapper">
@@ -211,7 +203,6 @@ export default function Home() {
          className="input-area"
        ></textarea>
      </div>
-
 
      <div className="keyboard">
        {keys.map((row, rowIndex) => (
@@ -248,27 +239,29 @@ export default function Home() {
 
 
      <div className="cutoff-slider">
-       <label>
-         Key Click Cutoff Time:
-         <input
-           type="number"
-           min="40"
-           max="10000"
-           value={cutoffTime}
-           onChange={(e) => handleCutoffTimeChange(e.target.value)}
-           style={{ margin: "10px" }}
-         />
-         ms
-         <input
-           type="range"
-           min="40"
-           max="10000"
-           value={cutoffTime}
-           onChange={(e) => handleCutoffTimeChange(e.target.value)}
-           style={{ marginLeft: "10px" }}
-         />
-       </label>
-     </div>
+  <label>
+    Dwell Cutoff:
+    <input
+      type="number"
+      min="40"
+      max="5000"
+      value={cutoffTime}
+      onChange={(e) => handleCutoffTimeChange(e.target.value)}
+      style={{ margin: "10px" }}
+    />
+    ms
+    <input
+      type="range"
+      min="40"
+      max="5000"
+      value={cutoffTime}
+      onChange={(e) => handleCutoffTimeChange(e.target.value)}
+      style={{ marginLeft: "10px" }}
+    />
+  </label>
+  <button onClick={clearInput} className="clear-button">Clear</button>
+</div>
+
 
 
      {hoverLogs.length > 0 && (
@@ -283,24 +276,67 @@ export default function Home() {
          margin-top: 20px;
          display: flex;
          align-items: center;
-         gap: 10px;
+         gap: 20px;
          color: #ffffff;
        }
 
 
        .cutoff-slider input[type="range"] {
          cursor: pointer;
+           width: 300px; /* Make slider wider */
+          height: 15px; /* Increase height of the slider */
+          border-radius: 10px; /* Round the slider track */
+          background: #555; /* Darker background for the track */
+          appearance: none; /* Remove default styles */
+          margin: 0 10px;
        }
 
 
-       .cutoff-slider input[type="number"] {
-         text-align: center;
-         padding: 2px;
-         border-radius: 5px;
-         border: 1px solid #ccc;
-         color: black;
-       }
+.cutoff-slider input[type="range"]::-webkit-slider-thumb {
+  appearance: none; /* Remove default styles */
+  width: 30px; /* Larger thumb width */
+  height: 30px; /* Larger thumb height */
+  border-radius: 50%; /* Round thumb */
+  background: #32CD32; /* Bright green thumb */
+  border: 2px solid #ffffff; /* Add white border to thumb */
+  cursor: pointer;
+}
 
+.cutoff-slider input[type="range"]::-moz-range-thumb {
+  width: 30px; /* Same thumb size for Firefox */
+  height: 30px;
+  border-radius: 50%;
+  background: #32CD32;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+}
+
+.cutoff-slider input[type="number"] {
+  text-align: center;
+  font-size: 1.2em; /* Larger number input font */
+  padding: 8px; /* Add padding for a bigger input field */
+  border-radius: 10px;
+  border: 2px solid #ccc; /* Slightly thicker border */
+  color: black;
+  width: 100px; /* Wider number input field */
+}
+.clear-button {
+  margin-left: 20px; /* Add spacing to the left of the button */
+  padding: 10px 20px; /* Adjust padding for size */
+  font-size: 1em; /* Adjust font size */
+  font-weight: bold;
+  color: white;
+  background-color: #f04a4a; /* Bright red color */
+  border: none;
+  border-radius: 20px; /* Make the button rounded */
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.clear-button:hover {
+  background-color: #d43b3b; /* Darker red on hover */
+  transform: scale(1.05); /* Slight enlargement on hover */
+}
 
        /* Container styling */
        .container {
@@ -361,7 +397,7 @@ export default function Home() {
 
 
 
-      /* Keyboard styling */
+ /* Keyboard styling */
       .keyboard {
         display: flex;
         flex-direction: column;
@@ -371,14 +407,15 @@ export default function Home() {
         background-color: rgba(40, 40, 40, 0.8);
         border-radius: 12px;
         backdrop-filter: blur(15px);
+        
       }
 
 
 
 
      :root {
-       --key-size: 60px; /* Adjust this value to make keys bigger */
-       --font-size: 18px; /* Base font size for the key text */
+       --key-size: 50px; /* Adjust this value to make keys bigger */
+       --font-size: 16px; /* Base font size for the key text */
      }
 
 
@@ -388,8 +425,10 @@ export default function Home() {
     
      .keyboard-row {
        display: grid;
-       gap: 8px;
+       gap: 27px;
        justify-content: center;
+         margin-bottom: 27px; /* Add spacing between rows */
+
      }
 
 
@@ -414,54 +453,75 @@ export default function Home() {
      }
 
 
-     .row-3 {
-       display: grid;
-       grid-template-columns: 80% 20%; /* Space is 80%, Return is 20% */
-       gap: 8px; /* Adjust the gap as needed */
-       align-items: center; /* Ensures keys are vertically aligned if needed */      }
-
-
-
-
-
-
+    .row-3 {
+      display: grid;
+      grid-template-columns: 15% 70% 15%; /* Empty space (15%) on left and right, space bar (70%) in the center */
+      gap: 10px; /* Adjust gap between columns if necessary */
+      align-items: center; /* Vertically align the keys */
+      justify-content: center; /* Ensure proper centering */
+    }
 
 
        /* Key button styling */
        .key {
          padding: 20px 0; /* Increased padding for larger text */
-         font-size: 2.7em; /* Increased font size */
-         font-weight: bold; /* Bold font */
+         font-size: 4.2em; /* Increased font size */
+         //font-weight: bold; /* Bold font */
          color: white;
          background-color: light-gray;
-         border: 1px solid rgba(255, 255, 255, 0.2);
-         border-radius: 8px;
+         border: 0px solid rgba(255, 255, 255, 0.2);
+         border-radius: 0px;
          cursor: pointer;
          // transition: background 0.1s, transform 0.3s;
          text-transform: capitalize;
          display: flex;
          align-items: center;
          justify-content: center;
-         backdrop-filter: blur(5px);
+         //backdrop-filter: blur(5px);
          height: 150px;
          // transition-delay: 0.35s;
-       }
+        //border: 2px solid white; /* Add white border around each key */
+     }
 
 
       .key.space {
         grid-column: span 5;
+          grid-column: 2 / 3; /* Ensure the space bar occupies the center column */
+
         height: 120px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        border: 2px solid rgba(0, 0, 0, 0.3); /* Shadow outline around the whole key */
+        transition: background-color 0.2s ease, box-shadow 0.2s ease; /* Smooth transitions */
+
+      }
+
+      .key.del-word {
+        font-size: 2.7em;
+
       }
 
 
+      /* When the space key has the "bruh" class */
+      .key.space.bruh {
+        //background-color: rgba(211, 211, 211, 0.7); /* Light gray with slight transparency */
+        backdrop-filter: blur(4px); /* Optional: Slight blur effect for a "glass-like" vibe */
+          transform: none; /* Prevent scaling or size change */
+      }
 
+            /* When the space key has the "bruh" class */
+      .key.space.active {
+          background-color: #32CD32;
+
+      }
 
       .key.backspace {
         grid-column: span 1.5;
       }
 
 
-
+      .key.backspace {
+        grid-column: span 1.5;
+      }
 
        .key.tab,
        .key.caps,
@@ -474,8 +534,8 @@ export default function Home() {
 
       /* Active key highlight effect */
       .key.active {
-        background-color: green !important;;
-       //  transform: scale(1.1); /* Slightly enlarge key */
+      color: #32CD32;
+       transform: scale(1.3); /* Slightly enlarge key */
        //  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6), 0 0 20px rgba(255, 255, 255, 0.4); /* Glow effect */
       }
 
@@ -484,12 +544,12 @@ export default function Home() {
 
        /* Subtle shadow effect for keys */
        .key {
-         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+         //box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
        }
 
 
        .key.bruh {
-         background-color: blue;
+          font-weight: 900; /* Very bold font */
        }
 
 
