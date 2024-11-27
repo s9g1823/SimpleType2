@@ -53,7 +53,7 @@ export default function Home() {
    The user just typed "${history}". Now return something. Do not put in quotes and keep the trailing space`;
   
    try {
-     const response = await axios.post(
+     /**const response = await axios.post(
        'https://api.openai.com/v1/chat/completions',
        {
          model: 'gpt-4o',
@@ -67,7 +67,7 @@ export default function Home() {
            'Content-Type': 'application/json',
          },
        }
-     );
+     );**/
     
      const correctedWord = response.data.choices[0].message.content.trim();
      return correctedWord;
@@ -93,9 +93,6 @@ export default function Home() {
 
 
  const handleKeyClick = (key: string) => {
-   console.log("API Key:", process.env.OPENAI_API_KEY);
-
-
   
    setActiveKey(key);
    setTimeout(() => setActiveKey(null), 200);
@@ -103,6 +100,8 @@ export default function Home() {
 
    if (key === 'backspace') {
      deleteCharacter();
+     handleMouseLeave(key);
+     handleMouseEnter(key);
    } else if (key === 'space') {
      inputValueRef.current = inputValueRef.current + " ";
      //setInputValue(inputValue + '_');
