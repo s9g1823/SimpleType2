@@ -53,7 +53,7 @@ export default function Home() {
    The user just typed "${history}". Now return something. Do not put in quotes and keep the trailing space`;
   
    try {
-     /**const response = await axios.post(
+     const response = await axios.post(
        'https://api.openai.com/v1/chat/completions',
        {
          model: 'gpt-4o',
@@ -67,7 +67,7 @@ export default function Home() {
            'Content-Type': 'application/json',
          },
        }
-     );**/
+     );
     
      const correctedWord = response.data.choices[0].message.content.trim();
      return correctedWord;
