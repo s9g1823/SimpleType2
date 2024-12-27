@@ -292,8 +292,8 @@ const PointerLockDemo: React.FC = () => {
  // ─────────────────────────────────────────────────────────────────────────────
   const handleMouseMove = useCallback((e: MouseEvent) => {
    setPosition((prev) => {
-     const newX = prev.x + e.movementX * 0.75;
-     const newY = prev.y + e.movementY * 0.75;
+     const newX = prev.x + e.movementX * 1.5;
+     const newY = prev.y + e.movementY * 1.5;
      if (newX <= 0 || newX >= 800 || newY <= 0 || newY >= 600) {
        return { x: 400, y: 300 };
      }
