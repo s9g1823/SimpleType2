@@ -180,6 +180,8 @@ const PointerLockDemo: React.FC = () => {
  }, [dirtyWords]); */
 
 
+
+
  // ─────────────────────────────────────────────────────────────────────────────
  // H) FINALIZE THE WORD WHEN SPACE (SIDE 3) IS HIT
  // ─────────────────────────────────────────────────────────────────────────────
@@ -257,47 +259,81 @@ const PointerLockDemo: React.FC = () => {
 
 
  //
- // ─────────────────────────────────────────────────────────────────────────────
- // J) POINTER LOCK SETUP
- // ─────────────────────────────────────────────────────────────────────────────
- useEffect(() => {
-   const canvas = canvasRef.current;
-   if (!canvas) return;
+// ─────────────────────────────────────────────────────────────────────────────
+// J) POINTER LOCK SETUP
+// ─────────────────────────────────────────────────────────────────────────────
+useEffect(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
+  // Click handler to toggle pointer lock state
+  const handleClick = () => {
+    if (document.pointerLockElement === canvas) {
+      document.exitPointerLock(); // Exit pointer lock if already locked
+    } else {
+      canvas.requestPointerLock(); // Enter pointer lock if not locked
+    }
+  };
 
-   const handleClick = () => canvas.requestPointerLock();
-   canvas.addEventListener("click", handleClick);
+  const lockChangeAlert = () => {
+    if (document.pointerLockElement === canvasRef.current) {
+      document.addEventListener("mousemove", handleMouseMove); // Enable mouse move tracking
+    } else {
+      document.removeEventListener("mousemove", handleMouseMove); // Disable mouse move tracking
+    }
+  };
 
+  // Attach event listeners
+  canvas.addEventListener("click", handleClick);
+  document.addEventListener("pointerlockchange", lockChangeAlert);
 
-   const lockChangeAlert = () => {
-     if (document.pointerLockElement === canvasRef.current) {
-       document.addEventListener("mousemove", handleMouseMove);
-     } else {
-       document.removeEventListener("mousemove", handleMouseMove);
-     }
-   };
-   document.addEventListener("pointerlockchange", lockChangeAlert);
+  return () => {
+    // Cleanup event listeners
+    canvas.removeEventListener("click", handleClick);
+    document.removeEventListener("pointerlockchange", lockChangeAlert);
+  };
+}, []);
 
-
-   return () => {
-     canvas.removeEventListener("click", handleClick);
-     document.removeEventListener("pointerlockchange", lockChangeAlert);
-   };
- }, []);
 
 
  //
  // ─────────────────────────────────────────────────────────────────────────────
  // K) HANDLE MOUSE MOVE
  // ─────────────────────────────────────────────────────────────────────────────
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-   setPosition((prev) => {
-     const newX = prev.x + e.movementX * 1.5;
-     const newY = prev.y + e.movementY * 1.5;
-     if (newX <= 0 || newX >= 800 || newY <= 0 || newY >= 600) {
-       return { x: 400, y: 300 };
-     }
-     return { x: newX, y: newY };
+ const timerRef = useRef<NodeJS.Timeout | null>(null);
+ const isMovin = useRef<boolean>(false); 
+ 
+ const handleMouseMove = useCallback((e: MouseEvent) => {
+  //console.log(e.movementX) 
+
+  setPosition((prev) => {
+    if (!e.movementX && !e.movementY) {
+      isMovin.current = false;
+    } else {
+      isMovin.current = true;
+    }
+    
+    if (!isTouchin.current || (isTouchin.current && !isMovin)) { //inside the octagon -> should be movin normal
+      isTouchin.current = false;
+      
+      const newX = prev.x + e.movementX * 1.5;
+      const newY = prev.y + e.movementY * 1.5;
+      return { x: newX, y: newY };
+    } else if (isTouchin.current) { //outside the octagon and movin -> should be locked in the center
+      if (!isMovin.current) {
+        isTouchin.current = false;
+        const newX = prev.x + e.movementX * 1.5;
+        const newY = prev.y + e.movementY * 1.5;
+        return { x: newX, y: newY };
+      } else {
+        timerRef.current = setTimeout(() => {
+          isTouchin.current = false;
+        },200)
+      }
+      return { x: 400, y: 300 };
+    }
+    
+    return { x: 400, y: 300 };
    });
  }, []);
 
@@ -306,6 +342,13 @@ const PointerLockDemo: React.FC = () => {
  // ─────────────────────────────────────────────────────────────────────────────
  // L) COLLISION CHECK => ADD CHAR OR FINALIZE IF SPACE
  // ─────────────────────────────────────────────────────────────────────────────
+ 
+ const isTouchin = useRef<boolean>(false);
+
+ useEffect(() => {
+  console.log("does it touch: " + isTouchin.current);
+}, [isTouchin.current]);
+
  const isDotTouchingSide = useCallback(
    (dotX: number, dotY: number, side: OctagonSide) => {
      const { startX, startY, endX, endY } = side;
@@ -321,7 +364,6 @@ const PointerLockDemo: React.FC = () => {
      const closestX = startX + projection * dx;
      const closestY = startY + projection * dy;
      const distance = Math.sqrt((dotX - closestX) ** 2 + (dotY - closestY) ** 2);
-
 
      return distance <= 15;
    },
@@ -376,6 +418,7 @@ const PointerLockDemo: React.FC = () => {
    ctx.lineWidth = 15;
    ctx.stroke();
 
+   //console.log("Does it move? " + isMovin.current);
 
    // Check collisions
    newSides.forEach((side, index) => {
@@ -394,7 +437,8 @@ const PointerLockDemo: React.FC = () => {
            code.current = code.current + codeChar;
            console.log(code.current);
          }
-         setPosition({ x: 400, y: 300 });
+         isTouchin.current = true;
+         setPosition({x: 400, y: 300})
          setLastHitSide(sideIndex);
        }
        ctx.strokeStyle = "red";
