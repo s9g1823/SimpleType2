@@ -237,7 +237,7 @@ const finalizeCurrentWord = useCallback(async () => {
      // 3) Append the chosen word and code
     console.log("Adding the chosen word: " + chosenWord);
 
-    theWords.current = [...theWords.current, chosenWord];
+    theWords.current = [...theWords.current, chosenWord || ""];
     console.log("words: " + theWords.current);
 
     console.log("code: " + code.current);
@@ -248,7 +248,7 @@ const finalizeCurrentWord = useCallback(async () => {
     code.current = "";
     console.log("code: " + code.current);
 
-    dirtyWords.current = [chosenWord];
+    dirtyWords.current = [chosenWord|| ""];
     console.log("dirty words: " + dirtyWords.current);
     return;
   }
@@ -523,7 +523,7 @@ useEffect(() => {
 }, [drawScene]);
 
 
-
+//useless edit
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
