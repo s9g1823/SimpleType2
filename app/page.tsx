@@ -18,7 +18,10 @@ endX: number;
 endY: number;
 }
 
-//const collisionSound = new Audio("./click.mp3"); // Replace with your actual sound file path
+
+const collisionSound = new Audio("./click.mp3") || null; 
+
+// Replace with your actual sound file path
 import "@fontsource/poppins"; // Defaults to weight 400
 
 const PointerLockDemo: React.FC = () => {
@@ -63,6 +66,7 @@ const [dictionary, setDictionary] = useState<Dictionary>({});
 // D) SIDE MAPPINGS
 // ─────────────────────────────────────────────────────────────────────────────
 // If side 3 => space => finalize the current code.
+
 const sideMappings: Record<number, string> = {
   1: "⌫",
   2: "2",
@@ -118,9 +122,7 @@ const getSideLabels = (type: string): Record<number, string> => {
 // E) LOAD DICTIONARY ONCE
 // ─────────────────────────────────────────────────────────────────────────────
 const [dictionaryType, setDictionaryType] = useState("qwerty");
-
 const sideLabels = getSideLabels(dictionaryType);
-
 useEffect(() => {
   fetch(`/six${dictionaryType}.json`)
     .then((res) => res.json())
@@ -444,7 +446,9 @@ const drawScene = useCallback(() => {
         code.current = code.current + codeChar;
         console.log(code.current);
       }
-      //collisionSound.play();
+      if (typeof window !== "undefined") {
+        collisionSound.play();
+      }
       refractory.current = true;
       setPosition({ x: 400, y: 300 });
       //lastHitSide.current= sideIndex;
