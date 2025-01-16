@@ -444,7 +444,7 @@ const drawScene = useCallback(() => {
         code.current = code.current + codeChar;
         console.log(code.current);
       }
-      collisionSound.play();
+      //collisionSound.play();
       refractory.current = true;
       setPosition({ x: 400, y: 300 });
       //lastHitSide.current= sideIndex;
