@@ -559,7 +559,21 @@ return (
         />
       </div>
     </div>
-
+    <div style={{ marginBottom: "10px" }}>
+       <input
+         type="text"
+         readOnly
+         value={theWords.current.join(" ")}
+         style={{
+           width: "1000px",
+           textAlign: "center",
+           backgroundColor: "black",
+           color: "white",
+           padding: "5px",
+           fontSize: 30
+         }}
+       />
+     </div>
 {/* Speed Slider */}
 <div
   style={{
@@ -586,6 +600,8 @@ return (
     onChange={(e) => (speed.current = parseFloat(e.target.value))}
     style={{ width: "150px" }}
   />
+
+
 </div>
 
     <div
