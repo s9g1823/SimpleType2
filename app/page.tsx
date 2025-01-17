@@ -76,6 +76,8 @@ const sideMappings: Record<number, string> = {
   8: "8",
 };
 
+
+
 // If you want bold labels around the octagon:
 const getSideLabels = (type: string): Record<number, string> => {
   switch (type) {
@@ -115,18 +117,22 @@ const getSideLabels = (type: string): Record<number, string> => {
   }
 };
 
+
+
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // E) LOAD DICTIONARY ONCE
 // ─────────────────────────────────────────────────────────────────────────────
+
 const [dictionaryType, setDictionaryType] = useState("qwerty");
-const sideLabels = getSideLabels(dictionaryType);
 useEffect(() => {
   fetch(`/six${dictionaryType}.json`)
     .then((res) => res.json())
     .then((data) => setDictionary(data))
     .catch((err) => console.error("Failed to load dictionary:", err));
 }, [dictionaryType]);
+
+const sideLabels = getSideLabels(dictionaryType);
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,16 +146,20 @@ const pickWordViaGPT = useCallback(async (candidatesFiltered: string[], daWords:
     return "";
   }
   const prompt = `
-    Below is an incomplete sentence:
-    ${daWords.join(", ")}
+     A kid is typing a sentence very slowly. You want to guess the next word.
   
-    Guess the next word based on which words are actually common and makes logical sense given the sentence above. The word can ONLY be from the following list. 
-    {${candidatesFiltered.join(", ")}}
+     Here are the words so far:
+     ${daWords.join(", ")}
+    
+     Pick one word from below that is the most likely next word based on what makes sense and what is a more common word:
+     {${candidatesFiltered.join(", ")}}
 
-    You can ONLY pick from the list above. 
 
-    Output only your guess for the next word. No quotes, no explanation.
+     Output only your guess for the next word. No quotes, no explanation.
+
     `.trim();
+      
+    console.log(prompt);
       try {
         const response = await axios.post(
           "https://api.openai.com/v1/chat/completions",
@@ -328,24 +338,27 @@ useEffect(() => {
 const refractory = useRef<boolean>(false);
 const speed = useRef<number>(1);
 
+
 const handleMouseMove = useCallback((e: MouseEvent) => {
+
   if (!refractory.current) {
     setPosition((prev) => {
+
       const newX = prev.x + e.movementX * speed.current;
       const newY = prev.y + e.movementY * speed.current;
+
       if (newX <= 0 || newX >= 800 || newY <= 0 || newY >= 600) {
-        return { x: 400, y: 300 };
+        return { x: 400, y: 300 }; // Reset position if out of bounds
       }
+
       return { x: newX, y: newY };
     });
   } else {
-    console.log("refractory is true")
+    console.log("refractory is true");
     setTimeout(() => {
       refractory.current = false;
     }, 200);
-    return { x: 400, y: 300 };
   }
-  
 }, []);
 
 
@@ -426,6 +439,7 @@ const drawScene = useCallback(() => {
 
 
   if (touching) {
+    new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
     if (lastHitSide.current !== sideIndex) {
       const codeChar = sideMappings[sideIndex];
       // If side 3 => space => finalize
@@ -444,7 +458,6 @@ const drawScene = useCallback(() => {
         code.current = code.current + codeChar;
         console.log(code.current);
       }
-      new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
       refractory.current = true;
       setPosition({ x: 400, y: 300 });
       //lastHitSide.current= sideIndex;
@@ -623,7 +636,7 @@ return (
           fontSize: "16px",
           cursor: "pointer",
         }}
-        onClick={() => console.log("Switch to ABC layout")}
+        onClick={() => setDictionaryType("abc")}
       >
         ABC
       </button>
@@ -637,7 +650,7 @@ return (
           fontSize: "16px",
           cursor: "pointer",
         }}
-        onClick={() => console.log("Switch to QWERTY layout")}
+        onClick={() => setDictionaryType("qwerty")}
       >
         QWERTY
       </button>
@@ -651,7 +664,7 @@ return (
           fontSize: "16px",
           cursor: "pointer",
         }}
-        onClick={() => console.log("Switch to Optimized layout")}
+        onClick={() => setDictionaryType("optimized")}
       >
         Optimized
       </button>
