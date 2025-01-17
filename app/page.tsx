@@ -19,9 +19,7 @@ endY: number;
 }
 
 
-const collisionSound = new Audio("./click.mp3") || null; 
 
-// Replace with your actual sound file path
 import "@fontsource/poppins"; // Defaults to weight 400
 
 const PointerLockDemo: React.FC = () => {
@@ -446,9 +444,7 @@ const drawScene = useCallback(() => {
         code.current = code.current + codeChar;
         console.log(code.current);
       }
-      if (typeof window !== "undefined") {
-        collisionSound.play();
-      }
+      new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
       refractory.current = true;
       setPosition({ x: 400, y: 300 });
       //lastHitSide.current= sideIndex;
