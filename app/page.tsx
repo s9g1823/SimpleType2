@@ -4,6 +4,9 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { last } from "lodash";
 
+import VelocityZmqListener, { VelocityPacket } from './ZmqListener';
+import ZmqSubscribeClient from './ZmqSubscribeClient';
+
 require('dotenv').config()
 
 interface Dictionary {
@@ -23,6 +26,31 @@ endY: number;
 import "@fontsource/poppins"; // Defaults to weight 400
 
 const PointerLockDemo: React.FC = () => {
+
+
+  const zmqService = useRef(VelocityZmqListener.factory());
+  const velocities = useRef<VelocityPacket | null>(null);
+
+  useEffect(() => {
+    zmqService.current.start();
+
+    return () => {
+      zmqService.current.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleVelocityData(data: VelocityPacket) {
+      velocities.current = data;
+      //console.log('Received velocity data:', data);
+    }
+
+    zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
+
+    return () => {
+      zmqService.current.events.off(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
+    };
+  }, [velocities.current]);
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // A) CANVAS + POINTER LOCK STATE
@@ -66,11 +94,11 @@ const [dictionary, setDictionary] = useState<Dictionary>({});
 // If side 3 => space => finalize the current code.
 
 const sideMappings: Record<number, string> = {
-  1: "⌫",
+  1: " ",
   2: "2",
-  3: " ",   // hitting space => finalize the word
+  3: "3",   // hitting space => finalize the word
   4: "4",
-  5: "5",
+  5: "⌫",
   6: "6",
   7: "7",
   8: "8",
@@ -83,14 +111,14 @@ const getSideLabels = (type: string): Record<number, string> => {
   switch (type) {
     case "abc":
       return {
-        1: "⌫",
-        2: "J K L M",
-        3: "␣",
+        1: "␣",
+        2: "W X Y Z",
+        3: "S T U V",
         4: "N O P Q R",
-        5: "S T U V",
-        6: "W X Y Z",
-        7: "A B C D E",
-        8: "F G H I",
+        5: "⌫",
+        6: "A B C D E",
+        7: "F G H I",
+        8: "J K L M",
       };
     case "qwerty":
       return {
@@ -124,7 +152,7 @@ const getSideLabels = (type: string): Record<number, string> => {
 // E) LOAD DICTIONARY ONCE
 // ─────────────────────────────────────────────────────────────────────────────
 
-const [dictionaryType, setDictionaryType] = useState("qwerty");
+const [dictionaryType, setDictionaryType] = useState("abc");
 useEffect(() => {
   fetch(`/six${dictionaryType}.json`)
     .then((res) => res.json())
@@ -226,15 +254,23 @@ const finalizeCurrentWord = useCallback(async () => {
 
     let chosenWord;
 
-    if (candidates.length === 1) {
+    if (candidates.length === 1 && candidates[0] != 'u') {
       chosenWord = candidates[0];
     } else if (code.current.length === 1){
-        if (dictionaryType === 'qwerty') {
+        if (dictionaryType === 'abc') {
           switch (code.current) {
-            case "5" :
+            case "6" :
               chosenWord = 'a';
               break;
-            case "8" :
+            case "2" :
+              speed.current = speed.current - 0.3;
+              console.log("speed " + speed.current);
+              break;
+            case "3" :
+              speed.current = speed.current + 0.3;
+              console.log("speed " + speed.current);
+              break;
+            case "7" :
               chosenWord = 'I';
               break;
           }
@@ -302,31 +338,33 @@ useEffect(() => {
   const canvas = canvasRef.current;
   if (!canvas) return;
 
-  const handleClick = () => {
-    if (document.pointerLockElement === canvas) {
-      document.exitPointerLock(); // Exit pointer lock if already active
-    } else {
-      canvas.requestPointerLock(); // Enter pointer lock if not active
-    }
-  };
+  // const handleClick = () => {
+  //   if (document.pointerLockElement === canvas) {
+  //     document.exitPointerLock(); // Exit pointer lock if already active
+  //   } else {
+  //     canvas.requestPointerLock(); // Enter pointer lock if not active
+  //   }
+  // };
 
-  const lockChangeAlert = () => {
-    if (document.pointerLockElement === canvas) {
-      console.log("Pointer lock activated.");
-      document.addEventListener("mousemove", handleMouseMove);
-    } else {
-      console.log("Pointer lock deactivated.");
-      document.removeEventListener("mousemove", handleMouseMove);
-    }
-  };
+  // const lockChangeAlert = () => {
+  //   if (document.pointerLockElement === canvas) {
+  //     console.log("Pointer lock activated.");
+  //     document.addEventListener("mousemove", handleMouseMove);
+  //   } else {
+  //     console.log("Pointer lock deactivated.");
+  //     document.removeEventListener("mousemove", handleMouseMove);
+  //   }
+  // };
 
-  canvas.addEventListener("click", handleClick);
-  document.addEventListener("pointerlockchange", lockChangeAlert);
+  document.addEventListener("mousemove", handleMouseMove);
 
-  return () => {
-    canvas.removeEventListener("click", handleClick);
-    document.removeEventListener("pointerlockchange", lockChangeAlert);
-  };
+  // canvas.addEventListener("click", handleClick);
+  // document.addEventListener("pointerlockchange", lockChangeAlert);
+
+  // return () => {
+  //   canvas.removeEventListener("click", handleClick);
+  //   document.removeEventListener("pointerlockchange", lockChangeAlert);
+  // };
 }, []);
 
 
@@ -340,12 +378,18 @@ const speed = useRef<number>(1);
 
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
-
+  console.log("running handleMouseMove()");
   if (!refractory.current) {
     setPosition((prev) => {
+      let distanceX = prev.x - 400;
+      console.log("distanceX" + distanceX); 
 
-      const newX = prev.x + e.movementX * speed.current;
-      const newY = prev.y + e.movementY * speed.current;
+      if (!velocities.current) {
+        console.log("no vel");
+        return {x: 400, y: 300};
+      }
+      const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
+      const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
 
       if (newX <= 0 || newX >= 800 || newY <= 0 || newY >= 600) {
         return { x: 400, y: 300 }; // Reset position if out of bounds
@@ -387,6 +431,12 @@ const isDotTouchingSide = useCallback(
   },
   []
 );
+
+const predictedWord = useRef<String>();
+
+function predictTheWord (){
+  code.current;
+}
 
 const drawScene = useCallback(() => {
   const canvas = canvasRef.current;
@@ -439,7 +489,7 @@ const drawScene = useCallback(() => {
 
 
   if (touching) {
-    new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
+    //new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
     if (lastHitSide.current !== sideIndex) {
       const codeChar = sideMappings[sideIndex];
       // If side 3 => space => finalize
@@ -600,7 +650,7 @@ return (
     textAlign: "center",
   }}
 >
-  <label htmlFor="speed-slider" style={{ display: "block", marginBottom: "5px" }}>
+  <label htmlFor="speed-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
     Speed: {speed.current.toFixed(1)}
   </label>
   <input
@@ -678,7 +728,7 @@ return (
         border: "1px dotted black",
       }}
     />
-  </div>
+    </div>
 );
 };
 
