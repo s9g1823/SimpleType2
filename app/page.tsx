@@ -65,6 +65,16 @@ const lastHitSide = useRef<number | null>();
 const [octagonSides, setOctagonSides] = useState<OctagonSide[]>([]);
 
 
+const [isLocked, setIsLocked] = useState(false);
+const togglePointerLock = useCallback(() => {
+  if (!isLocked) {
+    canvasRef.current?.requestPointerLock();
+  } else {
+    document.exitPointerLock();
+  }
+  setIsLocked(!isLocked);
+}, [isLocked]);
+
 
 
 //
@@ -385,17 +395,16 @@ const handleMouseMove = useCallback((e: MouseEvent) => {
       console.log("distanceX" + distanceX); 
 
       if (!velocities.current) {
-        console.log("no vel");
-        return {x: 400, y: 300};
+        const newX = prev.x + e.movementX * speed.current;
+        const newY = prev.y + e.movementY * speed.current;
+        return { x: newX, y: newY };
+      } else {
+        const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
+        const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
+        return { x: newX, y: newY };
       }
-      const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
-      const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
 
-      if (newX <= 0 || newX >= 800 || newY <= 0 || newY >= 600) {
-        return { x: 400, y: 300 }; // Reset position if out of bounds
-      }
-
-      return { x: newX, y: newY };
+      
     });
   } else {
     console.log("refractory is true");
@@ -427,7 +436,7 @@ const isDotTouchingSide = useCallback(
     const distance = Math.sqrt((dotX - closestX) ** 2 + (dotY - closestY) ** 2);
 
 
-    return distance <= 15;
+    return distance <= 18;
   },
   []
 );
@@ -447,7 +456,6 @@ const drawScene = useCallback(() => {
 
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   // Draw octagon
   const centerX = 400;
   const centerY = 300;
@@ -463,24 +471,42 @@ const drawScene = useCallback(() => {
 
   for (let i = 0; i <= sides; i++) {
     const angle = i * angleStep - rotation;
-    const x = centerX + radius * Math.cos(angle);
-    const y = centerY + radius * Math.sin(angle);
+    const vertexX = centerX + radius * Math.cos(angle);
+    const vertexY = centerY + radius * Math.sin(angle);
 
     if (i === 0) {
-      ctx.moveTo(x, y);
+      ctx.moveTo(vertexX, vertexY);
     } else {
-      ctx.lineTo(x, y);
-      if (prevX !== null && prevY !== null) {
-        newSides.push({ startX: prevX, startY: prevY, endX: x, endY: y });
-      }
+      // Calculate the shortened segment
+      const deltaX = vertexX - prevX!;
+      const deltaY = vertexY - prevY!;
+      const startOffsetX = prevX! + deltaX * 0.1; // Start 10% into the side
+      const startOffsetY = prevY! + deltaY * 0.1;
+      const endOffsetX = prevX! + deltaX * 0.9; // End 90% into the side
+      const endOffsetY = prevY! + deltaY * 0.9;
+
+      // Draw shortened side
+      ctx.moveTo(startOffsetX, startOffsetY);
+      ctx.lineTo(endOffsetX, endOffsetY);
+
+      // Store the shortened side for collision detection
+      newSides.push({
+        startX: startOffsetX,
+        startY: startOffsetY,
+        endX: endOffsetX,
+        endY: endOffsetY,
+      });
     }
-    prevX = x;
-    prevY = y;
+
+    prevX = vertexX;
+    prevY = vertexY;
   }
 
+  // Complete the octagon shape
   ctx.closePath();
-  ctx.lineWidth = 15;
   ctx.stroke();
+
+ctx.fillStyle = 'white';
 
   // Check collisions
   newSides.forEach((side, index) => {
@@ -519,7 +545,7 @@ const drawScene = useCallback(() => {
       last;
     }
   }
-  ctx.lineWidth = 15;
+  ctx.lineWidth = 23;
   ctx.beginPath();
   ctx.moveTo(side.startX, side.startY);
   ctx.lineTo(side.endX, side.endY);
@@ -527,7 +553,6 @@ const drawScene = useCallback(() => {
 });
 
   // Draw Labels
-  ctx.font = "bold 27px Poppins";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -548,9 +573,11 @@ const drawScene = useCallback(() => {
 
     //const isActive = lastHitSide.current === sideIndex;
     //ctx.fillStyle = lastHitSide.current === sideIndex ? "blue" : "white";
-    //ctx.font = isActive ? "bold 56px Poppins, sans-serif" : "bold 27px Poppins, sans-serif";
+    // ctx.font = isActive ? "bold 56px Poppins, sans-serif" : "bold 27px Poppins, sans-serif";
 
-
+    ctx.font = lastHitSide.current === sideIndex 
+        ? "bold 56px Poppins, sans-serif" 
+        : "bold 27px Poppins, sans-serif";
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
 
@@ -728,7 +755,29 @@ return (
         border: "1px dotted black",
       }}
     />
+    <div
+  style={{
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    width: '50px',
+    height: '50px',
+    backgroundColor: isLocked ? 'red' : 'green',
+    cursor: 'pointer',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    color: 'white',
+    fontWeight: 'bold',
+    border: '2px solid white',
+    borderRadius: '5px'
+  }}
+  onClick={togglePointerLock}
+>
+  {isLocked ? '🔒' : '🔓'}
+</div>
     </div>
+    
 );
 };
 
