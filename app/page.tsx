@@ -43,8 +43,14 @@ const PointerLockDemo: React.FC = () => {
     function handleVelocityData(data: VelocityPacket) {
       velocities.current = data;
       //console.log('Received velocity data:', data);
-    }
 
+
+      const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
+      const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
+
+      position.current = {x: newX, y: newY};
+    }
+    
     zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
 
     return () => {
@@ -56,7 +62,7 @@ const PointerLockDemo: React.FC = () => {
 // A) CANVAS + POINTER LOCK STATE
 // ─────────────────────────────────────────────────────────────────────────────
 const canvasRef = useRef<HTMLCanvasElement | null>(null);
-const [position, setPosition] = useState({ x: 400, y: 300 });
+const position = useRef({x: 400, y: 300});
 
 // Track collision so we don’t spam the same side
 const lastHitSide = useRef<number | null>();
@@ -366,7 +372,10 @@ useEffect(() => {
   //   }
   // };
 
-  document.addEventListener("mousemove", handleMouseMove);
+  // if (!velocities) {
+  //   document.addEventListener("mousemove", handleMouseMove);
+  // }
+  
 
   // canvas.addEventListener("click", handleClick);
   // document.addEventListener("pointerlockchange", lockChangeAlert);
@@ -387,32 +396,30 @@ const refractory = useRef<boolean>(false);
 const speed = useRef<number>(1);
 
 
-const handleMouseMove = useCallback((e: MouseEvent) => {
-  console.log("running handleMouseMove()");
-  if (!refractory.current) {
-    setPosition((prev) => {
-      let distanceX = prev.x - 400;
-      console.log("distanceX" + distanceX); 
-
-      if (!velocities.current) {
-        const newX = prev.x + e.movementX * speed.current;
-        const newY = prev.y + e.movementY * speed.current;
-        return { x: newX, y: newY };
-      } else {
-        const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
-        const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
-        return { x: newX, y: newY };
-      }
-
+// const handleMouseMove = useCallback((e: MouseEvent) => {
+//   console.log("running handleMouseMove()");
+//   if (!refractory.current) {
+//     setPosition((prev) => {
+//       if (!velocities.current) {
+//         const newX = prev.x + e.movementX * speed.current;
+//         const newY = prev.y + e.movementY * speed.current;
+//         return { x: newX, y: newY };
+//       } else {
+//         console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
+        
+//         const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
+//         const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
+//         return { x: newX, y: newY };
+//       }
       
-    });
-  } else {
-    console.log("refractory is true");
-    setTimeout(() => {
-      refractory.current = false;
-    }, 200);
-  }
-}, []);
+//     });
+//   } else {
+//     console.log("refractory is true");
+//     setTimeout(() => {
+//       refractory.current = false;
+//     }, 200);
+//   }
+// }, []);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -511,7 +518,7 @@ ctx.fillStyle = 'white';
   // Check collisions
   newSides.forEach((side, index) => {
   const sideIndex = index + 1;
-  const touching = isDotTouchingSide(position.x, position.y, side);
+  const touching = isDotTouchingSide(position.current.x, position.current.y, side);
 
 
   if (touching) {
@@ -535,7 +542,8 @@ ctx.fillStyle = 'white';
         console.log(code.current);
       }
       refractory.current = true;
-      setPosition({ x: 400, y: 300 });
+      console.log("LORD FORSGIVE ME");
+      position.current = {x: 400, y: 300};
       //lastHitSide.current= sideIndex;
     }
     ctx.strokeStyle = "red";
@@ -584,7 +592,7 @@ ctx.fillStyle = 'white';
   // Draw Dot
   ctx.fillStyle = "gray";
   ctx.beginPath();
-  ctx.arc(position.x, position.y, 18, 0, 2 * Math.PI);
+  ctx.arc(position.current.x, position.current.y, 18, 0, 2 * Math.PI);
   ctx.fill();
 
 // Draw dots or last word in center of canvas
