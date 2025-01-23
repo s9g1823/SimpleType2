@@ -291,6 +291,9 @@ const finalizeCurrentWord = useCallback(async () => {
               speed.current = speed.current + 0.3;
               console.log("speed " + speed.current);
               break;
+            case "4" :
+              new Audio('on2.mp3').play().catch((error) => console.error("Error playing audio:", error));
+              break;
             case "7" :
               chosenWord = 'I';
               break;
@@ -492,10 +495,10 @@ const drawScene = useCallback(() => {
       // Calculate the shortened segment
       const deltaX = vertexX - prevX!;
       const deltaY = vertexY - prevY!;
-      const startOffsetX = prevX! + deltaX * 0.1; // Start 10% into the side
-      const startOffsetY = prevY! + deltaY * 0.1;
-      const endOffsetX = prevX! + deltaX * 0.9; // End 90% into the side
-      const endOffsetY = prevY! + deltaY * 0.9;
+      const startOffsetX = prevX! + deltaX * 0.075; // Start 10% into the side
+      const startOffsetY = prevY! + deltaY * 0.075;
+      const endOffsetX = prevX! + deltaX * 0.925; // End 90% into the side
+      const endOffsetY = prevY! + deltaY * 0.925;
 
       // Draw shortened side
       ctx.moveTo(startOffsetX, startOffsetY);
@@ -527,7 +530,7 @@ ctx.fillStyle = 'white';
 
 
   if (touching) {
-    //new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
+    new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
     if (lastHitSide.current !== sideIndex) {
       const codeChar = sideMappings[sideIndex];
       // If side 3 => space => finalize
@@ -645,6 +648,28 @@ return (
       color: "white",
     }}
   >
+    {/* Top-left button */}
+    <button
+  style={{
+    position: "fixed",
+    top: "10px",
+    left: "10px",
+    padding: "15px 25px",
+    fontSize: "18px",
+    color: "white",
+    border: "1px solid white", // Thin white border
+    borderRadius: "8px",
+    cursor: "pointer",
+    boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+    transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+  }}
+  onClick={() => {
+    const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
+    audio.play();
+  }}
+>
+  🗣️ Cursor Off
+</button>
     <div style={{ textAlign: "center", color: "white" }}>
       <div style={{ marginBottom: "10px" }}>
         <input
@@ -789,6 +814,8 @@ return (
 >
   {isLocked ? '🔒' : '🔓'}
 </div>
+
+
     </div>
     
 );
