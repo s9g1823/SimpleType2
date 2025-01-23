@@ -44,11 +44,16 @@ const PointerLockDemo: React.FC = () => {
       velocities.current = data;
       //console.log('Received velocity data:', data);
 
+      if (!refractory.current) {
+        const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
+        const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
 
-      const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
-      const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
-
-      position.current = {x: newX, y: newY};
+        position.current = {x: newX, y: newY};
+      } else {
+        setTimeout(() => {
+          refractory.current = false;
+        }, 200);
+      }
     }
     
     zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
