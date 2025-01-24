@@ -94,6 +94,7 @@ const togglePointerLock = useCallback(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. `theCodes`: The codes for each word separated
 // 2. `theWords`: The words (pretty much once they're finalized... unless they get popped out)
+
 // 3. `code`: The active code being typed
 
 const theCodes = useRef<string[]>([]);
@@ -117,7 +118,7 @@ const [dictionary, setDictionary] = useState<Dictionary>({});
 const sideMappings: Record<number, string> = {
   1: " ",
   2: "2",
-  3: "3",   // hitting space => finalize the word
+  3: "3",   
   4: "4",
   5: "⌫",
   6: "6",
@@ -361,37 +362,37 @@ const finalizeCurrentWord = useCallback(async () => {
 useEffect(() => {
   const canvas = canvasRef.current;
   if (!canvas) return;
+//comment out rest of function!
+  const handleClick = () => {
+    if (document.pointerLockElement === canvas) {
+      document.exitPointerLock(); // Exit pointer lock if already active
+    } else {
+      canvas.requestPointerLock(); // Enter pointer lock if not active
+    }
+  };
 
-  // const handleClick = () => {
-  //   if (document.pointerLockElement === canvas) {
-  //     document.exitPointerLock(); // Exit pointer lock if already active
-  //   } else {
-  //     canvas.requestPointerLock(); // Enter pointer lock if not active
-  //   }
-  // };
+  const lockChangeAlert = () => {
+    if (document.pointerLockElement === canvas) {
+      console.log("Pointer lock activated.");
+      document.addEventListener("mousemove", handleMouseMove);
+    } else {
+      console.log("Pointer lock deactivated.");
+      document.removeEventListener("mousemove", handleMouseMove);
+    }
+  };
 
-  // const lockChangeAlert = () => {
-  //   if (document.pointerLockElement === canvas) {
-  //     console.log("Pointer lock activated.");
-  //     document.addEventListener("mousemove", handleMouseMove);
-  //   } else {
-  //     console.log("Pointer lock deactivated.");
-  //     document.removeEventListener("mousemove", handleMouseMove);
-  //   }
-  // };
-
-  // if (!velocities) {
-  //   document.addEventListener("mousemove", handleMouseMove);
-  // }
+  if (!velocities) {
+    document.addEventListener("mousemove", handleMouseMove);
+  }
   
 
-  // canvas.addEventListener("click", handleClick);
-  // document.addEventListener("pointerlockchange", lockChangeAlert);
+  canvas.addEventListener("click", handleClick);
+  document.addEventListener("pointerlockchange", lockChangeAlert);
 
-  // return () => {
-  //   canvas.removeEventListener("click", handleClick);
-  //   document.removeEventListener("pointerlockchange", lockChangeAlert);
-  // };
+  return () => {
+    canvas.removeEventListener("click", handleClick);
+    document.removeEventListener("pointerlockchange", lockChangeAlert);
+  };
 }, []);
 
 
@@ -404,30 +405,29 @@ const refractory = useRef<boolean>(false);
 const speed = useRef<number>(1);
 
 
-// const handleMouseMove = useCallback((e: MouseEvent) => {
-//   console.log("running handleMouseMove()");
-//   if (!refractory.current) {
-//     setPosition((prev) => {
-//       if (!velocities.current) {
-//         const newX = prev.x + e.movementX * speed.current;
-//         const newY = prev.y + e.movementY * speed.current;
-//         return { x: newX, y: newY };
-//       } else {
-//         console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
+const handleMouseMove = useCallback((e: MouseEvent) => {
+  console.log("running handleMouseMove()");
+  //comment out this function for ZMQ
+  if (!refractory.current) {
+      if (!velocities.current) {
+        console.log("good");
+        const newX = position.current.x + e.movementX * speed.current;
+        const newY = position.current.y + e.movementY * speed.current;
+        console.log(newX);
+        position.current = { x: newX, y: newY };
+      } else {
+        console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
         
-//         const newX = prev.x + velocities.current.final_velocity_x * speed.current * 0.01;
-//         const newY = prev.y + velocities.current.final_velocity_y * speed.current * 0.01;
-//         return { x: newX, y: newY };
-//       }
-      
-//     });
-//   } else {
-//     console.log("refractory is true");
-//     setTimeout(() => {
-//       refractory.current = false;
-//     }, 200);
-//   }
-// }, []);
+        const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
+        const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
+        return { x: newX, y: newY };
+      }
+    } else {
+      setTimeout(() => {
+        refractory.current = false;
+      }, 200);
+    }
+}, []);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -495,10 +495,10 @@ const drawScene = useCallback(() => {
       // Calculate the shortened segment
       const deltaX = vertexX - prevX!;
       const deltaY = vertexY - prevY!;
-      const startOffsetX = prevX! + deltaX * 0.075; // Start 10% into the side
-      const startOffsetY = prevY! + deltaY * 0.075;
-      const endOffsetX = prevX! + deltaX * 0.925; // End 90% into the side
-      const endOffsetY = prevY! + deltaY * 0.925;
+      const startOffsetX = prevX! + deltaX * 0.0; // Start 10% into the side
+      const startOffsetY = prevY! + deltaY * 0.0;
+      const endOffsetX = prevX! + deltaX * 1; // End 90% into the side
+      const endOffsetY = prevY! + deltaY * 1;
 
       // Draw shortened side
       ctx.moveTo(startOffsetX, startOffsetY);
@@ -550,7 +550,6 @@ ctx.fillStyle = 'white';
         console.log(code.current);
       }
       refractory.current = true;
-      console.log("LORD FORSGIVE ME");
       position.current = {x: 400, y: 300};
       //lastHitSide.current= sideIndex;
     }
@@ -687,7 +686,7 @@ return (
         />
       </div>
     </div>
-    <div style={{ marginBottom: "10px" }}>
+     <div style={{ marginBottom: "10px" }}>
        <input
          type="text"
          readOnly
