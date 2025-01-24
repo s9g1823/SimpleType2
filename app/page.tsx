@@ -2,12 +2,12 @@
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { last } from "lodash";
 
 import VelocityZmqListener, { VelocityPacket } from './ZmqListener';
 import ZmqSubscribeClient from './ZmqSubscribeClient';
 
 require('dotenv').config()
+const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
 
 interface Dictionary {
 [t9Code: string]: string[];
@@ -55,7 +55,7 @@ const PointerLockDemo: React.FC = () => {
         }, 200);
       }
     }
-    
+
     zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
 
     return () => {
@@ -118,7 +118,7 @@ const [dictionary, setDictionary] = useState<Dictionary>({});
 const sideMappings: Record<number, string> = {
   1: " ",
   2: "2",
-  3: "3",   
+  3: "3",
   4: "4",
   5: "⌫",
   6: "6",
@@ -197,10 +197,10 @@ const pickWordViaGPT = useCallback(async (candidatesFiltered: string[], daWords:
   }
   const prompt = `
      A kid is typing a sentence very slowly. You want to guess the next word.
-  
+
      Here are the words so far:
      ${daWords.join(", ")}
-    
+
      Pick one word from below that is the most likely next word based on what makes sense and what is a more common word:
      {${candidatesFiltered.join(", ")}}
 
@@ -208,7 +208,7 @@ const pickWordViaGPT = useCallback(async (candidatesFiltered: string[], daWords:
      Output only your guess for the next word. No quotes, no explanation.
 
     `.trim();
-      
+
     console.log(prompt);
       try {
         const response = await axios.post(
@@ -267,10 +267,10 @@ const finalizeCurrentWord = useCallback(async () => {
   // SCENARIO 1: code is non-empty
   // ──────────────────────────────────────────────────────────────────────────
   console.log("Running code analysis on " + code.current)
-  
+
   if (code.current) {
     console.log("Our first analysis on " + code.current)
-  
+
     // 1) Get candidates for `code` + clean dirty words
     const candidates = dictionary[code.current] || [];
     dirtyWords.current = [];
@@ -315,7 +315,7 @@ const finalizeCurrentWord = useCallback(async () => {
               break;
           }
         }
-      } 
+      }
     else {
       chosenWord = await pickWordViaGPT(candidates, theWords.current);
     }
@@ -329,7 +329,7 @@ const finalizeCurrentWord = useCallback(async () => {
     console.log("code: " + code.current);
     theCodes.current = [...theCodes.current, code.current];
     console.log("codes: " + theCodes.current);
-  
+
     // 4) Clear current code and add word to dirty word list
     code.current = "";
     console.log("code: " + code.current);
@@ -392,37 +392,38 @@ const arrays = [
 useEffect(() => {
   const canvas = canvasRef.current;
   if (!canvas) return;
-// //comment out rest of function for ZMQ!
-//   const handleClick = () => {
-//     if (document.pointerLockElement === canvas) {
-//       document.exitPointerLock(); // Exit pointer lock if already active
-//     } else {
-//       canvas.requestPointerLock(); // Enter pointer lock if not active
-//     }
-//   };
+  if (systemCursorEnabled) {
+    const handleClick = () => {
+      if (document.pointerLockElement === canvas) {
+        document.exitPointerLock(); // Exit pointer lock if already active
+      } else {
+        canvas.requestPointerLock(); // Enter pointer lock if not active
+      }
+    };
 
-//   const lockChangeAlert = () => {
-//     if (document.pointerLockElement === canvas) {
-//       console.log("Pointer lock activated.");
-//       document.addEventListener("mousemove", handleMouseMove);
-//     } else {
-//       console.log("Pointer lock deactivated.");
-//       document.removeEventListener("mousemove", handleMouseMove);
-//     }
-//   };
+    const lockChangeAlert = () => {
+      if (document.pointerLockElement === canvas) {
+        console.log("Pointer lock activated.");
+        document.addEventListener("mousemove", handleMouseMove);
+      } else {
+        console.log("Pointer lock deactivated.");
+        document.removeEventListener("mousemove", handleMouseMove);
+      }
+    };
 
-//   if (!velocities) {
-//     document.addEventListener("mousemove", handleMouseMove);
-//   }
-  
+    if (!velocities) {
+      document.addEventListener("mousemove", handleMouseMove);
+    }
 
-//   canvas.addEventListener("click", handleClick);
-//   document.addEventListener("pointerlockchange", lockChangeAlert);
 
-//   return () => {
-//     canvas.removeEventListener("click", handleClick);
-//     document.removeEventListener("pointerlockchange", lockChangeAlert);
-//   };
+    canvas.addEventListener("click", handleClick);
+    document.addEventListener("pointerlockchange", lockChangeAlert);
+
+    return () => {
+      canvas.removeEventListener("click", handleClick);
+      document.removeEventListener("pointerlockchange", lockChangeAlert);
+    };
+  }
 }, []);
 
 
@@ -433,30 +434,33 @@ useEffect(() => {
 
 const refractory = useRef<boolean>(false);
 const speed = useRef<number>(1);
+const activeSide = useRef<number | null>(null);
 
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
   console.log("running handleMouseMove()");
   // //comment the rest of this function for ZMQ
-  // if (!refractory.current) {
-  //     if (!velocities.current) {
-  //       console.log("good");
-  //       const newX = position.current.x + e.movementX * speed.current;
-  //       const newY = position.current.y + e.movementY * speed.current;
-  //       console.log(newX);
-  //       position.current = { x: newX, y: newY };
-  //     } else {
-  //       console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
-        
-  //       const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
-  //       const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
-  //       return { x: newX, y: newY };
-  //     }
-  //   } else {
-  //     setTimeout(() => {
-  //       refractory.current = false;
-  //     }, 200);
-  //   }
+  if (systemCursorEnabled) {
+    if (!refractory.current) {
+        if (!velocities.current) {
+          console.log("good");
+          const newX = position.current.x + e.movementX * speed.current;
+          const newY = position.current.y + e.movementY * speed.current;
+          console.log(newX);
+          position.current = { x: newX, y: newY };
+        } else {
+          console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
+
+          const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
+          const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
+          return { x: newX, y: newY };
+        }
+      } else {
+        setTimeout(() => {
+          refractory.current = false;
+        }, 200);
+      }
+  }
 }, []);
 
 
@@ -590,13 +594,17 @@ const drawScene = useCallback(() => {
       position.current = {x: 400, y: 300};
       //lastHitSide.current= sideIndex;
     }
-    ctx.strokeStyle = "red";
+    activeSide.current = sideIndex;
+    setTimeout(() => {
+        activeSide.current = null;
+    }, 50);
   } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) {
     ctx.strokeStyle = "yellow";
   } else {
-    ctx.strokeStyle = "blue";
-    if (lastHitSide.current === sideIndex) {
-      last;
+    if (activeSide.current === sideIndex) {
+        ctx.strokeStyle = "white";
+    } else {
+        ctx.strokeStyle = "blue";
     }
   }
   ctx.lineWidth = 23;
@@ -629,8 +637,8 @@ const drawScene = useCallback(() => {
     //ctx.fillStyle = lastHitSide.current === sideIndex ? "blue" : "white";
     // ctx.font = isActive ? "bold 56px Poppins, sans-serif" : "bold 27px Poppins, sans-serif";
 
-    ctx.font = lastHitSide.current === sideIndex 
-        ? "bold 56px Poppins, sans-serif" 
+    ctx.font = lastHitSide.current === sideIndex
+        ? "bold 56px Poppins, sans-serif"
         : "bold 27px Poppins, sans-serif";
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
@@ -855,7 +863,7 @@ return (
 
 
     </div>
-    
+
 );
 };
 
