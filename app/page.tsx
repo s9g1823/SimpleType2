@@ -260,6 +260,8 @@ useEffect(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 // H) FINALIZE THE WORD WHEN SPACE (SIDE 3) IS HIT
 // ─────────────────────────────────────────────────────────────────────────────
+const gravityOn = useRef<boolean>(false);
+
 const finalizeCurrentWord = useCallback(async () => {
   // ──────────────────────────────────────────────────────────────────────────
   // SCENARIO 1: code is non-empty
@@ -278,11 +280,11 @@ const finalizeCurrentWord = useCallback(async () => {
 
     if (candidates.length === 1 && candidates[0] != 'u') {
       chosenWord = candidates[0];
-    } else if (code.current.length === 1){
+    } else if (code.current.length === 1 || code.current == "22"){
         if (dictionaryType === 'abc') {
           switch (code.current) {
             case "6" :
-              chosenWord = 'a';
+              chosenWord = 'power';
               break;
             case "2" :
               speed.current = speed.current - 0.3;
@@ -298,9 +300,22 @@ const finalizeCurrentWord = useCallback(async () => {
             case "7" :
               chosenWord = 'I';
               break;
+            case "8" :
+              console.log("runs");
+              inLights.current = true;
+              indexRefCode.current = 0;
+              refCode.current = arrays[Math.floor(Math.random() * arrays.length)]
+              break;
+            case "22" :
+              if (gravityOn.current){
+                gravityOn.current = false;
+              } else {
+                gravityOn.current = true;
+              }
+              break;
           }
         }
-      }
+      } 
     else {
       chosenWord = await pickWordViaGPT(candidates, theWords.current);
     }
@@ -359,40 +374,55 @@ const finalizeCurrentWord = useCallback(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // J) POINTER LOCK SETUP
 // ─────────────────────────────────────────────────────────────────────────────
+
+const inLights = useRef<boolean>(false);
+const refCode = useRef<number[]>();
+const indexRefCode = useRef<number>();
+const arrays = [
+  [3,7,6,1,4,3,7,6,8,1,6,4,4,2,4,1,7,4,2,1,8,3,8,4,3,1,4,3,6,4,1,3,7,6,1,8,6,2,2,1,6,4,7,1],
+  [3,7,4,4,3,7,4,3,3,1,7,3,8,6,4,7,3,2,1,7,6,3,1,2,4,6,3,3,8,6,6,1],
+  [3,4,6,6,2,1,7,1,2,7,8,8,1,4,4,8,2,1,2,4,7,3,6,1,3,6,3,3,6,7,3,8,1,3,6,4,3,6,4,6,6,3,1],
+  [3,7,6,1,7,4,8,6,6,4,1,6,7,6,1,4,7,1,6,8,6,4,7,6,6,1,6,6,7,7,4,3,1,4,7,7,7,3,1,4,4,2,1],
+  [7,1,7,6,3,6,1,3,7,4,3,7,7,3,3,1,4,4,1,3,7,6,1,4,6,4,4,4,2,1,4,6,3,3,6,7,6,1,3,4,1,6,3,6,4,4,6,8,1,8,7,7,6,1],
+  [6,4,8,7,4,6,3,6,1,3,7,6,1,3,4,3,6,8,1,3,3,4,4,1,6,4,4,7,7,6,6,4,6,6,1],
+  [7,1,6,8,1,6,6,4,6,6,8,6,1,4,7,1,3,6,8,6,4,6,3,7,2,1,3,7,6,3,6,1,6,6,2,3,1],
+  [2,4,6,3,3,8,7,4,7,1,2,7,3,7,1,8,3,6,6,2,1,8,7,6,7,6,3,3,1,7,3,1,8,3,3,3,1,6,1,7,4,6,6,2,1]
+];
+
 useEffect(() => {
   const canvas = canvasRef.current;
   if (!canvas) return;
-//comment out rest of function!
-  const handleClick = () => {
-    if (document.pointerLockElement === canvas) {
-      document.exitPointerLock(); // Exit pointer lock if already active
-    } else {
-      canvas.requestPointerLock(); // Enter pointer lock if not active
-    }
-  };
+// //comment out rest of function for ZMQ!
+//   const handleClick = () => {
+//     if (document.pointerLockElement === canvas) {
+//       document.exitPointerLock(); // Exit pointer lock if already active
+//     } else {
+//       canvas.requestPointerLock(); // Enter pointer lock if not active
+//     }
+//   };
 
-  const lockChangeAlert = () => {
-    if (document.pointerLockElement === canvas) {
-      console.log("Pointer lock activated.");
-      document.addEventListener("mousemove", handleMouseMove);
-    } else {
-      console.log("Pointer lock deactivated.");
-      document.removeEventListener("mousemove", handleMouseMove);
-    }
-  };
+//   const lockChangeAlert = () => {
+//     if (document.pointerLockElement === canvas) {
+//       console.log("Pointer lock activated.");
+//       document.addEventListener("mousemove", handleMouseMove);
+//     } else {
+//       console.log("Pointer lock deactivated.");
+//       document.removeEventListener("mousemove", handleMouseMove);
+//     }
+//   };
 
-  if (!velocities) {
-    document.addEventListener("mousemove", handleMouseMove);
-  }
+//   if (!velocities) {
+//     document.addEventListener("mousemove", handleMouseMove);
+//   }
   
 
-  canvas.addEventListener("click", handleClick);
-  document.addEventListener("pointerlockchange", lockChangeAlert);
+//   canvas.addEventListener("click", handleClick);
+//   document.addEventListener("pointerlockchange", lockChangeAlert);
 
-  return () => {
-    canvas.removeEventListener("click", handleClick);
-    document.removeEventListener("pointerlockchange", lockChangeAlert);
-  };
+//   return () => {
+//     canvas.removeEventListener("click", handleClick);
+//     document.removeEventListener("pointerlockchange", lockChangeAlert);
+//   };
 }, []);
 
 
@@ -407,26 +437,26 @@ const speed = useRef<number>(1);
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
   console.log("running handleMouseMove()");
-  //comment out this function for ZMQ
-  if (!refractory.current) {
-      if (!velocities.current) {
-        console.log("good");
-        const newX = position.current.x + e.movementX * speed.current;
-        const newY = position.current.y + e.movementY * speed.current;
-        console.log(newX);
-        position.current = { x: newX, y: newY };
-      } else {
-        console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
+  // //comment the rest of this function for ZMQ
+  // if (!refractory.current) {
+  //     if (!velocities.current) {
+  //       console.log("good");
+  //       const newX = position.current.x + e.movementX * speed.current;
+  //       const newY = position.current.y + e.movementY * speed.current;
+  //       console.log(newX);
+  //       position.current = { x: newX, y: newY };
+  //     } else {
+  //       console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
         
-        const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
-        const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
-        return { x: newX, y: newY };
-      }
-    } else {
-      setTimeout(() => {
-        refractory.current = false;
-      }, 200);
-    }
+  //       const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
+  //       const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
+  //       return { x: newX, y: newY };
+  //     }
+  //   } else {
+  //     setTimeout(() => {
+  //       refractory.current = false;
+  //     }, 200);
+  //   }
 }, []);
 
 
@@ -451,6 +481,10 @@ const isDotTouchingSide = useCallback(
     const distance = Math.sqrt((dotX - closestX) ** 2 + (dotY - closestY) ** 2);
 
 
+    if (gravityOn.current) {
+      console.log("GRAVITY IS ON");
+      return distance <= 56;
+    }
     return distance <= 18;
   },
   []
@@ -521,7 +555,7 @@ const drawScene = useCallback(() => {
   ctx.closePath();
   ctx.stroke();
 
-ctx.fillStyle = 'white';
+  ctx.fillStyle = 'white';
 
   // Check collisions
   newSides.forEach((side, index) => {
@@ -530,6 +564,9 @@ ctx.fillStyle = 'white';
 
 
   if (touching) {
+    if (indexRefCode.current !== undefined) {
+      indexRefCode.current += 1;
+    }
     new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
     if (lastHitSide.current !== sideIndex) {
       const codeChar = sideMappings[sideIndex];
@@ -554,6 +591,8 @@ ctx.fillStyle = 'white';
       //lastHitSide.current= sideIndex;
     }
     ctx.strokeStyle = "red";
+  } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) {
+    ctx.strokeStyle = "yellow";
   } else {
     ctx.strokeStyle = "blue";
     if (lastHitSide.current === sideIndex) {
