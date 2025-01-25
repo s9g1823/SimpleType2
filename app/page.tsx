@@ -67,7 +67,7 @@ const PointerLockDemo: React.FC = () => {
 // A) CANVAS + POINTER LOCK STATE
 // ─────────────────────────────────────────────────────────────────────────────
 const canvasRef = useRef<HTMLCanvasElement | null>(null);
-const position = useRef({x: 400, y: 300});
+const position = useRef({x: 1050, y: 600});
 
 // Track collision so we don’t spam the same side
 const lastHitSide = useRef<number | null>();
@@ -487,7 +487,7 @@ const isDotTouchingSide = useCallback(
 
     if (gravityOn.current) {
       console.log("GRAVITY IS ON");
-      return distance <= 56;
+      return distance <= 81;
     }
     return distance <= 18;
   },
@@ -510,9 +510,9 @@ const drawScene = useCallback(() => {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   // Draw octagon
-  const centerX = 400;
-  const centerY = 300;
-  const radius = 200;
+  const centerX = 1050;
+  const centerY = 600;
+  const radius = 560;
   const sides = 8;
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
@@ -591,7 +591,7 @@ const drawScene = useCallback(() => {
         console.log(code.current);
       }
       refractory.current = true;
-      position.current = {x: 400, y: 300};
+      position.current = {x: 1050, y: 600};
       //lastHitSide.current= sideIndex;
     }
     activeSide.current = sideIndex;
@@ -607,7 +607,7 @@ const drawScene = useCallback(() => {
         ctx.strokeStyle = "blue";
     }
   }
-  ctx.lineWidth = 23;
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(side.startX, side.startY);
   ctx.lineTo(side.endX, side.endY);
@@ -620,6 +620,7 @@ const drawScene = useCallback(() => {
 
   newSides.forEach((side, index) => {
     const sideIndex = index + 1;
+
     if (!sideLabels[sideIndex]) return;
 
     const midX = (side.startX + side.endX) / 2;
@@ -629,28 +630,27 @@ const drawScene = useCallback(() => {
     const length = Math.sqrt(dx * dx + dy * dy) || 1;
     const ndx = dy / length;
     const ndy = -dx / length;
-    const offset = 40;
+
+    // Different offsets for cardinal and angled sides
+    const offset = [2, 4, 6, 8].includes(sideIndex) ? 120 : 35; // Cardinal: 70px, Angled: 50px
     const labelX = midX + offset * ndx;
     const labelY = midY + offset * ndy;
 
-    //const isActive = lastHitSide.current === sideIndex;
-    //ctx.fillStyle = lastHitSide.current === sideIndex ? "blue" : "white";
-    // ctx.font = isActive ? "bold 56px Poppins, sans-serif" : "bold 27px Poppins, sans-serif";
-
     ctx.font = lastHitSide.current === sideIndex
-        ? "bold 56px Poppins, sans-serif"
-        : "bold 27px Poppins, sans-serif";
+      ? "bold 56px Poppins, sans-serif"
+      : "bold 66px Poppins, sans-serif";
+
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
 
   // Draw Dot
-  ctx.fillStyle = "gray";
+  ctx.fillStyle = "yellow";
   ctx.beginPath();
-  ctx.arc(position.current.x, position.current.y, 18, 0, 2 * Math.PI);
+  ctx.arc(position.current.x, position.current.y, 16, 0, 2 * Math.PI);
   ctx.fill();
 
 // Draw dots or last word in center of canvas
-ctx.font = "69px Poppins";
+ctx.font = "169px Poppins";
 ctx.fillStyle = "white";
 ctx.textAlign = "center";
 ctx.textBaseline = "middle";
@@ -833,10 +833,11 @@ return (
 
     <canvas
       ref={canvasRef}
-      width={800}
-      height={600}
+      width={2100}
+      height={1200}
       style={{
         border: "1px dotted black",
+        marginTop: "100px", // Adjust this value as needed
       }}
     />
     <div
