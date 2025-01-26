@@ -67,7 +67,7 @@ const PointerLockDemo: React.FC = () => {
 // A) CANVAS + POINTER LOCK STATE
 // ─────────────────────────────────────────────────────────────────────────────
 const canvasRef = useRef<HTMLCanvasElement | null>(null);
-const position = useRef({x: 1050, y: 600});
+const position = useRef({x: 800, y: 480});
 
 // Track collision so we don’t spam the same side
 const lastHitSide = useRef<number | null>();
@@ -302,9 +302,25 @@ const finalizeCurrentWord = useCallback(async () => {
               break;
             case "8" :
               console.log("runs");
+              theCodes.current = [];
+              theWords.current = [];
+              code.current = "";
+
               inLights.current = true;
               indexRefCode.current = 0;
-              refCode.current = arrays[Math.floor(Math.random() * arrays.length)]
+              indexSentence.current = 0;
+
+              let rng = Math.floor(Math.random() * arrays.length);
+              
+              refCode.current = arrays[rng];
+              sentence.current = sentences[rng];
+
+              //calculations
+              goodHits.current = 0;
+              badHits.current = 0;
+
+              timerStart.current = performance.now();
+              
               break;
             case "22" :
               if (gravityOn.current){
@@ -376,11 +392,26 @@ const finalizeCurrentWord = useCallback(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const inLights = useRef<boolean>(false);
+
 const refCode = useRef<number[]>();
 const indexRefCode = useRef<number>();
+
+const sentence = useRef<string[]>();
+const indexSentence = useRef<number>();
+
+const goodHits = useRef<number>();
+const badHits = useRef<number>();
+
+const timerStart = useRef<number>(); //timer
+const timerEnd = useRef<number>();
+const timeLength = useRef<number>();
+
+const accuracy = useRef<number>();
+const ccpm = useRef<number>();
+
 const arrays = [
   [3,7,6,1,4,3,7,6,8,1,6,4,4,2,4,1,7,4,2,1,8,3,8,4,3,1,4,3,6,4,1,3,7,6,1,8,6,2,2,1,6,4,7,1],
-  [3,7,4,4,3,7,4,3,3,1,7,3,8,6,4,7,3,2,1,7,6,3,1,2,4,6,3,3,8,6,6,1],
+  [3,7,4,4,3,7,7,4,3,3,1,7,7,3,3,4,4,2,1,7,3,8,6,4,7,3,2,1,7,6,3,1,2,4,6,3,3,8,6,6,1],
   [3,4,6,6,2,1,7,1,2,7,8,8,1,4,4,8,2,1,2,4,7,3,6,1,3,6,3,3,6,7,3,8,1,3,6,4,3,6,4,6,6,3,1],
   [3,7,6,1,7,4,8,6,6,4,1,6,7,6,1,4,7,1,6,8,6,4,7,6,6,1,6,6,7,7,4,3,1,4,7,7,7,3,1,4,4,2,1],
   [7,1,7,6,3,6,1,3,7,4,3,7,7,3,3,1,4,4,1,3,7,6,1,4,6,4,4,4,2,1,4,6,3,3,6,7,6,1,3,4,1,6,3,6,4,4,6,8,1,8,7,7,6,1],
@@ -388,6 +419,17 @@ const arrays = [
   [7,1,6,8,1,6,6,4,6,6,8,6,1,4,7,1,3,6,8,6,4,6,3,7,2,1,3,7,6,3,6,1,6,6,2,3,1],
   [2,4,6,3,3,8,7,4,7,1,2,7,3,7,1,8,3,6,6,2,1,8,7,6,7,6,3,3,1,7,3,1,8,3,3,3,1,6,1,7,4,6,6,2,1]
 ];
+
+const sentences = [
+  ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
+  ["throughout", "humanity", "has", "wrestled"],
+["today", "i", "will", "only", "write", "tasteful", "sentences"],
+["the", "golden", "age", "of", "america", "begins", "right", "now"],
+["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
+["dominate", "the", "truck", "stop", "confidence"],
+["i", "am", "capable", "of", "telepathy", "these", "days"],
+["wrestling", "with", "muddy", "midgets", "is", "just", "a", "hobby"]
+]
 
 useEffect(() => {
   const canvas = canvasRef.current;
@@ -510,9 +552,9 @@ const drawScene = useCallback(() => {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   // Draw octagon
-  const centerX = 1050;
-  const centerY = 600;
-  const radius = 560;
+  const centerX = 800;
+  const centerY = 480;
+  const radius = 450;
   const sides = 8;
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
@@ -563,60 +605,91 @@ const drawScene = useCallback(() => {
 
   // Check collisions
   newSides.forEach((side, index) => {
-  const sideIndex = index + 1;
-  const touching = isDotTouchingSide(position.current.x, position.current.y, side);
+    const sideIndex = index + 1;
+    const touching = isDotTouchingSide(position.current.x, position.current.y, side);
 
-
-  if (touching) {
-    if (indexRefCode.current !== undefined) {
-      indexRefCode.current += 1;
-    }
-    new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
-    if (lastHitSide.current !== sideIndex) {
-      const codeChar = sideMappings[sideIndex];
-      // If side 3 => space => finalize
-      if (codeChar === " ") {
-        finalizeCurrentWord();
-      } else if (codeChar === "⌫") {
-        if (code.current) {
-          console.log("trying to remove just the last letter");
-          code.current = code.current.substring(0, code.current.length - 1);
-        } else {
-          theWords.current.pop();
-          theCodes.current.pop();
+    if (touching) {
+      if (timeLength.current !== undefined) {
+        timeLength.current = undefined;
+        timerEnd.current = undefined;
+        timerStart.current = undefined;
+        goodHits.current = undefined;
+        badHits.current = undefined;
+      }
+      if ((refCode.current) && (indexRefCode.current !== undefined) && (sideIndex !== refCode.current[indexRefCode.current])) {
+        new Audio('erro.mp3').play().catch((error) => console.error("Error playing audio:", error));
+        badHits.current = (badHits.current ?? 0) + 1;
+      } else {
+        new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
+        goodHits.current = (goodHits.current ?? 0) + 1;
+      }
+      
+      if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
+        if (indexRefCode.current !== undefined) {
+          indexRefCode.current += 1;
         }
-      } else if (codeChar) {
-        // Add digit to typedCodes
-        code.current = code.current + codeChar;
-        console.log(code.current);
+        const codeChar = sideMappings[sideIndex];
+        // If side 3 => space => finalize
+        if (codeChar === " ") {
+          if (refCode.current !== undefined && sentence.current !== undefined && indexSentence.current !== undefined) {
+            theWords.current = [...theWords.current, sentence.current[indexSentence.current] || ""];
+            indexSentence.current += 1;
+            code.current = "";
+            if (indexSentence.current === sentence.current.length) {
+              timerEnd.current = performance.now();
+              timeLength.current = timerEnd.current - (timerStart.current ?? 0);
+              inLights.current = false;
+              refCode.current = undefined;
+              indexRefCode.current = undefined;
+              sentence.current = undefined;
+              indexSentence.current = undefined;
+            }
+          } else {
+            finalizeCurrentWord();
+          }
+          
+        } else if (codeChar === "⌫") {
+          if (code.current) {
+            console.log("trying to remove just the last letter");
+            code.current = code.current.substring(0, code.current.length - 1);
+          } else {
+            theWords.current.pop();
+            theCodes.current.pop();
+          }
+        } else if (codeChar) {
+          // Add digit to typedCodes
+          code.current = code.current + codeChar;
+          console.log(code.current);
+        }
+        //lastHitSide.current= sideIndex;
       }
       refractory.current = true;
-      position.current = {x: 1050, y: 600};
-      //lastHitSide.current= sideIndex;
-    }
-    activeSide.current = sideIndex;
-    setTimeout(() => {
-        activeSide.current = null;
-    }, 50);
-  } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) {
-    ctx.strokeStyle = "yellow";
-  } else {
-    if (activeSide.current === sideIndex) {
-        ctx.strokeStyle = "white";
+      position.current = {x: 800, y: 480};
+      activeSide.current = sideIndex;
+      setTimeout(() => {
+          activeSide.current = null;
+      }, 50);
+    } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) { //when not touching and in Game mode
+        ctx.strokeStyle = "yellow";
     } else {
-        ctx.strokeStyle = "blue";
+      if (activeSide.current === sideIndex) {
+        ctx.strokeStyle = "white";
+      } else {
+        ctx.strokeStyle = "rgba(0, 124, 56)"; // Blue with 30% opacity
+      }
     }
-  }
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(side.startX, side.startY);
-  ctx.lineTo(side.endX, side.endY);
-  ctx.stroke();
-});
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.moveTo(side.startX, side.startY);
+    ctx.lineTo(side.endX, side.endY);
+    ctx.stroke();
+  });
 
   // Draw Labels
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  ctx.fillStyle = "white";
+
 
   newSides.forEach((side, index) => {
     const sideIndex = index + 1;
@@ -638,15 +711,15 @@ const drawScene = useCallback(() => {
 
     ctx.font = lastHitSide.current === sideIndex
       ? "bold 56px Poppins, sans-serif"
-      : "bold 66px Poppins, sans-serif";
+      : "bold 50px Poppins, sans-serif";
 
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
 
   // Draw Dot
-  ctx.fillStyle = "yellow";
+  ctx.fillStyle = "lightgray";
   ctx.beginPath();
-  ctx.arc(position.current.x, position.current.y, 16, 0, 2 * Math.PI);
+  ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
   ctx.fill();
 
 // Draw dots or last word in center of canvas
@@ -665,7 +738,46 @@ if (code.current.length === 0) {
     ctx.fillText(dots, centerX, centerY);
 }
 
-  setOctagonSides(newSides);
+ctx.font = "32px Poppins"; // Smaller font size
+ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; // Faded white color
+ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
+
+//Draw calculations for Game Mode
+if (timerEnd.current !== undefined) {
+  ctx.font = "69px Poppins";
+  ctx.fillStyle = "lightgreen"; // Set the text color
+  ctx.textAlign = "center"; // Align the text to the left
+  ctx.fillText(
+    `${((((goodHits.current ?? 0) - 1) / (timeLength.current ?? 1)) * 60000).toFixed(2)} CCPM`,
+    centerX,
+    centerY + 200
+  );
+
+    // Calculate accuracy percentage
+    const totalHits = (goodHits.current ?? 0) + (badHits.current ?? 0);
+    const accuracy =
+      totalHits > 0 ? ((goodHits.current ?? 0) / totalHits) * 100 : 0;
+  
+    // Format timerLength.current as MM:SS
+    const timeInSeconds = Math.floor((timeLength.current ?? 0) / 1000);
+    const timerSeconds = timeInSeconds % 60;
+    const timerMinutes = Math.floor(timeInSeconds / 60);
+    const formattedTime = `${timerMinutes.toString().padStart(2, "0")}:${timerSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  
+    // Display smaller, centered text
+    ctx.font = "32px Poppins"; // Smaller font size
+    ctx.fillStyle = "white"; // Text color
+    ctx.fillText(
+      `${accuracy.toFixed(2)}% | ${formattedTime}`,
+      centerX,
+      centerY + 270
+    );
+}
+
+
+setOctagonSides(newSides);
 }, [position, lastHitSide, finalizeCurrentWord, sideMappings, sideLabels, code]);
 
 // Animate
@@ -776,65 +888,12 @@ return (
   />
 
 
+
 </div>
-
-    <div
-      style={{
-        position: "absolute",
-        bottom: "20px",
-        left: "20px",
-        display: "flex",
-        gap: "10px",
-      }}
-    >
-      <button
-        style={{
-          backgroundColor: "transparent",
-          color: "white",
-          border: "1px solid white",
-          borderRadius: "5px",
-          padding: "5px 10px",
-          fontSize: "16px",
-          cursor: "pointer",
-        }}
-        onClick={() => setDictionaryType("abc")}
-      >
-        ABC
-      </button>
-      <button
-        style={{
-          backgroundColor: "transparent",
-          color: "white",
-          border: "1px solid white",
-          borderRadius: "5px",
-          padding: "5px 10px",
-          fontSize: "16px",
-          cursor: "pointer",
-        }}
-        onClick={() => setDictionaryType("qwerty")}
-      >
-        QWERTY
-      </button>
-      <button
-        style={{
-          backgroundColor: "transparent",
-          color: "white",
-          border: "1px solid white",
-          borderRadius: "5px",
-          padding: "5px 10px",
-          fontSize: "16px",
-          cursor: "pointer",
-        }}
-        onClick={() => setDictionaryType("optimized")}
-      >
-        Optimized
-      </button>
-    </div>
-
     <canvas
       ref={canvasRef}
-      width={2100}
-      height={1200}
+      width={1600}
+      height={960}
       style={{
         border: "1px dotted black",
         marginTop: "100px", // Adjust this value as needed
