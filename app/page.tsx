@@ -293,7 +293,7 @@ function getRankedMatches(
     // If there are no choices by ngram ordering, then just provide the top 5
     // possible words.
     if (choices.length === 0) {
-        choices = Array.from(possibleWordsSet).slice(0, 5);
+        choices = Array.from(possibleWordsSet).slice(0, 7);
     }
 
     // Additional words that match code length but aren't in choices
@@ -303,7 +303,7 @@ function getRankedMatches(
 
     console.log("High ranked choices are: ", choices);
     console.log("Other words are: ", additionalWords);
-    return [...choices, ...additionalWords];
+    return [...new Set([...choices, ...additionalWords])];
 }
 
 useEffect(() => {
@@ -311,7 +311,11 @@ useEffect(() => {
    console.time("getRankedMatches Execution Time");
 
    // Don't eval on empty current code.
+   console.log("CODE LEN IS: ", code.current.length);
    if (code.current.length === 0) {
+       // return;
+       // TODO remove
+       possibleWords.current = [];
        return;
    }
 
@@ -324,7 +328,7 @@ useEffect(() => {
             wordFreq
        );
 
-       console.log("RANKING BASED ON CURRENT: ", code.current);
+       console.log("Ranked: ", possibleWords.current);
        console.timeEnd("getRankedMatches Execution Time");
     });
 
@@ -451,6 +455,7 @@ const finalizeCurrentWord = useCallback(async () => {
               console.log("runs");
               theCodes.current = [];
               theWords.current = [];
+              console.log("Resetting code");
               code.current = "";
 
               inLights.current = true;
@@ -478,9 +483,9 @@ const finalizeCurrentWord = useCallback(async () => {
               break;
           }
         }
-      }
-    else {
+    } else {
       // chosenWord = await pickWordViaGPT(candidates, theWords.current);
+      console.log("Chose candidate");
       chosenWord = candidates[0];
     }
 
@@ -576,15 +581,14 @@ const arrays = [
 const sentences = [
   ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
   ["throughout", "humanity", "has", "wrestled"],
-["today", "i", "will", "only", "write", "tasteful", "sentences"],
-["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
-["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
-["dominate", "the", "truck", "stop", "confidence"],
-["i", "am", "capable", "of", "telepathy", "these", "days"],
-["wrestling", "with", "many", "digits", "is", "just", "a", "hobby"],
-["the", "wind", "of", "freedom", "blows"],
-['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
-['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "lookin'", 'all', 'around']
+  ["today", "i", "will", "only", "write", "tasteful", "sentences"],
+  ["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
+  ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
+  ["dominate", "the", "truck", "stop", "confidence"],
+  ["i", "am", "capable", "of", "telepathy", "these", "days"],
+  ["wrestling", "with", "many", "digits", "is", "just", "a", "hobby"],
+  ['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
+  ['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "looking", 'all', 'around']
 ]
 
 useEffect(() => {
@@ -714,6 +718,9 @@ const drawScene = useCallback(() => {
   const sides = 8;
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
+
+  // Anchors for suggestion words
+  const suggestionsY = centerY + (canvas.height / 2) / 5;
 
   const newSides: OctagonSide[] = [];
   ctx.beginPath();
@@ -872,62 +879,98 @@ const drawScene = useCallback(() => {
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
 
-  // Draw Dot
-  ctx.fillStyle = "lightgray";
-  ctx.beginPath();
-  ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
-  ctx.fill();
+    // Draw Dot
+    ctx.fillStyle = "lightgray";
+    ctx.beginPath();
+    ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
+    ctx.fill();
 
-// Draw dots or last word in center of canvas
+    // Using monospace font because it is easier to render– sorry Sehej
+    ctx.font = "80px Monaco";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-// Using monospace font because it is easier to render– sorry Sehej
-ctx.font = "80px Monaco";
-ctx.fillStyle = "white";
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
+    if (code.current.length === 0) {
+        // Display last word from theWords.current if it exists
+        const lastWord = theWords.current[theWords.current.length - 1] || "";
+        ctx.fillText(lastWord, centerX, centerY);
 
-if (code.current.length === 0) {
-    // Display last word from theWords.current if it exists
-    const lastWord = theWords.current[theWords.current.length - 1] || "";
-    ctx.fillText(lastWord, centerX, centerY);
-} else {
+        // Only display suggestions when we are also displaying a current word.
+        if (lastWord !== "") {
+            // Draw suggestions on screen
+            ctx.font = "30px Monaco";
+            ctx.fillStyle = "grey";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
 
-    if (possibleWords.current.length > 0) {
-    // if (bestWord.current.length > 0) {
-        const bestWord = possibleWords.current[0];
-        // const bestWord = bestWord.current;
-        const place = code.current.length;
+            let cur_index = possibleWords.current.indexOf(lastWord);
 
-        console.log("BEST WORD IS: ", bestWord);
-
-        const totalWidth = ctx.measureText(bestWord).width;
-        let currentX = centerX - totalWidth / 2;
-        for (let i = 0; i < bestWord.length; i++) {
-
-            const char = bestWord[i];
-
-            // Color the known part of the word with standard styling
-            if (i < place) {
-                ctx.fillStyle = "white";
-            // Use a gray styling for anything that remains.
-            } else {
-                ctx.fillStyle = "gray";
+            let currentY = suggestionsY;
+            // Show 3 suggestions max
+            let suggestions = possibleWords.current.slice(Math.min(cur_index + 1, possibleWords.current.length));
+            for (let i = 0; i < Math.min(suggestions.length, 3); i++) {
+                ctx.fillText(suggestions[i], centerX, currentY);
+                currentY += 35;
             }
-
-            ctx.fillText(char, currentX, centerY);
-            currentX += ctx.measureText(char).width;
         }
 
     } else {
-        console.log("NO BEST WORD");
-    }
+
+        // For now, only do partial styling of the word with suggestions when
+        // there is at least 2 characters due to the hardcoding of the shortcuts
+        if (possibleWords.current.length > 0) {
+            const bestWord = possibleWords.current[0];
+            const place = code.current.length;
+
+            const totalWidth = ctx.measureText(bestWord).width;
+            let currentX = centerX - totalWidth / 2;
+            for (let i = 0; i < bestWord.length; i++) {
+
+                const char = bestWord[i];
+
+                // Color the known part of the word with standard styling
+                if (i < place) {
+                    ctx.fillStyle = "white";
+                // Use a gray styling for anything that remains.
+                } else {
+                    // For now, only do partial styling of the word with suggestions when
+                    // there is at least 2 characters due to the hardcoding of the shortcuts
+                    if (code.current.length < 2) {
+                        break;
+                    }
+                    ctx.fillStyle = "gray";
+                }
+
+                ctx.fillText(char, currentX, centerY);
+                currentX += ctx.measureText(char).width;
+            }
+
+            if (code.current.length > 1) {
+
+                // Draw suggestions on screen
+                ctx.font = "30px Monaco";
+                ctx.fillStyle = "grey";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                let currentY = suggestionsY;
+                // Show 3 suggestions max
+                for (let i = 0; i < Math.min(possibleWords.current.length, 3); i++) {
+                    ctx.fillText(possibleWords.current[i], centerX, currentY);
+                    currentY += 35;
+                }
+
+            }
+
+        }
 
     // const dots = "*".repeat(code.current.length);
     // ctx.fillText(dots, centerX, centerY);
 }
 
 ctx.font = "32px Poppins"; // Smaller font size
-ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; // Faded white color
+ctx.fillStyle = "#CACACA"; // Faded white color
 ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
 
 //Draw calculations for Game Mode
