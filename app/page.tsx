@@ -104,6 +104,7 @@ const code = useRef<string>("");
 // List of possible words that can be resolved at any moment, sorted by
 // likelihood of occuring.
 const possibleWords = useRef<string[]>([]);
+const bestWord = useRef<string>("");
 
 const dirtyWords = useRef<string[]>([]);
 
@@ -225,26 +226,26 @@ type WordFrequency = Record<string, number>;
 
 const allWords = (tree: Tree, parent: string): string[] => {
     if (parent === "#") {
-        // If parent is "#", then the current "tree" is actually the list containing the words at the leaf
         return tree as string[];
     }
-    if (tree === undefined) {
+    if (!tree) {
         return [];
     }
-    return Object.entries(tree).flatMap(([key, value]) => allWords(value, key));
+    return Object.entries(tree).reduce((acc, [key, value]) => {
+        acc.push(...allWords(value, key));
+        return acc;
+    }, [] as string[]);
 };
 
 const getSubtree = (codeword: string, tree: Tree | string[]): Tree | string[] => {
-    if (codeword === "") {
-        return tree;
+    let subtree: Tree | string[] = tree;
+    for (const char of codeword) {
+        if (!subtree || typeof subtree !== "object" || !(char in subtree)) {
+            return [];
+        }
+        subtree = subtree[char];
     }
-    const nextKey = codeword[0];
-    const remainingCodeword = codeword.slice(1);
-    // console.log(Object.keys(tree))
-    if (tree === undefined) {
-        return []
-    }
-    return getSubtree(remainingCodeword, tree[nextKey]);
+    return subtree;
 };
 
 const orderByMostFrequent = (words: string[], freq: WordFrequency): string[] => {
@@ -260,55 +261,72 @@ function getRankedMatches(
 ): string[] {
     const possibleWords = orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
 
-    // If no context is provided, return the top 5 possible words
-    if (context.length === 0) {
-        console.log("Possible words: ", possibleWords.slice(0, 5));
-        return possibleWords.slice(0, 5);
+    if (!context.length) {
+        console.log("High ranked choices are: ", possibleWords.slice(0, 5));
+        return possibleWords.slice(0, 5); // Return top 5 immediately if no context
     }
 
-    // Filter n-grams that match the context and rank them by their frequency
-    const contextString = context.join(" ") + " ";
-    const matchingTrigrams = Object.fromEntries(
-        Object.entries(ngrams).filter(([key]) => key.toLowerCase().startsWith(contextString))
+    // Take last 2 context words to use from the back since this is a trigram.
+    const contextString = context.slice(-2).join(" ") + " ";
+    console.log("context is: ", contextString);
+    const matchingTrigrams = Object.entries(ngrams).filter(([key]) =>
+        key.startsWith(contextString)
     );
-    const matches = Object.keys(matchingTrigrams)
-        .sort((a, b) => (matchingTrigrams[b] ?? 0) - (matchingTrigrams[a] ?? 0))
-        .slice(0, 500);
 
-    // console.log(`num matches: ${matches.length}`);
+    // Sort matching ngrams directly by their frequency
+    const matches = matchingTrigrams
+        .sort(([, freqA], [, freqB]) => freqB - freqA)
+        .map(([gram]) => gram.replace(contextString, ""));
+        // .slice(0, 500);
+        // .slice(0);
 
-    // Extract the next possible words from the n-grams
-    let nextWords = matches.map((gram) => gram.replace(contextString, ""));
+    const nextWords =
+        context.length === 1
+            ? matches.map((word) => word.split(" ")[0])
+            : matches;
 
-    // If the context length is 1, only predict the next word
-    if (context.length === 1) {
-        nextWords = nextWords.map((word) => word.split(" ")[0]);
+    const possibleWordsSet = new Set(possibleWords);
+    console.log("possibleWordsSet is: ", possibleWordsSet);
+    console.log("nextWordsSet is: ", nextWords);
+    let choices = nextWords.filter((word) => possibleWordsSet.has(word)).slice(0, 5);
+
+    // If there are no choices by ngram ordering, then just provide the top 5
+    // possible words.
+    if (choices.length === 0) {
+        choices = Array.from(possibleWordsSet).slice(0, 5);
     }
 
-    const choices = nextWords.filter((word) => possibleWords.includes(word)).slice(0, 5);
-
-    // Add additional words that match the exact code length but are not in choices
+    // Additional words that match code length but aren't in choices
     const additionalWords = possibleWords.filter(
         (word) => word.length === code.length && !choices.includes(word)
     );
 
-    console.log(`High probability next words: ${choices}`);
-    console.log(`Other options: ${additionalWords}`);
-
+    console.log("High ranked choices are: ", choices);
+    console.log("Other words are: ", additionalWords);
     return [...choices, ...additionalWords];
 }
 
 useEffect(() => {
 
    console.time("getRankedMatches Execution Time");
-   possibleWords.current = getRankedMatches(
-        theWords.current,
-        code.current,
-        codeTree,
-        trigrams,
-        wordFreq
-   );
-   console.timeEnd("getRankedMatches Execution Time");
+
+   // Don't eval on empty current code.
+   if (code.current.length === 0) {
+       return;
+   }
+
+   Promise.resolve().then(() => {
+       possibleWords.current = getRankedMatches(
+            theWords.current,
+            code.current,
+            codeTree,
+            trigrams,
+            wordFreq
+       );
+
+       console.log("RANKING BASED ON CURRENT: ", code.current);
+       console.timeEnd("getRankedMatches Execution Time");
+    });
 
 }, [code.current]);
 
@@ -401,8 +419,8 @@ const finalizeCurrentWord = useCallback(async () => {
     console.log("Our first analysis on " + code.current)
 
     // 1) Get candidates for `code` + clean dirty words
-    const candidates = dictionary[code.current] || [];
     dirtyWords.current = [];
+    const candidates = [...possibleWords.current] || [];
     console.log("Cleaning up dirty words: " + dirtyWords.current)
 
     let chosenWord;
@@ -463,7 +481,7 @@ const finalizeCurrentWord = useCallback(async () => {
       }
     else {
       // chosenWord = await pickWordViaGPT(candidates, theWords.current);
-      chosenWord = possibleWords.current[0];
+      chosenWord = candidates[0];
     }
 
      // 3) Append the chosen word and code
@@ -488,24 +506,29 @@ const finalizeCurrentWord = useCallback(async () => {
   // SCENARIO 2: code is empty
   // ──────────────────────────────────────────────────────────────────────────
    console.log("Running swap!")
+
    // 1) Add latest word to dirty word list
   const lastWord = theWords.current[theWords.current.length - 1];
   console.log("last word: " + lastWord);
   dirtyWords.current = dirtyWords.current.concat(lastWord);
   console.log("dirty words: " + dirtyWords.current);
+
    // 2) Filter out the lastWord from candidates so we don't pick it again
   const lastCode = theCodes.current[theCodes.current.length - 1];
   console.log("last code: " + lastCode);
-  const candidates = dictionary[lastCode];
+  const candidates = [...possibleWords.current];
   console.log("candidates: " + candidates);
   const candidatesFiltered = candidates.filter((word) => !dirtyWords.current.includes(word));
 
   console.log("Candidates: " + candidates);
   console.log("Candidates filtered: " + candidatesFiltered);
+
    // 3) Let GPT pick the best match from the filtered list
   let chosenWord = lastCode; // fallback
   if (candidates.length > 0) {
-    chosenWord = await pickWordViaGPT(candidatesFiltered, theWords.current);
+    // chosenWord = await pickWordViaGPT(candidatesFiltered, theWords.current);
+    // chosenWord = possibleWords.current[0];
+    chosenWord = candidatesFiltered[0];
   }
    // 4) Replace GPT's pick with the last word on the word list!
   theWords.current = theWords.current.slice(0, -1).concat(chosenWord);
@@ -870,7 +893,9 @@ if (code.current.length === 0) {
 } else {
 
     if (possibleWords.current.length > 0) {
+    // if (bestWord.current.length > 0) {
         const bestWord = possibleWords.current[0];
+        // const bestWord = bestWord.current;
         const place = code.current.length;
 
         console.log("BEST WORD IS: ", bestWord);
