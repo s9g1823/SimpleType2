@@ -189,32 +189,45 @@ useEffect(() => {
 
 const sideLabels = getSideLabels(dictionaryType);
 
-const [codeTree, setCodeTree] = useState<Record<string, unknown>>({});
+const codeTree = useRef<Record<string, unknown>>({});
+const wordFreq = useRef<Record<string, number>>({});
+const trigrams = useRef<Record<string, number>>({});
+const precomputedTrees = useRef<Record<string, any>>({});
+const dataReady = useRef<boolean>(false);
+
 useEffect(() => {
-  fetch("/code_tree.json")
-    .then((res) => res.json())
-    .then((data) => setCodeTree(data))
-    .catch((err) => console.error("Failed to load code tree:", err));
-  console.log("Loaded code tree");
+  const fetchData = async () => {
+    try {
+      const [codeTreeData, trigramData, wordFreqData] = await Promise.all([
+        fetch("/code_tree.json").then((res) => res.json()),
+        fetch("/trigram_model.json").then((res) => res.json()),
+        fetch("/word_freq.json").then((res) => res.json()),
+      ]);
+
+      codeTree.current = codeTreeData;
+      trigrams.current = trigramData;
+      wordFreq.current = wordFreqData;
+
+      const singleLetters = ["2", "3", "4", "5", "6", "7", "8"];
+      const precomputed: Record<string, any> = {};
+
+      singleLetters.forEach((code) => {
+        const subtree = getSubtree(code, codeTree.current);
+        precomputed[code] = orderByMostFrequent(allWords(subtree, ""), wordFreq.current);
+      });
+
+      precomputedTrees.current = precomputed;
+      dataReady.current = true;
+
+      console.log("All data loaded and precomputed.");
+    } catch (err) {
+      console.error("Failed to load data:", err);
+    }
+  };
+
+  fetchData();
 }, []);
 
-const [wordFreq, setWordFreq] = useState<Record<string, number>>({});
-useEffect(() => {
-  fetch("/word_freq.json")
-    .then((res) => res.json())
-    .then((data) => setWordFreq(data))
-    .catch((err) => console.error("Failed to load word frequencies:", err));
-  console.log("Loaded word frequencies");
-}, []);
-
-const [trigrams, setTrigrams] = useState<Record<string, number>>({});
-useEffect(() => {
-  fetch("/trigram_model.json")
-    .then((res) => res.json())
-    .then((data) => setTrigrams(data))
-    .catch((err) => console.error("Failed to trigram model:", err));
-  console.log("Loaded trigram model");
-}, []);
 
 //
 // ───────────────────────────────────────────"─────────────────────────────────
@@ -258,9 +271,15 @@ function getRankedMatches(
     code: string,
     tree: Tree,
     ngrams: Record<string, number>,
-    freq: WordFrequency
+    freq: WordFrequency,
+    precomputed: Record<string, any>,
 ): string[] {
-    const possibleWords = orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
+
+    console.log(tree);
+
+    const possibleWords = code.length === 1
+        ? precomputed[code]
+        : orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
 
     if (!context.length) {
         console.log("High ranked choices are: ", possibleWords.slice(0, 5));
@@ -291,10 +310,10 @@ function getRankedMatches(
     console.log("nextWordsSet is: ", nextWords);
     let choices = nextWords.filter((word) => possibleWordsSet.has(word)).slice(0, 5);
 
-    // If there are no choices by ngram ordering, then just provide the top 5
-    // possible words.
+    // If there are no choices by ngram ordering, then just provide some of the
+    // top possible words.
     if (choices.length === 0) {
-        choices = Array.from(possibleWordsSet).slice(0, 7);
+        choices = Array.from(possibleWordsSet).slice(0, 15);
     }
 
     // Additional words that match code length but aren't in choices
@@ -321,9 +340,10 @@ useEffect(() => {
        possibleWords.current = getRankedMatches(
             theWords.current,
             code.current,
-            codeTree,
-            trigrams,
-            wordFreq
+            codeTree.current,
+            trigrams.current,
+            wordFreq.current,
+            precomputedTrees.current,
        );
 
        console.log("Ranked: ", possibleWords.current);
@@ -529,8 +549,6 @@ const finalizeCurrentWord = useCallback(async () => {
    // 3) Let GPT pick the best match from the filtered list
   let chosenWord = lastCode; // fallback
   if (candidates.length > 0) {
-    // chosenWord = await pickWordViaGPT(candidatesFiltered, theWords.current);
-    // chosenWord = possibleWords.current[0];
     chosenWord = candidatesFiltered[0];
   }
    // 4) Replace GPT's pick with the last word on the word list!
@@ -573,7 +591,6 @@ const arrays = [
   [7,1,7,6,3,6,1,3,7,4,3,7,7,3,3,1,4,4,1,3,7,6,1,4,6,4,4,4,2,1,4,6,3,3,6,7,6,1,3,4,1,6,3,6,4,4,6,8,1,8,7,7,6,1],
   [6,4,8,7,4,6,3,6,1,3,7,6,1,3,4,3,6,8,1,3,3,4,4,1,6,4,4,7,7,6,6,4,6,6,1],
   [7,1,6,8,1,6,6,4,6,6,8,6,1,4,7,1,3,6,8,6,4,6,3,7,2,1,3,7,6,3,6,1,6,6,2,3,1],
-  [2,4,6,3,3,8,7,4,7,1,2,7,3,7,1,8,3,6,6,2,1,8,7,6,7,6,3,3,1,7,3,1,8,3,3,3,1,6,1,7,4,6,6,2,1],
   [7,3,1,2,6,3,1,6,6,4,8,2,1,7,4,1,3,7,6,1,8,4,4,4,7,4,7,1,2,7,6,4,1,7,6,1,4,4,6,6,1,7,4,3,4,1,3,7,6,1,3,4,2,4,1],
   [7,6,1,6,6,8,6,1,4,7,6,7,4,7,1,7,4,4,8,1,3,7,6,1,3,4,3,3,7,1,3,7,6,6,1,3,8,4,2,8,2,1,8,4,4,8,7,4,7,1,6,8,8,1,6,4,4,3,4,6,1]
 ];
@@ -778,6 +795,7 @@ const drawScene = useCallback(() => {
         goodHits.current = undefined;
         badHits.current = undefined;
       }
+
       if ((refCode.current) && (indexRefCode.current !== undefined) && (sideIndex !== refCode.current[indexRefCode.current])) {
         new Audio('erro.mp3').play().catch((error) => console.error("Error playing audio:", error));
         badHits.current = (badHits.current ?? 0) + 1;
@@ -879,7 +897,12 @@ const drawScene = useCallback(() => {
   });
 
     // Draw Dot
-    ctx.fillStyle = "lightgray";
+
+    if (!dataReady.current) {
+        ctx.fillStyle = "orange";
+    } else {
+        ctx.fillStyle = "lightgray";
+    }
     ctx.beginPath();
     ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
     ctx.fill();
@@ -963,9 +986,6 @@ const drawScene = useCallback(() => {
             }
 
         }
-
-    // const dots = "*".repeat(code.current.length);
-    // ctx.fillText(dots, centerX, centerY);
 }
 
 ctx.font = "32px Poppins"; // Smaller font size
