@@ -272,7 +272,7 @@ function getRankedMatches(
     tree: Tree,
     ngrams: Record<string, number>,
     freq: WordFrequency,
-    precomputed: Record<string, any>,
+    precomputed: Record<string, string[]>,
 ): string[] {
 
     console.log(tree);
