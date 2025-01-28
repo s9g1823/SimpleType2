@@ -313,9 +313,6 @@ useEffect(() => {
    // Don't eval on empty current code.
    console.log("CODE LEN IS: ", code.current.length);
    if (code.current.length === 0) {
-       // return;
-       // TODO remove
-       possibleWords.current = [];
        return;
    }
 
