@@ -198,7 +198,7 @@ useEffect(() => {
   console.log("Loaded code tree");
 }, []);
 
-const [wordFreq, setWordFreq] = useState<Record<string, unknown>>({});
+const [wordFreq, setWordFreq] = useState<Record<string, number>>({});
 useEffect(() => {
   fetch("/word_freq.json")
     .then((res) => res.json())
@@ -207,7 +207,7 @@ useEffect(() => {
   console.log("Loaded word frequencies");
 }, []);
 
-const [trigrams, setTrigrams] = useState<Record<string, unknown>>({});
+const [trigrams, setTrigrams] = useState<Record<string, number>>({});
 useEffect(() => {
   fetch("/trigram_model.json")
     .then((res) => res.json())
@@ -239,11 +239,12 @@ const allWords = (tree: Tree, parent: string): string[] => {
 
 const getSubtree = (codeword: string, tree: Tree | string[]): Tree | string[] => {
     let subtree: Tree | string[] = tree;
+
     for (const char of codeword) {
         if (!subtree || typeof subtree !== "object" || !(char in subtree)) {
             return [];
         }
-        subtree = subtree[char];
+        subtree = (subtree as Record<string, any>)[char];
     }
     return subtree;
 };
@@ -421,7 +422,7 @@ const finalizeCurrentWord = useCallback(async () => {
 
     // 1) Get candidates for `code` + clean dirty words
     dirtyWords.current = [];
-    const candidates = [...possibleWords.current] || [];
+    const candidates = [...possibleWords.current];
     console.log("Cleaning up dirty words: " + dirtyWords.current)
 
     let chosenWord;
