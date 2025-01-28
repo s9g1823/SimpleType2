@@ -10,7 +10,7 @@ require('dotenv').config()
 const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
 
 interface Dictionary {
-[t9Code: string]: string[];
+    [t9Code: string]: string[];
 }
 
 
@@ -101,6 +101,10 @@ const theCodes = useRef<string[]>([]);
 const theWords = useRef<string[]>([]);
 const code = useRef<string>("");
 
+// List of possible words that can be resolved at any moment, sorted by
+// likelihood of occuring.
+const possibleWords = useRef<string[]>([]);
+
 const dirtyWords = useRef<string[]>([]);
 
 //
@@ -183,6 +187,131 @@ useEffect(() => {
 }, [dictionaryType]);
 
 const sideLabels = getSideLabels(dictionaryType);
+
+const [codeTree, setCodeTree] = useState<Record<string, unknown>>({});
+useEffect(() => {
+  fetch("/code_tree.json")
+    .then((res) => res.json())
+    .then((data) => setCodeTree(data))
+    .catch((err) => console.error("Failed to load code tree:", err));
+  console.log("Loaded code tree");
+}, []);
+
+const [wordFreq, setWordFreq] = useState<Record<string, unknown>>({});
+useEffect(() => {
+  fetch("/word_freq.json")
+    .then((res) => res.json())
+    .then((data) => setWordFreq(data))
+    .catch((err) => console.error("Failed to load word frequencies:", err));
+  console.log("Loaded word frequencies");
+}, []);
+
+const [trigrams, setTrigrams] = useState<Record<string, unknown>>({});
+useEffect(() => {
+  fetch("/trigram_model.json")
+    .then((res) => res.json())
+    .then((data) => setTrigrams(data))
+    .catch((err) => console.error("Failed to trigram model:", err));
+  console.log("Loaded trigram model");
+}, []);
+
+//
+// ───────────────────────────────────────────"─────────────────────────────────
+// E.2) CURRENT CODE -> WORDS LOOKUP
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Tree = Record<string, any>;
+type WordFrequency = Record<string, number>;
+
+const allWords = (tree: Tree, parent: string): string[] => {
+    if (parent === "#") {
+        // If parent is "#", then the current "tree" is actually the list containing the words at the leaf
+        return tree as string[];
+    }
+    if (tree === undefined) {
+        return [];
+    }
+    return Object.entries(tree).flatMap(([key, value]) => allWords(value, key));
+};
+
+const getSubtree = (codeword: string, tree: Tree | string[]): Tree | string[] => {
+    if (codeword === "") {
+        return tree;
+    }
+    const nextKey = codeword[0];
+    const remainingCodeword = codeword.slice(1);
+    // console.log(Object.keys(tree))
+    if (tree === undefined) {
+        return []
+    }
+    return getSubtree(remainingCodeword, tree[nextKey]);
+};
+
+const orderByMostFrequent = (words: string[], freq: WordFrequency): string[] => {
+    return words.sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
+};
+
+function getRankedMatches(
+    context: string[],
+    code: string,
+    tree: Tree,
+    ngrams: Record<string, number>,
+    freq: WordFrequency
+): string[] {
+    const possibleWords = orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
+
+    // If no context is provided, return the top 5 possible words
+    if (context.length === 0) {
+        console.log("Possible words: ", possibleWords.slice(0, 5));
+        return possibleWords.slice(0, 5);
+    }
+
+    // Filter n-grams that match the context and rank them by their frequency
+    const contextString = context.join(" ") + " ";
+    const matchingTrigrams = Object.fromEntries(
+        Object.entries(ngrams).filter(([key]) => key.toLowerCase().startsWith(contextString))
+    );
+    const matches = Object.keys(matchingTrigrams)
+        .sort((a, b) => (matchingTrigrams[b] ?? 0) - (matchingTrigrams[a] ?? 0))
+        .slice(0, 500);
+
+    // console.log(`num matches: ${matches.length}`);
+
+    // Extract the next possible words from the n-grams
+    let nextWords = matches.map((gram) => gram.replace(contextString, ""));
+
+    // If the context length is 1, only predict the next word
+    if (context.length === 1) {
+        nextWords = nextWords.map((word) => word.split(" ")[0]);
+    }
+
+    const choices = nextWords.filter((word) => possibleWords.includes(word)).slice(0, 5);
+
+    // Add additional words that match the exact code length but are not in choices
+    const additionalWords = possibleWords.filter(
+        (word) => word.length === code.length && !choices.includes(word)
+    );
+
+    console.log(`High probability next words: ${choices}`);
+    console.log(`Other options: ${additionalWords}`);
+
+    return [...choices, ...additionalWords];
+}
+
+useEffect(() => {
+
+   console.time("getRankedMatches Execution Time");
+   possibleWords.current = getRankedMatches(
+        theWords.current,
+        code.current,
+        codeTree,
+        trigrams,
+        wordFreq
+   );
+   console.timeEnd("getRankedMatches Execution Time");
+
+}, [code.current]);
+
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -311,7 +440,7 @@ const finalizeCurrentWord = useCallback(async () => {
               indexSentence.current = 0;
 
               let rng = Math.floor(Math.random() * arrays.length);
-              
+
               refCode.current = arrays[rng];
               sentence.current = sentences[rng];
 
@@ -320,7 +449,7 @@ const finalizeCurrentWord = useCallback(async () => {
               badHits.current = 0;
 
               timerStart.current = performance.now();
-              
+
               break;
             case "22" :
               if (gravityOn.current){
@@ -333,7 +462,8 @@ const finalizeCurrentWord = useCallback(async () => {
         }
       }
     else {
-      chosenWord = await pickWordViaGPT(candidates, theWords.current);
+      // chosenWord = await pickWordViaGPT(candidates, theWords.current);
+      chosenWord = possibleWords.current[0];
     }
 
      // 3) Append the chosen word and code
@@ -424,11 +554,14 @@ const sentences = [
   ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
   ["throughout", "humanity", "has", "wrestled"],
 ["today", "i", "will", "only", "write", "tasteful", "sentences"],
-["the", "golden", "age", "of", "america", "begins", "right", "now"],
+["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
 ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
 ["dominate", "the", "truck", "stop", "confidence"],
 ["i", "am", "capable", "of", "telepathy", "these", "days"],
-["wrestling", "with", "muddy", "midgets", "is", "just", "a", "hobby"]
+["wrestling", "with", "many", "digits", "is", "just", "a", "hobby"],
+["the", "wind", "of", "freedom", "blows"],
+['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
+['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "lookin'", 'all', 'around']
 ]
 
 useEffect(() => {
@@ -480,15 +613,15 @@ const activeSide = useRef<number | null>(null);
 
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
-  console.log("running handleMouseMove()");
+  // console.log("running handleMouseMove()");
   // //comment the rest of this function for ZMQ
   if (systemCursorEnabled) {
     if (!refractory.current) {
         if (!velocities.current) {
-          console.log("good");
+          // console.log("good");
           const newX = position.current.x + e.movementX * speed.current;
           const newY = position.current.y + e.movementY * speed.current;
-          console.log(newX);
+          // console.log(newX);
           position.current = { x: newX, y: newY };
         } else {
           console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
@@ -623,7 +756,7 @@ const drawScene = useCallback(() => {
         new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
         goodHits.current = (goodHits.current ?? 0) + 1;
       }
-      
+
       if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
         if (indexRefCode.current !== undefined) {
           indexRefCode.current += 1;
@@ -647,7 +780,7 @@ const drawScene = useCallback(() => {
           } else {
             finalizeCurrentWord();
           }
-          
+
         } else if (codeChar === "⌫") {
           if (code.current) {
             console.log("trying to remove just the last letter");
@@ -723,7 +856,9 @@ const drawScene = useCallback(() => {
   ctx.fill();
 
 // Draw dots or last word in center of canvas
-ctx.font = "169px Poppins";
+
+// Using monospace font because it is easier to render– sorry Sehej
+ctx.font = "80px Monaco";
 ctx.fillStyle = "white";
 ctx.textAlign = "center";
 ctx.textBaseline = "middle";
@@ -733,9 +868,37 @@ if (code.current.length === 0) {
     const lastWord = theWords.current[theWords.current.length - 1] || "";
     ctx.fillText(lastWord, centerX, centerY);
 } else {
-    // Display dots for code.current
-    const dots = "*".repeat(code.current.length);
-    ctx.fillText(dots, centerX, centerY);
+
+    if (possibleWords.current.length > 0) {
+        const bestWord = possibleWords.current[0];
+        const place = code.current.length;
+
+        console.log("BEST WORD IS: ", bestWord);
+
+        const totalWidth = ctx.measureText(bestWord).width;
+        let currentX = centerX - totalWidth / 2;
+        for (let i = 0; i < bestWord.length; i++) {
+
+            const char = bestWord[i];
+
+            // Color the known part of the word with standard styling
+            if (i < place) {
+                ctx.fillStyle = "white";
+            // Use a gray styling for anything that remains.
+            } else {
+                ctx.fillStyle = "gray";
+            }
+
+            ctx.fillText(char, currentX, centerY);
+            currentX += ctx.measureText(char).width;
+        }
+
+    } else {
+        console.log("NO BEST WORD");
+    }
+
+    // const dots = "*".repeat(code.current.length);
+    // ctx.fillText(dots, centerX, centerY);
 }
 
 ctx.font = "32px Poppins"; // Smaller font size
@@ -757,7 +920,7 @@ if (timerEnd.current !== undefined) {
     const totalHits = (goodHits.current ?? 0) + (badHits.current ?? 0);
     const accuracy =
       totalHits > 0 ? ((goodHits.current ?? 0) / totalHits) * 100 : 0;
-  
+
     // Format timerLength.current as MM:SS
     const timeInSeconds = Math.floor((timeLength.current ?? 0) / 1000);
     const timerSeconds = timeInSeconds % 60;
@@ -765,7 +928,7 @@ if (timerEnd.current !== undefined) {
     const formattedTime = `${timerMinutes.toString().padStart(2, "0")}:${timerSeconds
       .toString()
       .padStart(2, "0")}`;
-  
+
     // Display smaller, centered text
     ctx.font = "32px Poppins"; // Smaller font size
     ctx.fillStyle = "white"; // Text color
