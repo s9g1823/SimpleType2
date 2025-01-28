@@ -10,7 +10,7 @@ require('dotenv').config()
 const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
 
 interface Dictionary {
-[t9Code: string]: string[];
+    [t9Code: string]: string[];
 }
 
 
@@ -101,6 +101,11 @@ const theCodes = useRef<string[]>([]);
 const theWords = useRef<string[]>([]);
 const code = useRef<string>("");
 
+// List of possible words that can be resolved at any moment, sorted by
+// likelihood of occuring.
+const possibleWords = useRef<string[]>([]);
+const bestWord = useRef<string>("");
+
 const dirtyWords = useRef<string[]>([]);
 
 //
@@ -183,6 +188,150 @@ useEffect(() => {
 }, [dictionaryType]);
 
 const sideLabels = getSideLabels(dictionaryType);
+
+const [codeTree, setCodeTree] = useState<Record<string, unknown>>({});
+useEffect(() => {
+  fetch("/code_tree.json")
+    .then((res) => res.json())
+    .then((data) => setCodeTree(data))
+    .catch((err) => console.error("Failed to load code tree:", err));
+  console.log("Loaded code tree");
+}, []);
+
+const [wordFreq, setWordFreq] = useState<Record<string, number>>({});
+useEffect(() => {
+  fetch("/word_freq.json")
+    .then((res) => res.json())
+    .then((data) => setWordFreq(data))
+    .catch((err) => console.error("Failed to load word frequencies:", err));
+  console.log("Loaded word frequencies");
+}, []);
+
+const [trigrams, setTrigrams] = useState<Record<string, number>>({});
+useEffect(() => {
+  fetch("/trigram_model.json")
+    .then((res) => res.json())
+    .then((data) => setTrigrams(data))
+    .catch((err) => console.error("Failed to trigram model:", err));
+  console.log("Loaded trigram model");
+}, []);
+
+//
+// ───────────────────────────────────────────"─────────────────────────────────
+// E.2) CURRENT CODE -> WORDS LOOKUP
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Tree = Record<string, any>;
+type WordFrequency = Record<string, number>;
+
+const allWords = (tree: Tree, parent: string): string[] => {
+    if (parent === "#") {
+        return tree as string[];
+    }
+    if (!tree) {
+        return [];
+    }
+    return Object.entries(tree).reduce((acc, [key, value]) => {
+        acc.push(...allWords(value, key));
+        return acc;
+    }, [] as string[]);
+};
+
+const getSubtree = (codeword: string, tree: Tree | string[]): Tree | string[] => {
+    let subtree: Tree | string[] = tree;
+
+    for (const char of codeword) {
+        if (!subtree || typeof subtree !== "object" || !(char in subtree)) {
+            return [];
+        }
+        subtree = (subtree as Record<string, any>)[char];
+    }
+    return subtree;
+};
+
+const orderByMostFrequent = (words: string[], freq: WordFrequency): string[] => {
+    return words.sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
+};
+
+function getRankedMatches(
+    context: string[],
+    code: string,
+    tree: Tree,
+    ngrams: Record<string, number>,
+    freq: WordFrequency
+): string[] {
+    const possibleWords = orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
+
+    if (!context.length) {
+        console.log("High ranked choices are: ", possibleWords.slice(0, 5));
+        return possibleWords.slice(0, 5); // Return top 5 immediately if no context
+    }
+
+    // Take last 2 context words to use from the back since this is a trigram.
+    const contextString = context.slice(-2).join(" ") + " ";
+    console.log("context is: ", contextString);
+    const matchingTrigrams = Object.entries(ngrams).filter(([key]) =>
+        key.startsWith(contextString)
+    );
+
+    // Sort matching ngrams directly by their frequency
+    const matches = matchingTrigrams
+        .sort(([, freqA], [, freqB]) => freqB - freqA)
+        .map(([gram]) => gram.replace(contextString, ""));
+        // .slice(0, 500);
+        // .slice(0);
+
+    const nextWords =
+        context.length === 1
+            ? matches.map((word) => word.split(" ")[0])
+            : matches;
+
+    const possibleWordsSet = new Set(possibleWords);
+    console.log("possibleWordsSet is: ", possibleWordsSet);
+    console.log("nextWordsSet is: ", nextWords);
+    let choices = nextWords.filter((word) => possibleWordsSet.has(word)).slice(0, 5);
+
+    // If there are no choices by ngram ordering, then just provide the top 5
+    // possible words.
+    if (choices.length === 0) {
+        choices = Array.from(possibleWordsSet).slice(0, 7);
+    }
+
+    // Additional words that match code length but aren't in choices
+    const additionalWords = possibleWords.filter(
+        (word) => word.length === code.length && !choices.includes(word)
+    );
+
+    console.log("High ranked choices are: ", choices);
+    console.log("Other words are: ", additionalWords);
+    return [...new Set([...choices, ...additionalWords])];
+}
+
+useEffect(() => {
+
+   console.time("getRankedMatches Execution Time");
+
+   // Don't eval on empty current code.
+   console.log("CODE LEN IS: ", code.current.length);
+   if (code.current.length === 0) {
+       return;
+   }
+
+   Promise.resolve().then(() => {
+       possibleWords.current = getRankedMatches(
+            theWords.current,
+            code.current,
+            codeTree,
+            trigrams,
+            wordFreq
+       );
+
+       console.log("Ranked: ", possibleWords.current);
+       console.timeEnd("getRankedMatches Execution Time");
+    });
+
+}, [code.current]);
+
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -272,8 +421,8 @@ const finalizeCurrentWord = useCallback(async () => {
     console.log("Our first analysis on " + code.current)
 
     // 1) Get candidates for `code` + clean dirty words
-    const candidates = dictionary[code.current] || [];
     dirtyWords.current = [];
+    const candidates = [...possibleWords.current];
     console.log("Cleaning up dirty words: " + dirtyWords.current)
 
     let chosenWord;
@@ -304,6 +453,7 @@ const finalizeCurrentWord = useCallback(async () => {
               console.log("runs");
               theCodes.current = [];
               theWords.current = [];
+              console.log("Resetting code");
               code.current = "";
 
               inLights.current = true;
@@ -311,7 +461,7 @@ const finalizeCurrentWord = useCallback(async () => {
               indexSentence.current = 0;
 
               let rng = Math.floor(Math.random() * arrays.length);
-              
+
               refCode.current = arrays[rng];
               sentence.current = sentences[rng];
 
@@ -320,7 +470,7 @@ const finalizeCurrentWord = useCallback(async () => {
               badHits.current = 0;
 
               timerStart.current = performance.now();
-              
+
               break;
             case "22" :
               if (gravityOn.current){
@@ -331,9 +481,10 @@ const finalizeCurrentWord = useCallback(async () => {
               break;
           }
         }
-      }
-    else {
-      chosenWord = await pickWordViaGPT(candidates, theWords.current);
+    } else {
+      // chosenWord = await pickWordViaGPT(candidates, theWords.current);
+      console.log("Chose candidate");
+      chosenWord = candidates[0];
     }
 
      // 3) Append the chosen word and code
@@ -358,24 +509,29 @@ const finalizeCurrentWord = useCallback(async () => {
   // SCENARIO 2: code is empty
   // ──────────────────────────────────────────────────────────────────────────
    console.log("Running swap!")
+
    // 1) Add latest word to dirty word list
   const lastWord = theWords.current[theWords.current.length - 1];
   console.log("last word: " + lastWord);
   dirtyWords.current = dirtyWords.current.concat(lastWord);
   console.log("dirty words: " + dirtyWords.current);
+
    // 2) Filter out the lastWord from candidates so we don't pick it again
   const lastCode = theCodes.current[theCodes.current.length - 1];
   console.log("last code: " + lastCode);
-  const candidates = dictionary[lastCode];
+  const candidates = [...possibleWords.current];
   console.log("candidates: " + candidates);
   const candidatesFiltered = candidates.filter((word) => !dirtyWords.current.includes(word));
 
   console.log("Candidates: " + candidates);
   console.log("Candidates filtered: " + candidatesFiltered);
+
    // 3) Let GPT pick the best match from the filtered list
   let chosenWord = lastCode; // fallback
   if (candidates.length > 0) {
-    chosenWord = await pickWordViaGPT(candidatesFiltered, theWords.current);
+    // chosenWord = await pickWordViaGPT(candidatesFiltered, theWords.current);
+    // chosenWord = possibleWords.current[0];
+    chosenWord = candidatesFiltered[0];
   }
    // 4) Replace GPT's pick with the last word on the word list!
   theWords.current = theWords.current.slice(0, -1).concat(chosenWord);
@@ -413,22 +569,25 @@ const arrays = [
   [3,7,6,1,4,3,7,6,8,1,6,4,4,2,4,1,7,4,2,1,8,3,8,4,3,1,4,3,6,4,1,3,7,6,1,8,6,2,2,1,6,4,7,1],
   [3,7,4,4,3,7,7,4,3,3,1,7,7,3,3,4,4,2,1,7,3,8,6,4,7,3,2,1,7,6,3,1,2,4,6,3,3,8,6,6,1],
   [3,4,6,6,2,1,7,1,2,7,8,8,1,4,4,8,2,1,2,4,7,3,6,1,3,6,3,3,6,7,3,8,1,3,6,4,3,6,4,6,6,3,1],
-  [3,7,6,1,7,4,8,6,6,4,1,6,7,6,1,4,7,1,6,8,6,4,7,6,6,1,6,6,7,7,4,3,1,4,7,7,7,3,1,4,4,2,1],
+  [3,7,6,1,7,4,8,6,6,4,1,6,7,6,1,4,7,1,4,6,3,4,6,8,7,4,8,1,6,6,7,7,4,3,1,4,7,7,7,3,1,4,4,2,1],
   [7,1,7,6,3,6,1,3,7,4,3,7,7,3,3,1,4,4,1,3,7,6,1,4,6,4,4,4,2,1,4,6,3,3,6,7,6,1,3,4,1,6,3,6,4,4,6,8,1,8,7,7,6,1],
   [6,4,8,7,4,6,3,6,1,3,7,6,1,3,4,3,6,8,1,3,3,4,4,1,6,4,4,7,7,6,6,4,6,6,1],
   [7,1,6,8,1,6,6,4,6,6,8,6,1,4,7,1,3,6,8,6,4,6,3,7,2,1,3,7,6,3,6,1,6,6,2,3,1],
-  [2,4,6,3,3,8,7,4,7,1,2,7,3,7,1,8,3,6,6,2,1,8,7,6,7,6,3,3,1,7,3,1,8,3,3,3,1,6,1,7,4,6,6,2,1]
+  [2,4,6,3,3,8,7,4,7,1,2,7,3,7,1,8,3,6,6,2,1,8,7,6,7,6,3,3,1,7,3,1,8,3,3,3,1,6,1,7,4,6,6,2,1],
+  [7,3,1,2,6,3,1,6,6,4,8,2,1,7,4,1,3,7,6,1,8,4,4,4,7,4,7,1,2,7,6,4,1,7,6,1,4,4,6,6,1,7,4,3,4,1,3,7,6,1,3,4,2,4,1],
+  [7,6,1,6,6,8,6,1,4,7,6,7,4,7,1,7,4,4,8,1,3,7,6,1,3,4,3,3,7,1,3,7,6,6,1,3,8,4,2,8,2,1,8,4,4,8,7,4,7,1,6,8,8,1,6,4,4,3,4,6,1]
 ];
 
 const sentences = [
   ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
   ["throughout", "humanity", "has", "wrestled"],
-["today", "i", "will", "only", "write", "tasteful", "sentences"],
-["the", "golden", "age", "of", "america", "begins", "right", "now"],
-["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
-["dominate", "the", "truck", "stop", "confidence"],
-["i", "am", "capable", "of", "telepathy", "these", "days"],
-["wrestling", "with", "muddy", "midgets", "is", "just", "a", "hobby"]
+  ["today", "i", "will", "only", "write", "tasteful", "sentences"],
+  ["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
+  ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
+  ["dominate", "the", "truck", "stop", "confidence"],
+  ["i", "am", "capable", "of", "telepathy", "these", "days"],
+  ['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
+  ['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "looking", 'all', 'around']
 ]
 
 useEffect(() => {
@@ -480,15 +639,15 @@ const activeSide = useRef<number | null>(null);
 
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
-  console.log("running handleMouseMove()");
+  // console.log("running handleMouseMove()");
   // //comment the rest of this function for ZMQ
   if (systemCursorEnabled) {
     if (!refractory.current) {
         if (!velocities.current) {
-          console.log("good");
+          // console.log("good");
           const newX = position.current.x + e.movementX * speed.current;
           const newY = position.current.y + e.movementY * speed.current;
-          console.log(newX);
+          // console.log(newX);
           position.current = { x: newX, y: newY };
         } else {
           console.log("WE ARE GETTING IT" + velocities.current.final_velocity_x);
@@ -559,6 +718,9 @@ const drawScene = useCallback(() => {
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
 
+  // Anchors for suggestion words
+  const suggestionsY = centerY + (canvas.height / 2) / 5;
+
   const newSides: OctagonSide[] = [];
   ctx.beginPath();
   let prevX: number | null = null;
@@ -623,7 +785,7 @@ const drawScene = useCallback(() => {
         new Audio('click.mp3').play().catch((error) => console.error("Error playing audio:", error));
         goodHits.current = (goodHits.current ?? 0) + 1;
       }
-      
+
       if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
         if (indexRefCode.current !== undefined) {
           indexRefCode.current += 1;
@@ -647,7 +809,7 @@ const drawScene = useCallback(() => {
           } else {
             finalizeCurrentWord();
           }
-          
+
         } else if (codeChar === "⌫") {
           if (code.current) {
             console.log("trying to remove just the last letter");
@@ -716,30 +878,98 @@ const drawScene = useCallback(() => {
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
 
-  // Draw Dot
-  ctx.fillStyle = "lightgray";
-  ctx.beginPath();
-  ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
-  ctx.fill();
+    // Draw Dot
+    ctx.fillStyle = "lightgray";
+    ctx.beginPath();
+    ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
+    ctx.fill();
 
-// Draw dots or last word in center of canvas
-ctx.font = "169px Poppins";
-ctx.fillStyle = "white";
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
+    // Using monospace font because it is easier to render– sorry Sehej
+    ctx.font = "80px Monaco";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-if (code.current.length === 0) {
-    // Display last word from theWords.current if it exists
-    const lastWord = theWords.current[theWords.current.length - 1] || "";
-    ctx.fillText(lastWord, centerX, centerY);
-} else {
-    // Display dots for code.current
-    const dots = "*".repeat(code.current.length);
-    ctx.fillText(dots, centerX, centerY);
+    if (code.current.length === 0) {
+        // Display last word from theWords.current if it exists
+        const lastWord = theWords.current[theWords.current.length - 1] || "";
+        ctx.fillText(lastWord, centerX, centerY);
+
+        // Only display suggestions when we are also displaying a current word.
+        if (lastWord !== "") {
+            // Draw suggestions on screen
+            ctx.font = "30px Monaco";
+            ctx.fillStyle = "grey";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            let cur_index = possibleWords.current.indexOf(lastWord);
+
+            let currentY = suggestionsY;
+            // Show 3 suggestions max
+            let suggestions = possibleWords.current.slice(Math.min(cur_index + 1, possibleWords.current.length));
+            for (let i = 0; i < Math.min(suggestions.length, 3); i++) {
+                ctx.fillText(suggestions[i], centerX, currentY);
+                currentY += 35;
+            }
+        }
+
+    } else {
+
+        // For now, only do partial styling of the word with suggestions when
+        // there is at least 2 characters due to the hardcoding of the shortcuts
+        if (possibleWords.current.length > 0) {
+            const bestWord = possibleWords.current[0];
+            const place = code.current.length;
+
+            const totalWidth = ctx.measureText(bestWord).width;
+            let currentX = centerX - totalWidth / 2;
+            for (let i = 0; i < bestWord.length; i++) {
+
+                const char = bestWord[i];
+
+                // Color the known part of the word with standard styling
+                if (i < place) {
+                    ctx.fillStyle = "white";
+                // Use a gray styling for anything that remains.
+                } else {
+                    // For now, only do partial styling of the word with suggestions when
+                    // there is at least 2 characters due to the hardcoding of the shortcuts
+                    if (code.current.length < 2) {
+                        break;
+                    }
+                    ctx.fillStyle = "gray";
+                }
+
+                ctx.fillText(char, currentX, centerY);
+                currentX += ctx.measureText(char).width;
+            }
+
+            if (code.current.length > 1) {
+
+                // Draw suggestions on screen
+                ctx.font = "30px Monaco";
+                ctx.fillStyle = "grey";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                let currentY = suggestionsY;
+                // Show 3 suggestions max
+                for (let i = 0; i < Math.min(possibleWords.current.length, 3); i++) {
+                    ctx.fillText(possibleWords.current[i], centerX, currentY);
+                    currentY += 35;
+                }
+
+            }
+
+        }
+
+    // const dots = "*".repeat(code.current.length);
+    // ctx.fillText(dots, centerX, centerY);
 }
 
 ctx.font = "32px Poppins"; // Smaller font size
-ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; // Faded white color
+ctx.fillStyle = "#CACACA"; // Faded white color
 ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
 
 //Draw calculations for Game Mode
@@ -757,7 +987,7 @@ if (timerEnd.current !== undefined) {
     const totalHits = (goodHits.current ?? 0) + (badHits.current ?? 0);
     const accuracy =
       totalHits > 0 ? ((goodHits.current ?? 0) / totalHits) * 100 : 0;
-  
+
     // Format timerLength.current as MM:SS
     const timeInSeconds = Math.floor((timeLength.current ?? 0) / 1000);
     const timerSeconds = timeInSeconds % 60;
@@ -765,7 +995,7 @@ if (timerEnd.current !== undefined) {
     const formattedTime = `${timerMinutes.toString().padStart(2, "0")}:${timerSeconds
       .toString()
       .padStart(2, "0")}`;
-  
+
     // Display smaller, centered text
     ctx.font = "32px Poppins"; // Smaller font size
     ctx.fillStyle = "white"; // Text color
