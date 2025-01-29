@@ -583,6 +583,36 @@ const handleMouseMove = useCallback((e: MouseEvent) => {
 // L) COLLISION CHECK => ADD CHAR OR FINALIZE IF SPACE
 // ─────────────────────────────────────────────────────────────────────────────
 
+//
+const isDotOutsideSide = useCallback(
+  (dotX: number, dotY: number, side: OctagonSide) => {
+    const { startX, startY, endX, endY } = side;
+
+    // Vector of the side
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    // Normalize the vector
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const unitDx = dx / length;
+    const unitDy = dy / length;
+
+    // Calculate normal pointing outward (right of the direction vector)
+    const normalX = unitDy;    // Normal points outward
+    const normalY = -unitDx;   // Normal points outward
+
+    // Vector from start point to dot
+    const dotVectorX = dotX - startX;
+    const dotVectorY = dotY - startY;
+
+    // Dot product with the normal
+    const dotProduct = dotVectorX * normalX + dotVectorY * normalY;
+
+    return dotProduct > 0;  // Greater than 0 means outside
+  },
+  []
+);
+
 const isDotTouchingSide = useCallback(
   (dotX: number, dotY: number, side: OctagonSide) => {
     const { startX, startY, endX, endY } = side;
@@ -682,7 +712,8 @@ const drawScene = useCallback(() => {
   // Check collisions
   newSides.forEach((side, index) => {
     const sideIndex = index + 1;
-    const touching = isDotTouchingSide(position.current.x, position.current.y, side);
+    // const touching = isDotTouchingSide(position.current.x, position.current.y, side)
+    const touching = isDotTouchingSide(position.current.x, position.current.y, side) || isDotOutsideSide(position.current.x, position.current.y, side);
 
     if (touching) {
       if (timeLength.current !== undefined) {
