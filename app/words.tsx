@@ -13,12 +13,10 @@ export function allWords(tree: Tree, parent: string): string[] {
   const result: string[] = [];
 
   for (const key in tree) {
-    if (Object.prototype.hasOwnProperty.call(tree, key)) {
       const childWords = allWords(tree[key], key);
       for (let i = 0; i < childWords.length; i++) {
         result.push(childWords[i]);
       }
-    }
   }
 
   return result;
@@ -65,7 +63,7 @@ export function getRankedMatches(
 
     const matchingTrigrams: Array<[string, number]> = [];
     for (const key in ngrams) {
-      if (Object.prototype.hasOwnProperty.call(ngrams, key) && key.startsWith(contextString)) {
+      if (key.startsWith(contextString)) {
         matchingTrigrams.push([key, ngrams[key]]);
       }
     }
