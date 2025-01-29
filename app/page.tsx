@@ -6,7 +6,7 @@ import axios from "axios";
 import VelocityZmqListener, { VelocityPacket } from './ZmqListener';
 import ZmqSubscribeClient from './ZmqSubscribeClient';
 
-import { Tree, WordFrequency, getRankedMatches, allWords, orderByMostFrequent, getSubtree } from "./words";
+import { Tree, WordFrequency, getRankedMatches } from "./words";
 
 require('dotenv').config()
 const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
@@ -188,25 +188,17 @@ const dataReady = useRef<boolean>(false);
 useEffect(() => {
   const fetchData = async () => {
     try {
-      const [codeTreeData, trigramData, wordFreqData] = await Promise.all([
+      const [codeTreeData, trigramData, wordFreqData, precomputedData] = await Promise.all([
         fetch("/code_tree.json").then((res) => res.json()),
         fetch("/trigram_model.json").then((res) => res.json()),
         fetch("/word_freq.json").then((res) => res.json()),
+        fetch("/precomputed.json").then((res) => res.json()),
       ]);
 
       codeTree.current = codeTreeData;
       trigrams.current = trigramData;
       wordFreq.current = wordFreqData;
-
-      const singleLetters = ["2", "3", "4", "5", "6", "7", "8"];
-      const precomputed: Record<string, any> = {};
-
-      singleLetters.forEach((code) => {
-        const subtree = getSubtree(code, codeTree.current);
-        precomputed[code] = orderByMostFrequent(allWords(subtree, ""), wordFreq.current);
-      });
-
-      precomputedTrees.current = precomputed;
+      precomputedTrees.current = precomputedData;
       dataReady.current = true;
 
       console.log("All data loaded and precomputed.");
