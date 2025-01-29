@@ -453,7 +453,7 @@ const finalizeCurrentWord = useCallback(async () => {
         if (dictionaryType === 'abc') {
           switch (code.current) {
             case "6" :
-              chosenWord = 'power';
+              chosenWord = 'a';
               break;
             case "2" :
               speed.current = speed.current - 0.3;
