@@ -29,6 +29,7 @@ import "@fontsource/poppins"; // Defaults to weight 400
 
 const PointerLockDemo: React.FC = () => {
 
+  //ZMQ setup for Link
 
   const zmqService = useRef(VelocityZmqListener.factory());
   const velocities = useRef<VelocityPacket | null>(null);
@@ -54,7 +55,7 @@ const PointerLockDemo: React.FC = () => {
       } else {
         setTimeout(() => {
           refractory.current = false;
-        }, 200);
+        }, 150);
       }
     }
 
@@ -64,6 +65,10 @@ const PointerLockDemo: React.FC = () => {
       zmqService.current.events.off(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
     };
   }, [velocities.current]);
+
+
+
+
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // A) CANVAS + POINTER LOCK STATE
@@ -319,6 +324,9 @@ useEffect(() => {
 // H) FINALIZE THE WORD WHEN SPACE (SIDE 3) IS HIT
 // ─────────────────────────────────────────────────────────────────────────────
 const gravityOn = useRef<boolean>(false);
+const gravity = useRef<number>(81);
+
+const gravityRandom = useRef<boolean>(true);
 
 const finalizeCurrentWord = useCallback(async () => {
   // ──────────────────────────────────────────────────────────────────────────
@@ -454,7 +462,12 @@ const finalizeCurrentWord = useCallback(async () => {
 // J) POINTER LOCK SETUP
 // ─────────────────────────────────────────────────────────────────────────────
 
-const inLights = useRef<boolean>(false);
+//Game mode 2.0: no words in the center OR asterisks. No word prediction calls. 
+//So basically, we just keep code.current always empty and never call finalizeCurrentWord(). 
+// So no word prediction stuff gets triggered. 
+
+
+const inLights = useRef<boolean>(false); 
 
 const refCode = useRef<number[]>();
 const indexRefCode = useRef<number>();
@@ -546,7 +559,6 @@ const activeSide = useRef<number | null>(null);
 
 const handleMouseMove = useCallback((e: MouseEvent) => {
   // console.log("running handleMouseMove()");
-  // //comment the rest of this function for ZMQ
   if (systemCursorEnabled) {
     if (!refractory.current) {
         if (!velocities.current) {
@@ -622,9 +634,10 @@ const isDotTouchingSide = useCallback(
     const distance = Math.sqrt((dotX - closestX) ** 2 + (dotY - closestY) ** 2);
 
 
+
     if (gravityOn.current) {
       console.log("GRAVITY IS ON");
-      return distance <= 81;
+      return distance <= gravity.current;
     }
     return distance <= 18;
   },
@@ -636,6 +649,8 @@ const predictedWord = useRef<String>();
 function predictTheWord (){
   code.current;
 }
+
+
 
 const drawScene = useCallback(() => {
   const canvas = canvasRef.current;
@@ -724,6 +739,11 @@ const drawScene = useCallback(() => {
         goodHits.current = (goodHits.current ?? 0) + 1;
       }
 
+      //New gravity threshold every time you hit a side (if in gravity random mode)
+      if (gravityRandom.current && gravityOn.current) {
+        gravity.current = Math.random() * 140;
+      }
+
       if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
         if (indexRefCode.current !== undefined) {
           indexRefCode.current += 1;
@@ -744,7 +764,7 @@ const drawScene = useCallback(() => {
               sentence.current = undefined;
               indexSentence.current = undefined;
             }
-          } else {
+          } else if (!inLights.current) {
             finalizeCurrentWord();
           }
 
@@ -756,7 +776,7 @@ const drawScene = useCallback(() => {
             theWords.current.pop();
             theCodes.current.pop();
           }
-        } else if (codeChar) {
+        } else if (codeChar && !inLights.current) {
           // Add digit to typedCodes
           code.current = code.current + codeChar;
           console.log(code.current);
@@ -770,12 +790,12 @@ const drawScene = useCallback(() => {
           activeSide.current = null;
       }, 50);
     } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) { //when not touching and in Game mode
-        ctx.strokeStyle = "yellow";
+        ctx.strokeStyle = "black";
     } else {
       if (activeSide.current === sideIndex) {
-        ctx.strokeStyle = "white";
+        ctx.strokeStyle = "black";
       } else {
-        ctx.strokeStyle = "rgba(0, 124, 56)"; // Blue with 30% opacity
+        ctx.strokeStyle = "black"; // Blue with 30% opacity
       }
     }
     ctx.lineWidth = 14;
@@ -809,9 +829,15 @@ const drawScene = useCallback(() => {
     const labelX = midX + offset * ndx;
     const labelY = midY + offset * ndy;
 
-    ctx.font = lastHitSide.current === sideIndex
-      ? "bold 56px Poppins, sans-serif"
+    ctx.font = activeSide.current === sideIndex
+      ? "bold 69px Poppins, sans-serif"
       : "bold 50px Poppins, sans-serif";
+
+    ctx.fillStyle = "white"
+
+    if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) {
+      ctx.fillStyle = "yellow"
+    }
 
     ctx.fillText(sideLabels[sideIndex], labelX, labelY);
   });
@@ -827,13 +853,13 @@ const drawScene = useCallback(() => {
     ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Using monospace font because it is easier to render– sorry Sehej
+    // Using monospace font because it is easier to render– sorry Sehej BRUH
     ctx.font = "80px Monaco";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    if (code.current.length === 0) {
+    if (code.current.length === 0 && !inLights.current) {
         // Display last word from theWords.current if it exists
         const lastWord = theWords.current[theWords.current.length - 1] || "";
         ctx.fillText(lastWord, centerX, centerY);
@@ -902,15 +928,16 @@ const drawScene = useCallback(() => {
                     ctx.fillText(possibleWords.current[i], centerX, currentY);
                     currentY += 35;
                 }
-
             }
-
         }
 }
 
 ctx.font = "32px Poppins"; // Smaller font size
 ctx.fillStyle = "#CACACA"; // Faded white color
-ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
+if (!inLights.current) {
+  ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
+}
+
 
 //Draw calculations for Game Mode
 if (timerEnd.current !== undefined) {
@@ -1056,6 +1083,121 @@ return (
     onChange={(e) => (speed.current = parseFloat(e.target.value))}
     style={{ width: "150px" }}
   />
+<div
+  style={{
+    position: "fixed", // Fixes the position relative to the viewport
+    bottom: "20px",    // Distance from the bottom of the viewport
+    left: "20px",      // Distance from the right of the viewport
+    backgroundColor: "rgba(0, 0, 0, 0.7)", // Semi-transparent background
+    padding: "10px",
+    borderRadius: "8px", // Rounded corners
+    color: "white",     // Text color to make sure the label is visible
+    textAlign: "center",
+  }}
+>
+  <label htmlFor="gravity-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
+  </label>
+  <input
+    id="gravity-slider"
+    type="range"
+    min="0"
+    max="140"
+    step="0.1"
+    value={gravity.current}
+    onChange={(e) => (gravity.current = parseFloat(e.target.value))}
+    style={{
+      width: "150px",
+      appearance: "none", // Removes default slider styles
+      background: "#333333", // Off-black background for the slider track
+      borderRadius: "5px",
+      height: "10px", // Custom track height
+      outline: "none", // Removes outline on focus
+    }}
+  />
+  
+  <div style={{ marginTop: "10px" }}>
+    <button
+      onClick={() => {
+        gravityOn.current = !gravityOn.current;
+      }}
+      style={{
+        backgroundColor: "#555555", // Off-black button background
+        color: "white", // White text
+        border: "none", 
+        borderRadius: "5px", 
+        padding: "5px 10px", 
+        marginRight: "10px", 
+        cursor: "pointer"
+      }}
+    >
+      On
+    </button>
+    <button
+      onClick={() => {
+        gravityRandom.current = !gravityRandom.current;
+      }}
+      style={{
+        backgroundColor: "#555555", // Off-black button background
+        color: "white", // White text
+        border: "none", 
+        borderRadius: "5px", 
+        padding: "5px 10px", 
+        cursor: "pointer"
+      }}
+    >
+      Rand
+    </button>
+  </div>
+  
+  <style>
+    {`
+      #gravity-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #555555; // Off-black color for the thumb
+        border: none;
+        cursor: pointer;
+      }
+      #gravity-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #555555; // Off-black color for the thumb
+        border: none;
+        cursor: pointer;
+      }
+      #gravity-slider::-ms-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #555555; // Off-black color for the thumb
+        border: none;
+        cursor: pointer;
+      }
+      #gravity-slider::-webkit-slider-runnable-track {
+        background: #333333; // Off-black track background
+        border-radius: 5px;
+        height: 10px; // Custom track height
+      }
+      #gravity-slider::-moz-range-track {
+        background: #333333; // Off-black track background
+        border-radius: 5px;
+        height: 10px; // Custom track height
+      }
+      #gravity-slider::-ms-track {
+        background: #333333; // Off-black track background
+        border-radius: 5px;
+        height: 10px; // Custom track height
+        border-color: transparent;
+        border-width: 0;
+        color: transparent;
+      }
+    `}
+  </style>
+</div>
+
 
 
 
