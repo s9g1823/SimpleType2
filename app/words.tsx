@@ -2,17 +2,28 @@ export type Tree = Record<string, any>;
 export type WordFrequency = Record<string, number>;
 
 export function allWords(tree: Tree, parent: string): string[] {
-    if (parent === "#") {
-        return tree as string[];
+  if (parent === "#") {
+    return tree as string[];
+  }
+
+  if (!tree) {
+    return [];
+  }
+
+  const result: string[] = [];
+
+  for (const key in tree) {
+    if (Object.prototype.hasOwnProperty.call(tree, key)) {
+      const childWords = allWords(tree[key], key);
+      for (let i = 0; i < childWords.length; i++) {
+        result.push(childWords[i]);
+      }
     }
-    if (!tree) {
-        return [];
-    }
-    return Object.entries(tree).reduce((acc, [key, value]) => {
-        acc.push(...allWords(value, key));
-        return acc;
-    }, [] as string[]);
-};
+  }
+
+  return result;
+}
+
 
 export function getSubtree(codeword: string, tree: Tree | string[]): Tree | string[] {
     let subtree: Tree | string[] = tree;
@@ -51,9 +62,13 @@ export function getRankedMatches(
     // Take last 2 context words to use from the back since this is a trigram.
     const contextString = context.slice(-2).join(" ") + " ";
     console.log("context is: ", contextString);
-    const matchingTrigrams = Object.entries(ngrams).filter(([key]) =>
-        key.startsWith(contextString)
-    );
+
+    const matchingTrigrams: Array<[string, number]> = [];
+    for (const key in ngrams) {
+      if (Object.prototype.hasOwnProperty.call(ngrams, key) && key.startsWith(contextString)) {
+        matchingTrigrams.push([key, ngrams[key]]);
+      }
+    }
 
     // Sort matching ngrams directly by their frequency
     const matches = matchingTrigrams

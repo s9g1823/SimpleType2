@@ -496,7 +496,7 @@ const sentences = [
   ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
   ["throughout", "humanity", "has", "wrestled"],
   ["today", "i", "will", "only", "write", "tasteful", "sentences"],
-  ["the", "golden", "age", "of", "neurotech", "begins", "right", "now"],
+  ["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
   ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
   ["dominate", "the", "truck", "stop", "confidence"],
   ["i", "am", "capable", "of", "telepathy", "these", "days"],
