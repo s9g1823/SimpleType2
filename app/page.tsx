@@ -6,6 +6,8 @@ import axios from "axios";
 import VelocityZmqListener, { VelocityPacket } from './ZmqListener';
 import ZmqSubscribeClient from './ZmqSubscribeClient';
 
+import { Tree, WordFrequency, getRankedMatches, allWords, orderByMostFrequent, getSubtree } from "./words";
+
 require('dotenv').config()
 const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
 
@@ -110,12 +112,6 @@ const dirtyWords = useRef<string[]>([]);
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// C) DICTIONARY & GPT
-// ─────────────────────────────────────────────────────────────────────────────
-const [dictionary, setDictionary] = useState<Dictionary>({});
-
-//
-// ─────────────────────────────────────────────────────────────────────────────
 // D) SIDE MAPPINGS
 // ─────────────────────────────────────────────────────────────────────────────
 // If side 3 => space => finalize the current code.
@@ -180,12 +176,6 @@ const getSideLabels = (type: string): Record<number, string> => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const [dictionaryType, setDictionaryType] = useState("abc");
-useEffect(() => {
-  fetch(`/six${dictionaryType}.json`)
-    .then((res) => res.json())
-    .then((data) => setDictionary(data))
-    .catch((err) => console.error("Failed to load dictionary:", err));
-}, [dictionaryType]);
 
 const sideLabels = getSideLabels(dictionaryType);
 
@@ -234,98 +224,6 @@ useEffect(() => {
 // E.2) CURRENT CODE -> WORDS LOOKUP
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Tree = Record<string, any>;
-type WordFrequency = Record<string, number>;
-
-const allWords = (tree: Tree, parent: string): string[] => {
-    if (parent === "#") {
-        return tree as string[];
-    }
-    if (!tree) {
-        return [];
-    }
-    return Object.entries(tree).reduce((acc, [key, value]) => {
-        acc.push(...allWords(value, key));
-        return acc;
-    }, [] as string[]);
-};
-
-const getSubtree = (codeword: string, tree: Tree | string[]): Tree | string[] => {
-    let subtree: Tree | string[] = tree;
-
-    for (const char of codeword) {
-        if (!subtree || typeof subtree !== "object" || !(char in subtree)) {
-            return [];
-        }
-        subtree = (subtree as Record<string, any>)[char];
-    }
-    return subtree;
-};
-
-const orderByMostFrequent = (words: string[], freq: WordFrequency): string[] => {
-    return words.sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
-};
-
-function getRankedMatches(
-    context: string[],
-    code: string,
-    tree: Tree,
-    ngrams: Record<string, number>,
-    freq: WordFrequency,
-    precomputed: Record<string, string[]>,
-): string[] {
-
-    console.log(tree);
-
-    const possibleWords = code.length === 1
-        ? precomputed[code]
-        : orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
-
-    if (!context.length) {
-        console.log("High ranked choices are: ", possibleWords.slice(0, 5));
-        return possibleWords.slice(0, 5); // Return top 5 immediately if no context
-    }
-
-    // Take last 2 context words to use from the back since this is a trigram.
-    const contextString = context.slice(-2).join(" ") + " ";
-    console.log("context is: ", contextString);
-    const matchingTrigrams = Object.entries(ngrams).filter(([key]) =>
-        key.startsWith(contextString)
-    );
-
-    // Sort matching ngrams directly by their frequency
-    const matches = matchingTrigrams
-        .sort(([, freqA], [, freqB]) => freqB - freqA)
-        .map(([gram]) => gram.replace(contextString, ""));
-        // .slice(0, 500);
-        // .slice(0);
-
-    const nextWords =
-        context.length === 1
-            ? matches.map((word) => word.split(" ")[0])
-            : matches;
-
-    const possibleWordsSet = new Set(possibleWords);
-    console.log("possibleWordsSet is: ", possibleWordsSet);
-    console.log("nextWordsSet is: ", nextWords);
-    let choices = nextWords.filter((word) => possibleWordsSet.has(word)).slice(0, 5);
-
-    // If there are no choices by ngram ordering, then just provide some of the
-    // top possible words.
-    if (choices.length === 0) {
-        choices = Array.from(possibleWordsSet).slice(0, 15);
-    }
-
-    // Additional words that match code length but aren't in choices
-    const additionalWords = possibleWords.filter(
-        (word) => word.length === code.length && !choices.includes(word)
-    );
-
-    console.log("High ranked choices are: ", choices);
-    console.log("Other words are: ", additionalWords);
-    return [...new Set([...choices, ...additionalWords])];
-}
-
 useEffect(() => {
 
    console.time("getRankedMatches Execution Time");
@@ -351,7 +249,6 @@ useEffect(() => {
     });
 
 }, [code.current]);
-
 
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -555,7 +452,7 @@ const finalizeCurrentWord = useCallback(async () => {
   theWords.current = theWords.current.slice(0, -1).concat(chosenWord);
 
   return;
-}, [code, theCodes, theWords, dictionary, pickWordViaGPT]);
+}, [code, theCodes, theWords, pickWordViaGPT]);
 
 
 
@@ -599,7 +496,7 @@ const sentences = [
   ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
   ["throughout", "humanity", "has", "wrestled"],
   ["today", "i", "will", "only", "write", "tasteful", "sentences"],
-  ["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
+  ["the", "golden", "age", "of", "neurotech", "begins", "right", "now"],
   ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
   ["dominate", "the", "truck", "stop", "confidence"],
   ["i", "am", "capable", "of", "telepathy", "these", "days"],
@@ -676,7 +573,7 @@ const handleMouseMove = useCallback((e: MouseEvent) => {
       } else {
         setTimeout(() => {
           refractory.current = false;
-        }, 200);
+        }, 100);
       }
   }
 }, []);
