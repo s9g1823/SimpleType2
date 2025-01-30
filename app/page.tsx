@@ -60,9 +60,9 @@ const PointerLockDemo: React.FC = () => {
         // Map hacked click values to the corresponding sides
         // Numbering goes clockwise starting from space
         sideLikelihoods.current[0] = velocities.current.left_click_probability_smoothed;
-        sideLikelihoods.current[1] = velocities.current.raw_velocity_x;
+        sideLikelihoods.current[1] = velocities.current.velocity_smoothed_x;
         sideLikelihoods.current[2] = velocities.current.raw_left_click_probability;
-        sideLikelihoods.current[3] = velocities.current.raw_velocity_y;
+        sideLikelihoods.current[3] = velocities.current.velocity_smoothed_y;
         sideLikelihoods.current[4] = velocities.current.middle_click_probability_smoothed;
         sideLikelihoods.current[5] = velocities.current.raw_middle_click_probability;
         sideLikelihoods.current[6] = velocities.current.right_click_probability_smoothed;
