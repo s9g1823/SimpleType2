@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
-import VelocityZmqListener, { VelocityPacket } from './ZmqListener';
+import VelocityZmqListener, { DecodePacket } from './ZmqListener';
 import ZmqSubscribeClient from './ZmqSubscribeClient';
 
 import { Tree, WordFrequency, getRankedMatches } from "./words";
@@ -17,12 +17,11 @@ interface Dictionary {
 
 
 interface OctagonSide {
-startX: number;
-startY: number;
-endX: number;
-endY: number;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
 }
-
 
 
 import "@fontsource/poppins"; // Defaults to weight 400
@@ -32,7 +31,10 @@ const PointerLockDemo: React.FC = () => {
   //ZMQ setup for Link
 
   const zmqService = useRef(VelocityZmqListener.factory());
-  const velocities = useRef<VelocityPacket | null>(null);
+  const velocities = useRef<DecodePacket | null>(null);
+  const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
+
+  const directionalMode = useRef<boolean>(false);
 
   useEffect(() => {
     zmqService.current.start();
@@ -43,15 +45,34 @@ const PointerLockDemo: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    function handleVelocityData(data: VelocityPacket) {
+    function handleDecodeData(data: DecodePacket) {
       velocities.current = data;
       //console.log('Received velocity data:', data);
+
+        // Map hacked click values to the corresponding sides
+        // Numbering goes clockwise starting from space
+        sideLikelihoods.current[0] = velocities.current.left_click_probability_smoothed;
+        sideLikelihoods.current[1] = velocities.current.raw_velocity_x;
+        sideLikelihoods.current[2] = velocities.current.raw_left_click_probability;
+        sideLikelihoods.current[3] = velocities.current.raw_velocity_y;
+        sideLikelihoods.current[4] = velocities.current.middle_click_probability_smoothed;
+        sideLikelihoods.current[5] = velocities.current.raw_middle_click_probability;
+        sideLikelihoods.current[6] = velocities.current.right_click_probability_smoothed;
+        sideLikelihoods.current[7] = velocities.current.raw_right_click_probability;
 
       if (!refractory.current) {
         const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.01;
         const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.01;
 
-        position.current = {x: newX, y: newY};
+        // For testing
+        // for (let i = 0; i <= 8; i++) {
+        //     sideLikelihoods.current[i] = i * (1 / 8);
+        // }
+
+        if (!directionalMode.current) {
+            position.current = {x: newX, y: newY};
+        }
+
       } else {
         setTimeout(() => {
           refractory.current = false;
@@ -59,10 +80,10 @@ const PointerLockDemo: React.FC = () => {
       }
     }
 
-    zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
+    zmqService.current.events.on(ZmqSubscribeClient.EVENT_MESSAGE, handleDecodeData);
 
     return () => {
-      zmqService.current.events.off(ZmqSubscribeClient.EVENT_MESSAGE, handleVelocityData);
+      zmqService.current.events.off(ZmqSubscribeClient.EVENT_MESSAGE, handleDecodeData);
     };
   }, [velocities.current]);
 
@@ -462,12 +483,12 @@ const finalizeCurrentWord = useCallback(async () => {
 // J) POINTER LOCK SETUP
 // ─────────────────────────────────────────────────────────────────────────────
 
-//Game mode 2.0: no words in the center OR asterisks. No word prediction calls. 
-//So basically, we just keep code.current always empty and never call finalizeCurrentWord(). 
-// So no word prediction stuff gets triggered. 
+//Game mode 2.0: no words in the center OR asterisks. No word prediction calls.
+//So basically, we just keep code.current always empty and never call finalizeCurrentWord().
+// So no word prediction stuff gets triggered.
 
 
-const inLights = useRef<boolean>(false); 
+const inLights = useRef<boolean>(false);
 
 const refCode = useRef<number[]>();
 const indexRefCode = useRef<number>();
@@ -665,6 +686,8 @@ const drawScene = useCallback(() => {
   const centerX = 800;
   const centerY = 480;
   const radius = 450;
+  // const innerRadius = (radius / 1.618); // Golden ratio lol
+  const innerRadius = 0; // Golden ratio lol
   const sides = 8;
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
@@ -673,25 +696,38 @@ const drawScene = useCallback(() => {
   const suggestionsY = centerY + (canvas.height / 2) / 5;
 
   const newSides: OctagonSide[] = [];
-  ctx.beginPath();
-  let prevX: number | null = null;
-  let prevY: number | null = null;
 
+  ctx.beginPath();
   for (let i = 0; i <= sides; i++) {
+
     const angle = i * angleStep - rotation;
-    const vertexX = centerX + radius * Math.cos(angle);
-    const vertexY = centerY + radius * Math.sin(angle);
+    const prevAngle = (i - 1) * angleStep - rotation;
+
+    const angCos = Math.cos(angle);
+    const angSin = Math.sin(angle);
+    const innerAngCos = Math.cos(prevAngle);
+    const innerAngSin = Math.sin(prevAngle);
+
+    const vertexX = centerX + radius * angCos;
+    const vertexY = centerY + radius * angSin;
+    let prevX = centerX + radius * innerAngCos;
+    let prevY = centerY + radius * innerAngSin;
+
+    const vertexInnerX = centerX + innerRadius * angCos;
+    const vertexInnerY = centerY + innerRadius * angSin;
+    let prevInnerX = centerX + innerRadius * innerAngCos;
+    let prevInnerY = centerY + innerRadius * innerAngSin;
+
+    const deltaX = vertexX - prevX!;
+    const deltaY = vertexY - prevY!;
+    const startOffsetX = prevX! + deltaX * 0.0;
+    const startOffsetY = prevY! + deltaY * 0.0;
+    const endOffsetX = prevX! + deltaX * 1;
+    const endOffsetY = prevY! + deltaY * 1;
 
     if (i === 0) {
       ctx.moveTo(vertexX, vertexY);
     } else {
-      // Calculate the shortened segment
-      const deltaX = vertexX - prevX!;
-      const deltaY = vertexY - prevY!;
-      const startOffsetX = prevX! + deltaX * 0.0; // Start 10% into the side
-      const startOffsetY = prevY! + deltaY * 0.0;
-      const endOffsetX = prevX! + deltaX * 1; // End 90% into the side
-      const endOffsetY = prevY! + deltaY * 1;
 
       // Draw shortened side
       ctx.moveTo(startOffsetX, startOffsetY);
@@ -704,23 +740,67 @@ const drawScene = useCallback(() => {
         endX: endOffsetX,
         endY: endOffsetY,
       });
+
+      if (directionalMode.current) {
+
+         const delta2X = vertexInnerX - prevInnerX!;
+         const delta2Y = vertexInnerY - prevInnerY!;
+         const innerOffsetStartX = prevInnerX! + delta2X * 0;
+         const innerOffsetStartY = prevInnerY! + delta2Y * 0;
+
+         const innerOffsetEndX = prevInnerX! + delta2X * 1;
+         const innerOffsetEndY = prevInnerY! + delta2Y * 1;
+
+
+         const gradient = ctx.createLinearGradient(
+             (innerOffsetStartX + innerOffsetEndX) / 2,
+             (innerOffsetStartY + innerOffsetEndY) / 2,
+             (startOffsetX + endOffsetX) / 2,
+             (startOffsetY + endOffsetY) / 2,
+         );
+
+         const alpha = sideLikelihoods.current[i - 1] * 0.65;
+
+         // Gradient towards center
+         // gradient.addColorStop(1 - sideLikelihoods.current[i - 1], "black");
+         // gradient.addColorStop(1, "green");
+
+         // Outward bar mode
+         gradient.addColorStop(sideLikelihoods.current[i - 1], "green");
+         gradient.addColorStop(sideLikelihoods.current[i - 1], "black");
+
+          // Draw trapezoid
+          ctx.beginPath();
+          ctx.moveTo(startOffsetX, startOffsetY);
+          ctx.lineTo(endOffsetX, endOffsetY);
+          ctx.lineTo(innerOffsetEndX, innerOffsetEndY);
+          ctx.lineTo(innerOffsetStartX, innerOffsetStartY);
+          ctx.closePath();
+
+          // ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
     }
 
-    prevX = vertexX;
-    prevY = vertexY;
   }
 
   // Complete the octagon shape
   ctx.closePath();
-  ctx.stroke();
 
   ctx.fillStyle = 'white';
 
   // Check collisions
   newSides.forEach((side, index) => {
     const sideIndex = index + 1;
-    // const touching = isDotTouchingSide(position.current.x, position.current.y, side)
-    const touching = isDotTouchingSide(position.current.x, position.current.y, side) || isDotOutsideSide(position.current.x, position.current.y, side);
+    let touching = isDotTouchingSide(position.current.x, position.current.y, side) || isDotOutsideSide(position.current.x, position.current.y, side);
+
+    if (directionalMode.current && !refractory.current) {
+        touching = sideLikelihoods.current[index] === 1;
+    }
+
+
+    console.log("PROB: ", sideLikelihoods.current[3]);
 
     if (touching) {
       if (timeLength.current !== undefined) {
@@ -790,12 +870,12 @@ const drawScene = useCallback(() => {
           activeSide.current = null;
       }, 50);
     } else if (refCode.current && (indexRefCode.current !== undefined) && refCode.current[indexRefCode.current] == sideIndex) { //when not touching and in Game mode
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = "yellow";
     } else {
       if (activeSide.current === sideIndex) {
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = "white";
       } else {
-        ctx.strokeStyle = "black"; // Blue with 30% opacity
+        ctx.strokeStyle = "rgba(0, 124, 56)"; // Blue with 30% opacity
       }
     }
     ctx.lineWidth = 14;
@@ -975,7 +1055,7 @@ if (timerEnd.current !== undefined) {
 
 
 setOctagonSides(newSides);
-}, [position, lastHitSide, finalizeCurrentWord, sideMappings, sideLabels, code]);
+}, [position, sideLikelihoods, lastHitSide, finalizeCurrentWord, sideMappings, sideLabels, code]);
 
 // Animate
 useEffect(() => {
@@ -1114,7 +1194,7 @@ return (
       outline: "none", // Removes outline on focus
     }}
   />
-  
+
   <div style={{ marginTop: "10px" }}>
     <button
       onClick={() => {
@@ -1123,10 +1203,10 @@ return (
       style={{
         backgroundColor: "#555555", // Off-black button background
         color: "white", // White text
-        border: "none", 
-        borderRadius: "5px", 
-        padding: "5px 10px", 
-        marginRight: "10px", 
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 10px",
+        marginRight: "10px",
         cursor: "pointer"
       }}
     >
@@ -1139,16 +1219,31 @@ return (
       style={{
         backgroundColor: "#555555", // Off-black button background
         color: "white", // White text
-        border: "none", 
-        borderRadius: "5px", 
-        padding: "5px 10px", 
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 10px",
         cursor: "pointer"
       }}
     >
       Rand
     </button>
+    <button
+      onClick={() => {
+        directionalMode.current = !directionalMode.current;
+      }}
+      style={{
+        backgroundColor: "#555555", // Off-black button background
+        color: "white", // White text
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 15px",
+        cursor: "pointer"
+      }}
+    >
+      Direction Mode: {directionalMode.current ? "True" : "False"}
+    </button>
   </div>
-  
+
   <style>
     {`
       #gravity-slider::-webkit-slider-thumb {
