@@ -23,6 +23,12 @@ interface OctagonSide {
     endY: number;
 }
 
+enum DirectionalRendering {
+    CenterOutGradient = "Center Out",
+    CenterInGradient = "Center In",
+    TrapezoidTile = "Trapezoid",
+}
+
 
 import "@fontsource/poppins"; // Defaults to weight 400
 
@@ -35,6 +41,8 @@ const PointerLockDemo: React.FC = () => {
   const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
 
   const directionalMode = useRef<boolean>(false);
+  // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
+  const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.TrapezoidTile);
 
   useEffect(() => {
     zmqService.current.start();
@@ -685,9 +693,12 @@ const drawScene = useCallback(() => {
   // Draw octagon
   const centerX = 800;
   const centerY = 480;
+
   const radius = radiusOct;
   // const innerRadius = (radius / 1.618); // Golden ratio lol
-  const innerRadius = 0; // Golden ratio lol
+  // const radius = 450;
+  const innerRadius = directionalRendering.current === DirectionalRendering.TrapezoidTile ? (radius / 1.618) : 0; // Golden ratio lol
+
   const sides = 8;
   const angleStep = (2 * Math.PI) / sides;
   const rotation = Math.PI / 8;
@@ -761,13 +772,27 @@ const drawScene = useCallback(() => {
 
          const alpha = sideLikelihoods.current[i - 1] * 0.65;
 
-         // Gradient towards center
-         // gradient.addColorStop(1 - sideLikelihoods.current[i - 1], "black");
-         // gradient.addColorStop(1, "green");
 
-         // Outward bar mode
-         gradient.addColorStop(sideLikelihoods.current[i - 1], "green");
-         gradient.addColorStop(sideLikelihoods.current[i - 1], "black");
+        let style: CanvasGradient | string | undefined;
+         switch (directionalRendering.current) {
+             // Outward bar mode
+             case DirectionalRendering.CenterOutGradient:
+                 gradient.addColorStop(0, "green");
+                 gradient.addColorStop(sideLikelihoods.current[i - 1], "black");
+                 style = gradient;
+                 break;
+             // Gradient towards center
+             case DirectionalRendering.CenterInGradient:
+                 gradient.addColorStop(1 - sideLikelihoods.current[i - 1], "black");
+                 gradient.addColorStop(1, "green");
+                 style = gradient;
+                 break;
+             case DirectionalRendering.TrapezoidTile:
+                 style = `rgba(0, 255, 0, ${alpha})`;
+                 break;
+         }
+
+         // directionalRendering.current = DirectionalRendering.TrapezoidTile;
 
           // Draw trapezoid
           ctx.beginPath();
@@ -777,8 +802,7 @@ const drawScene = useCallback(() => {
           ctx.lineTo(innerOffsetStartX, innerOffsetStartY);
           ctx.closePath();
 
-          // ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
-          ctx.fillStyle = gradient;
+          ctx.fillStyle = style;
           ctx.fill();
         }
     }
@@ -827,7 +851,7 @@ const drawScene = useCallback(() => {
       if (gravityClosin.current) {
         gravity.current += (radiusOct * 0.01);
       }
- 
+
 
       if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
         if (indexRefCode.current !== undefined) {
@@ -938,7 +962,9 @@ const drawScene = useCallback(() => {
         ctx.fillStyle = "lightgray";
     }
     ctx.beginPath();
-    ctx.arc(position.current.x, position.current.y, 11, 0, 2 * Math.PI);
+
+    const cursorSize = directionalMode.current ? 0 : 11;
+    ctx.arc(position.current.x, position.current.y, cursorSize, 0, 2 * Math.PI);
     ctx.fill();
 
     // Using monospace font because it is easier to render– sorry Sehej BRUH
@@ -1066,7 +1092,7 @@ if (timerEnd.current !== undefined) {
       centerX,
       centerY - 40
     );
- 
+
 }
 
 
@@ -1153,6 +1179,53 @@ return (
          }}
        />
      </div>
+
+{/* Render mode options */}
+  <div style={{position: "fixed", bottom: 0, left: 0, padding: "5px 10px"}}>
+
+    <button
+      onClick={() => {
+        directionalMode.current = !directionalMode.current;
+      }}
+      style={{
+        backgroundColor: "#555555", // Off-black button background
+        color: "white", // White text
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 15px",
+        cursor: "pointer"
+      }}
+    >
+      Direction Mode: {directionalMode.current ? "True" : "False"}
+    </button>
+
+    <button
+      onClick={() => {
+          switch (directionalRendering.current) {
+              case DirectionalRendering.CenterInGradient:
+                  directionalRendering.current = DirectionalRendering.CenterOutGradient;
+                  break;
+              case DirectionalRendering.CenterOutGradient:
+                  directionalRendering.current = DirectionalRendering.TrapezoidTile;
+                  break;
+              case DirectionalRendering.TrapezoidTile:
+                  directionalRendering.current = DirectionalRendering.CenterInGradient;
+                  break;
+          }
+      }}
+      style={{
+        backgroundColor: "#555555", // Off-black button background
+        color: "white", // White text
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 15px",
+        cursor: "pointer"
+      }}
+    >
+      Rendering: { directionalRendering.current }
+    </button>
+  </div>
+
 {/* Speed Slider */}
 <div
  style={{
@@ -1244,6 +1317,7 @@ return (
      Closin
    </button>
  </div>
+
   <style>
    {`
      #gravity-slider::-webkit-slider-thumb {
@@ -1292,9 +1366,6 @@ return (
    `}
  </style>
 </div>
-
-
-
 
 
 </div>
