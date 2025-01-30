@@ -344,10 +344,16 @@ useEffect(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 // H) FINALIZE THE WORD WHEN SPACE (SIDE 3) IS HIT
 // ─────────────────────────────────────────────────────────────────────────────
-const gravityOn = useRef<boolean>(false);
-const gravity = useRef<number>(81);
+//Hitting "ZZ " => will turn gravity on 0.4 of radius
+//Then clicking "60%" button will make it 60% of radius
+//Then moving slider will also be able to adjust accordingly
+//Closin button will make it go 2% closer each hit
 
-const gravityRandom = useRef<boolean>(true);
+const radiusOct = 350;
+
+const gravity = useRef<number>(18);
+const gravityClosin = useRef<boolean>(false);
+
 
 const finalizeCurrentWord = useCallback(async () => {
   // ──────────────────────────────────────────────────────────────────────────
@@ -410,13 +416,9 @@ const finalizeCurrentWord = useCallback(async () => {
               timerStart.current = performance.now();
 
               break;
-            case "22" :
-              if (gravityOn.current){
-                gravityOn.current = false;
-              } else {
-                gravityOn.current = true;
-              }
-              break;
+              case "22" :
+                gravity.current = 0.4 * radiusOct;
+                break;
           }
         }
     } else {
@@ -506,29 +508,33 @@ const timeLength = useRef<number>();
 const accuracy = useRef<number>();
 const ccpm = useRef<number>();
 
+const hitTimes = useRef<number[]>([]); //times for each hit that you do (analysis purposes)
+const hitTimerStart = useRef<number>();
+const hitTimerEnd = useRef<number>();
+const hitTimeLength = useRef<number>();
+
+
 const arrays = [
-  [3,7,6,1,4,3,7,6,8,1,6,4,4,2,4,1,7,4,2,1,8,3,8,4,3,1,4,3,6,4,1,3,7,6,1,8,6,2,2,1,6,4,7,1],
-  [3,7,4,4,3,7,7,4,3,3,1,7,7,3,3,4,4,2,1,7,3,8,6,4,7,3,2,1,7,6,3,1,2,4,6,3,3,8,6,6,1],
-  [3,4,6,6,2,1,7,1,2,7,8,8,1,4,4,8,2,1,2,4,7,3,6,1,3,6,3,3,6,7,3,8,1,3,6,4,3,6,4,6,6,3,1],
-  [3,7,6,1,7,4,8,6,6,4,1,6,7,6,1,4,7,1,4,6,3,4,6,8,7,4,8,1,6,6,7,7,4,3,1,4,7,7,7,3,1,4,4,2,1],
-  [7,1,7,6,3,6,1,3,7,4,3,7,7,3,3,1,4,4,1,3,7,6,1,4,6,4,4,4,2,1,4,6,3,3,6,7,6,1,3,4,1,6,3,6,4,4,6,8,1,8,7,7,6,1],
-  [6,4,8,7,4,6,3,6,1,3,7,6,1,3,4,3,6,8,1,3,3,4,4,1,6,4,4,7,7,6,6,4,6,6,1],
-  [7,1,6,8,1,6,6,4,6,6,8,6,1,4,7,1,3,6,8,6,4,6,3,7,2,1,3,7,6,3,6,1,6,6,2,3,1],
-  [7,3,1,2,6,3,1,6,6,4,8,2,1,7,4,1,3,7,6,1,8,4,4,4,7,4,7,1,2,7,6,4,1,7,6,1,4,4,6,6,1,7,4,3,4,1,3,7,6,1,3,4,2,4,1],
-  [7,6,1,6,6,8,6,1,4,7,6,7,4,7,1,7,4,4,8,1,3,7,6,1,3,4,3,3,7,1,3,7,6,6,1,3,8,4,2,8,2,1,8,4,4,8,7,4,7,1,6,8,8,1,6,4,4,3,4,6,1]
+ [3,7,6,1,4,3,7,6,8,1,6,4,4,2,4,1,7,4,2,1,8,3,8,4,3,1,4,3,6,4,1,3,7,6,1,8,6,2,2,1,6,4,7,1],
+ [6,4,8,7,4,6,3,6,1,3,7,6,1,3,4,3,6,8,1,3,3,4,4,1,6,4,4,7,7,6,6,4,6,6,1],
+ [7,3,1,2,6,3,1,6,6,4,8,2,1,7,4,1,3,7,6,1,8,4,4,4,7,4,7,1,2,7,6,4,1,7,6,1,4,4,6,6,1,7,4,3,4,1,3,7,6,1,3,4,2,4,1],
+ [7,6,1,6,6,8,6,1,4,7,6,7,4,7,1,7,4,4,8,1,3,7,6,1,3,4,3,3,7,1,3,7,6,6,1,3,8,4,2,8,2,1,8,4,4,8,7,4,7,1,6,8,8,1,6,4,4,3,4,6,1],
+ [2,4,3,4,6,1,4,4,3,1,6,1,3,7,8,6,1,6,8,4,6,8,1,2,4,3,4,6,1,6,1,3,7,8,6,1,6,4,8,6,1],
+ [6,8,8,1,2,6,1,6,4,6,1,7,3,1,6,4,1,7,3,8,6,1,4,7,1,7,8,7,7,7,3,8,6,3,3,1,6,7,4,6,3,1],
+ [7,1,6,4,4,3,1,2,6,4,4,6,1,6,6,1,3,7,6,1,6,8,6,8,6,1,4,4,3,1,6,4,2,8,4,4,6,1]
 ];
 
+
 const sentences = [
-  ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
-  ["throughout", "humanity", "has", "wrestled"],
-  ["today", "i", "will", "only", "write", "tasteful", "sentences"],
-  ["the", "golden", "age", "of", "neuralink", "begins", "right", "now"],
-  ["i", "have", "thoughts", "on", "the", "narrow", "passage", "to", "eternal", "life"],
-  ["dominate", "the", "truck", "stop", "confidence"],
-  ["i", "am", "capable", "of", "telepathy", "these", "days"],
-  ['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
-  ['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "looking", 'all', 'around']
+ ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
+ ["dominate", "the", "truck", "stop", "confidence"],
+ ['It', 'was', 'early', 'in', 'the', 'morning', 'when', 'he', 'rode', 'into', 'the', 'town'],
+ ['He', 'came', 'riding', 'from', 'the', 'south', 'side', 'slowly', "looking", 'all', 'around'],
+ ["youre", "not", "a", "time", "clock", "youre", "a", "time", "bomb",],
+ ["all", "we", "are", "is", "an", "isle", "of", "flightless", "birds",],
+ ["i", "dont", "wanna", "be", "the", "blame", "not", "anymore",]
 ]
+
 
 useEffect(() => {
   const canvas = canvasRef.current;
@@ -654,13 +660,7 @@ const isDotTouchingSide = useCallback(
     const closestY = startY + projection * dy;
     const distance = Math.sqrt((dotX - closestX) ** 2 + (dotY - closestY) ** 2);
 
-
-
-    if (gravityOn.current) {
-      console.log("GRAVITY IS ON");
-      return distance <= gravity.current;
-    }
-    return distance <= 18;
+    return distance <= gravity.current;
   },
   []
 );
@@ -685,7 +685,7 @@ const drawScene = useCallback(() => {
   // Draw octagon
   const centerX = 800;
   const centerY = 480;
-  const radius = 450;
+  const radius = radiusOct;
   // const innerRadius = (radius / 1.618); // Golden ratio lol
   const innerRadius = 0; // Golden ratio lol
   const sides = 8;
@@ -809,6 +809,10 @@ const drawScene = useCallback(() => {
         timerStart.current = undefined;
         goodHits.current = undefined;
         badHits.current = undefined;
+        hitTimes.current = [];
+        hitTimeLength.current = undefined;
+        hitTimerEnd.current = undefined;
+        hitTimerStart.current = undefined;
       }
 
       if ((refCode.current) && (indexRefCode.current !== undefined) && (sideIndex !== refCode.current[indexRefCode.current])) {
@@ -820,13 +824,17 @@ const drawScene = useCallback(() => {
       }
 
       //New gravity threshold every time you hit a side (if in gravity random mode)
-      if (gravityRandom.current && gravityOn.current) {
-        gravity.current = Math.random() * 140;
+      if (gravityClosin.current) {
+        gravity.current += (radiusOct * 0.01);
       }
+ 
 
       if (indexRefCode.current === undefined || ((refCode.current) && (indexRefCode.current !== undefined) && sideIndex === refCode.current[indexRefCode.current])) {
         if (indexRefCode.current !== undefined) {
           indexRefCode.current += 1;
+          hitTimes.current?.push(Math.round(performance.now() - (hitTimerStart.current ?? 0)));
+          console.log("hitting: " + hitTimes.current)
+          hitTimerStart.current = performance.now();
         }
         const codeChar = sideMappings[sideIndex];
         // If side 3 => space => finalize
@@ -1051,6 +1059,14 @@ if (timerEnd.current !== undefined) {
       centerX,
       centerY + 270
     );
+
+    ctx.font = "11px Poppins"; // Smaller font size
+    ctx.fillText(
+      `${hitTimes.current}`,
+      centerX,
+      centerY - 40
+    );
+ 
 }
 
 
@@ -1139,159 +1155,144 @@ return (
      </div>
 {/* Speed Slider */}
 <div
-  style={{
-    position: "fixed", // Fixes the position relative to the viewport
-    bottom: "20px",    // Distance from the bottom of the viewport
-    right: "20px",     // Distance from the right of the viewport
-    backgroundColor: "rgba(0, 0, 0, 0.7)", // Semi-transparent background
-    padding: "10px",
-    borderRadius: "8px", // Rounded corners
-    color: "white",
-    textAlign: "center",
-  }}
+ style={{
+   position: "fixed", // Fixes the position relative to the viewport
+   bottom: "20px",    // Distance from the bottom of the viewport
+   right: "20px",     // Distance from the right of the viewport
+   backgroundColor: "rgba(0, 0, 0, 0.7)", // Semi-transparent background
+   padding: "10px",
+   borderRadius: "8px", // Rounded corners
+   color: "white",
+   textAlign: "center",
+ }}
 >
-  <label htmlFor="speed-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
-    Speed: {speed.current.toFixed(1)}
-  </label>
-  <input
-    id="speed-slider"
-    type="range"
-    min="0.1"
-    max="2"
-    step="0.1"
-    value={speed.current}
-    onChange={(e) => (speed.current = parseFloat(e.target.value))}
-    style={{ width: "150px" }}
-  />
-<div
-  style={{
-    position: "fixed", // Fixes the position relative to the viewport
-    bottom: "20px",    // Distance from the bottom of the viewport
-    left: "20px",      // Distance from the right of the viewport
-    backgroundColor: "rgba(0, 0, 0, 0.7)", // Semi-transparent background
-    padding: "10px",
-    borderRadius: "8px", // Rounded corners
-    color: "white",     // Text color to make sure the label is visible
-    textAlign: "center",
-  }}
->
-  <label htmlFor="gravity-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
-  </label>
-  <input
-    id="gravity-slider"
-    type="range"
-    min="0"
-    max="140"
-    step="0.1"
-    value={gravity.current}
-    onChange={(e) => (gravity.current = parseFloat(e.target.value))}
-    style={{
-      width: "150px",
-      appearance: "none", // Removes default slider styles
-      background: "#333333", // Off-black background for the slider track
-      borderRadius: "5px",
-      height: "10px", // Custom track height
-      outline: "none", // Removes outline on focus
-    }}
-  />
+ <label htmlFor="speed-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
+   Speed: {speed.current.toFixed(1)}
+ </label>
+ <input
+   id="speed-slider"
+   type="range"
+   min="0.1"
+   max="2"
+   step="0.1"
+   value={speed.current}
+   onChange={(e) => (speed.current = parseFloat(e.target.value))}
+   style={{ width: "150px" }}
+ />
 
+
+ {/* Discrete tally below speed slider */}
+ <div
+   style={{
+     fontSize: "18px",
+     color: "rgba(255,255,255,0.5)",
+     marginTop: "5px",
+     textAlign: "left"
+   }}
+ >
+
+ <label htmlFor="gravity-slider" style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}>
+ </label>
+ <input
+   id="gravity-slider"
+   type="range"
+   min="0"
+   max="400"
+   step="0.1"
+   value={gravity.current}
+   onChange={(e) => (gravity.current = parseFloat(e.target.value))}
+   style={{
+     width: "150px",
+     appearance: "none", // Removes default slider styles
+     background: "#333333", // Off-black background for the slider track
+     borderRadius: "5px",
+     height: "10px", // Custom track height
+     outline: "none", // Removes outline on focus
+   }}
+ />
   <div style={{ marginTop: "10px" }}>
-    <button
-      onClick={() => {
-        gravityOn.current = !gravityOn.current;
-      }}
-      style={{
-        backgroundColor: "#555555", // Off-black button background
-        color: "white", // White text
-        border: "none",
-        borderRadius: "5px",
-        padding: "5px 10px",
-        marginRight: "10px",
-        cursor: "pointer"
-      }}
-    >
-      On
-    </button>
-    <button
-      onClick={() => {
-        gravityRandom.current = !gravityRandom.current;
-      }}
-      style={{
-        backgroundColor: "#555555", // Off-black button background
-        color: "white", // White text
-        border: "none",
-        borderRadius: "5px",
-        padding: "5px 10px",
-        cursor: "pointer"
-      }}
-    >
-      Rand
-    </button>
-    <button
-      onClick={() => {
-        directionalMode.current = !directionalMode.current;
-      }}
-      style={{
-        backgroundColor: "#555555", // Off-black button background
-        color: "white", // White text
-        border: "none",
-        borderRadius: "5px",
-        padding: "5px 15px",
-        cursor: "pointer"
-      }}
-    >
-      Direction Mode: {directionalMode.current ? "True" : "False"}
-    </button>
-  </div>
-
+   <button
+     onClick={() => {
+       gravity.current = radiusOct * 0.60;
+     }}
+     style={{
+       backgroundColor: "#555555", // Off-black button background
+       color: "white", // White text
+       border: "none",
+       borderRadius: "5px",
+       padding: "5px 10px",
+       marginRight: "10px",
+       cursor: "pointer"
+     }}
+   >
+     60%
+   </button>
+   <button
+     onClick={() => {
+       gravity.current = radiusOct * 0.3;
+       gravityClosin.current = !gravityClosin.current;
+     }}
+     style={{
+       backgroundColor: "#555555", // Off-black button background
+       color: "white", // White text
+       border: "none",
+       borderRadius: "5px",
+       padding: "5px 10px",
+       cursor: "pointer"
+     }}
+   >
+     Closin
+   </button>
+ </div>
   <style>
-    {`
-      #gravity-slider::-webkit-slider-thumb {
-        appearance: none;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #555555; // Off-black color for the thumb
-        border: none;
-        cursor: pointer;
-      }
-      #gravity-slider::-moz-range-thumb {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #555555; // Off-black color for the thumb
-        border: none;
-        cursor: pointer;
-      }
-      #gravity-slider::-ms-thumb {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #555555; // Off-black color for the thumb
-        border: none;
-        cursor: pointer;
-      }
-      #gravity-slider::-webkit-slider-runnable-track {
-        background: #333333; // Off-black track background
-        border-radius: 5px;
-        height: 10px; // Custom track height
-      }
-      #gravity-slider::-moz-range-track {
-        background: #333333; // Off-black track background
-        border-radius: 5px;
-        height: 10px; // Custom track height
-      }
-      #gravity-slider::-ms-track {
-        background: #333333; // Off-black track background
-        border-radius: 5px;
-        height: 10px; // Custom track height
-        border-color: transparent;
-        border-width: 0;
-        color: transparent;
-      }
-    `}
-  </style>
+   {`
+     #gravity-slider::-webkit-slider-thumb {
+       appearance: none;
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-moz-range-thumb {
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-ms-thumb {
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-webkit-slider-runnable-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+     }
+     #gravity-slider::-moz-range-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+     }
+     #gravity-slider::-ms-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+       border-color: transparent;
+       border-width: 0;
+       color: transparent;
+     }
+   `}
+ </style>
 </div>
+
 
 
 
