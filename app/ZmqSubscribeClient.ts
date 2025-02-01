@@ -1,7 +1,7 @@
-import { decode } from '@msgpack/msgpack';
-import EventEmitter from 'eventemitter3';
-import * as zmq from 'jszmq';
-import { Sub } from 'jszmq';
+import { decode } from "@msgpack/msgpack";
+import EventEmitter from "eventemitter3";
+import * as zmq from "jszmq";
+import { Sub } from "jszmq";
 
 export default class ZmqSubscribeClient {
   events: EventEmitter;
@@ -17,32 +17,25 @@ export default class ZmqSubscribeClient {
 
   subscriber: null | zmq.Sub;
 
-  static EVENT_MESSAGE = 'message';
+  static EVENT_MESSAGE = "message";
 
-  static factory (
+  static factory(
     namespace: string,
     host: string,
     port: number,
     topics: string[],
     decoder = decode,
   ): ZmqSubscribeClient {
-    return new ZmqSubscribeClient(
-      namespace,
-      host,
-      port,
-      topics,
-      decoder,
-    );
+    return new ZmqSubscribeClient(namespace, host, port, topics, decoder);
   }
 
-  constructor (
+  constructor(
     namespace: string,
     host: string,
     port: number,
     topics: string[],
     decoder: typeof decode,
   ) {
-
     // RE making a generic static factory method...
 
     this.events = new EventEmitter();
@@ -60,7 +53,7 @@ export default class ZmqSubscribeClient {
     this.subscriber = null;
   }
 
-  start (): void {
+  start(): void {
     if (this.hasStarted) {
       return;
     }
@@ -72,7 +65,7 @@ export default class ZmqSubscribeClient {
     this.hasStarted = true;
   }
 
-  stop (): void {
+  stop(): void {
     if (!this.hasStarted) {
       return;
     }
@@ -82,25 +75,25 @@ export default class ZmqSubscribeClient {
     this.hasStarted = false;
   }
 
-  #connect (): void {
+  #connect(): void {
     this.subscriber = new Sub();
 
     // @todo - how can we confirm that the connection was established?
     this.subscriber.connect(this.connectionUrl);
   }
 
-  #disconnect (): void {
+  #disconnect(): void {
     if (this.subscriber === null) {
-      throw new Error('`subscriber` does not exist');
+      throw new Error("`subscriber` does not exist");
     }
 
     // @todo - how can we confirm that the connection was terminated?
     this.subscriber.close();
   }
 
-  #subscribe (): void {
+  #subscribe(): void {
     if (this.subscriber === null) {
-      throw new Error('`subscriber` does not exist');
+      throw new Error("`subscriber` does not exist");
     }
 
     this.subscriber.on(ZmqSubscribeClient.EVENT_MESSAGE, (topic, message) => {
@@ -109,7 +102,7 @@ export default class ZmqSubscribeClient {
 
     this.topics.forEach((topic) => {
       if (this.subscriber === null) {
-        throw new Error('`subscriber` does not exist');
+        throw new Error("`subscriber` does not exist");
       }
 
       // @todo - how can we confirm that the subscription was successful?
@@ -117,17 +110,17 @@ export default class ZmqSubscribeClient {
     });
   }
 
-  #unsubscribe (): void {
+  #unsubscribe(): void {
     this.topics.forEach((topic) => {
       if (this.subscriber === null) {
-        throw new Error('`subscriber` does not exist');
+        throw new Error("`subscriber` does not exist");
       }
 
       this.subscriber.unsubscribe(topic);
     });
   }
 
-  destroy (): void {
+  destroy(): void {
     this.stop();
     this.events.removeAllListeners();
   }

@@ -1,5 +1,5 @@
-import ZmqSubscribeClient from './ZmqSubscribeClient';
-import { decode } from '@msgpack/msgpack';
+import ZmqSubscribeClient from "./ZmqSubscribeClient";
+import { decode } from "@msgpack/msgpack";
 
 export interface DecodePacket {
   // Final velocities
@@ -25,12 +25,12 @@ export interface DecodePacket {
 
 export default class VelocityZmqListener extends ZmqSubscribeClient {
   static PORT = 5578;
-  static TOPIC = 'INTERMEDIATE_STATES';
+  static TOPIC = "INTERMEDIATE_STATES";
 
   static factory(): VelocityZmqListener {
     return new VelocityZmqListener(
-      'VelocityListener',
-      'localhost',
+      "VelocityListener",
+      "localhost",
       VelocityZmqListener.PORT,
       [VelocityZmqListener.TOPIC],
       decode,
