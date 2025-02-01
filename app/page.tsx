@@ -390,7 +390,9 @@ useEffect(() => {
 
       if (candidates.length === 1 && candidates[0] != "u") {
         chosenWord = candidates[0];
-      } else if (code.current.length === 1 || code.current == "22") {
+
+      // Shortcut commands
+      } else if (code.current.length === 1 || code.current == "22" || code.current == "88") {
         if (dictionaryType === "abc") {
           switch (code.current) {
             case "6":
@@ -437,6 +439,11 @@ useEffect(() => {
               break;
             case "22":
               gravity.current = 0.4 * radiusOct;
+              break;
+
+            // Clear all
+            case "88":
+              theWords.current = [];
               break;
           }
         }
