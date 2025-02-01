@@ -1246,6 +1246,20 @@ useEffect(() => {
       >
         🗣️ Cursor Off
       </button>
+
+        <label
+          style={{
+              position: "fixed",
+              bottom: 0,
+              left: "25%",
+              padding: "15px 25px",
+              fontSize: "15px",
+              color: "lightgray",
+              fontFamily: "Monaco, monospace",
+          }}>
+            SHORTCUTS: [ Clear: JJ␣ ] [Copy to Clipboard: WWW␣ ] [Cursor On: N␣ ]
+        </label>
+
       <div style={{ textAlign: "center", color: "white" }}>
         <div style={{ marginBottom: "10px" }}>
           <input
@@ -1263,6 +1277,7 @@ useEffect(() => {
           />
         </div>
       </div>
+
       <div style={{ marginBottom: "10px" }}>
         <input
           type="text"
