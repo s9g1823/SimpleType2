@@ -392,7 +392,7 @@ useEffect(() => {
         chosenWord = candidates[0];
 
       // Shortcut commands
-      } else if (code.current.length === 1 || code.current == "22" || code.current == "88") {
+      } else if (code.current.length === 1 || code.current == "22" || code.current == "88" || code.current == "222") {
         if (dictionaryType === "abc") {
           switch (code.current) {
             case "6":
@@ -444,6 +444,15 @@ useEffect(() => {
             // Clear all
             case "88":
               theWords.current = [];
+              break;
+
+            // Copy to clipboard
+            case "222":
+              try {
+                await navigator.clipboard.writeText(theWords.current.join(" "));
+              } catch (err) {
+                  console.error("Clipboard not supported!");
+              }
               break;
           }
         }
