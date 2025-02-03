@@ -471,13 +471,18 @@ useEffect(() => {
               theWords.current = [];
               break;
 
-            // Copy to clipboard
+            // Speak
             case "222":
-              try {
-                await navigator.clipboard.writeText(theWords.current.join(" "));
-              } catch (err) {
-                console.error("Clipboard not supported!");
-              }
+              const text = theWords.current.join(" ");
+              const utterance = new SpeechSynthesisUtterance(text);
+              utterance.rate = 0.75; // Speed (0.1 - 10, default: 1)
+              utterance.pitch = 1; // Pitch (0 - 2, default: 1)
+              utterance.volume = 1; // Volume (0 - 1)
+
+              const voices = speechSynthesis.getVoices();
+              utterance.voice = voices.find((v) => v.name.includes("Eddy (English (US))")) || null;
+
+              speechSynthesis.speak(utterance);
               break;
           }
         }
@@ -1330,7 +1335,7 @@ useEffect(() => {
           fontFamily: "Monaco, monospace",
         }}
       >
-        SHORTCUTS: [ Clear: JJ␣ ] [Cursor On: N␣ ]
+        SHORTCUTS: [ Clear: JJ␣ ] [ Cursor On: N␣ ] [ Speak: WWW␣ ]
       </label>
 
       <div style={{ textAlign: "center", color: "white" }}>
