@@ -1257,7 +1257,7 @@ useEffect(() => {
               color: "lightgray",
               fontFamily: "Monaco, monospace",
           }}>
-            SHORTCUTS: [ Clear: JJ␣ ] [Copy to Clipboard: WWW␣ ] [Cursor On: N␣ ]
+            SHORTCUTS: [ Clear: JJ␣ ] [Cursor On: N␣ ]
         </label>
 
       <div style={{ textAlign: "center", color: "white" }}>
