@@ -1249,12 +1249,19 @@ useEffect(() => {
         color: "white",
       }}
     >
-      {/* Top-left button */}
-      <button
+      <div
         style={{
           position: "fixed",
           top: "10px",
           left: "10px",
+        }}
+      >
+      {/* Top-left button */}
+      <button
+        style={{
+          // position: "fixed",
+          // top: "10px",
+          // left: "10px",
           padding: "15px 25px",
           fontSize: "18px",
           color: "white",
@@ -1264,13 +1271,53 @@ useEffect(() => {
           boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
           transition: "background-color 0.3s ease, box-shadow 0.3s ease",
         }}
-        onClick={() => {
+        onClick={(e) => {
+          const button = e.currentTarget as HTMLElement;
+          button.style.backgroundColor = "lightblue";
+          setTimeout(() => {
+            button.style.backgroundColor = "black";
+          }, 150);
+
           const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
           audio.play();
         }}
       >
         🗣️ Cursor Off
       </button>
+
+      {/* Copy to clipboard button */}
+      <button
+        style={{
+          position: "relative",
+          // left: "100%",
+          // top: "120px",
+          // left: "10px",
+          padding: "15px 25px",
+          fontSize: "18px",
+          color: "white",
+          border: "1px solid white", // Thin white border
+          borderRadius: "8px",
+          cursor: "pointer",
+          boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+        }}
+        onClick={(e) => {
+          const button = e.currentTarget as HTMLElement;
+          button.style.backgroundColor = "lightblue";
+          setTimeout(() => {
+            button.style.backgroundColor = "black";
+          }, 150);
+
+          try {
+            navigator.clipboard.writeText(theWords.current.join(" "));
+          } catch (err) {
+            console.error("Clipboard not supported!");
+          }
+        }}
+      >
+        📋 Copy to clipboard
+      </button>
+      </div>
 
       <label
         style={{
