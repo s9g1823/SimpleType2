@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  Suspense,
+  useCallback,
+} from "react";
 import axios from "axios";
+import { useSearchParams } from "next/navigation";
 
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqSubscribeClient from "./ZmqSubscribeClient";
 
 import { Tree, WordFrequency, getRankedMatches } from "./words";
-
-require("dotenv").config();
-const systemCursorEnabled = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
 
 interface Dictionary {
   [t9Code: string]: string[];
@@ -30,9 +34,25 @@ enum DirectionalRendering {
 
 import "@fontsource/poppins"; // Defaults to weight 400
 
-const PointerLockDemo: React.FC = () => {
-  //ZMQ setup for Link
+const PointerLockWrapper: React.FC = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PointerLockDemo />
+    </Suspense>
+  );
+};
 
+const PointerLockDemo: React.FC = () => {
+  // System cursor configuration: by default do not use it, but override if the
+  // environment variable or url parameter is set.
+  const searchParams = useSearchParams();
+  const urlSystemCursor =
+    searchParams.get("systemCursor")?.toLowerCase() === "true";
+  require("dotenv").config();
+  const envSystemCursor = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
+  const systemCursorEnabled = urlSystemCursor || envSystemCursor;
+
+  //ZMQ setup for Link
   const zmqService = useRef(VelocityZmqListener.factory());
   const velocities = useRef<DecodePacket | null>(null);
   const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
@@ -391,8 +411,13 @@ useEffect(() => {
       if (candidates.length === 1 && candidates[0] != "u") {
         chosenWord = candidates[0];
 
-      // Shortcut commands
-      } else if (code.current.length === 1 || code.current == "22" || code.current == "88" || code.current == "222") {
+        // Shortcut commands
+      } else if (
+        code.current.length === 1 ||
+        code.current == "22" ||
+        code.current == "88" ||
+        code.current == "222"
+      ) {
         if (dictionaryType === "abc") {
           switch (code.current) {
             case "6":
@@ -451,7 +476,7 @@ useEffect(() => {
               try {
                 await navigator.clipboard.writeText(theWords.current.join(" "));
               } catch (err) {
-                  console.error("Clipboard not supported!");
+                console.error("Clipboard not supported!");
               }
               break;
           }
@@ -1247,18 +1272,19 @@ useEffect(() => {
         🗣️ Cursor Off
       </button>
 
-        <label
-          style={{
-              position: "fixed",
-              bottom: 0,
-              left: "25%",
-              padding: "15px 25px",
-              fontSize: "15px",
-              color: "lightgray",
-              fontFamily: "Monaco, monospace",
-          }}>
-            SHORTCUTS: [ Clear: JJ␣ ] [Cursor On: N␣ ]
-        </label>
+      <label
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: "25%",
+          padding: "15px 25px",
+          fontSize: "15px",
+          color: "lightgray",
+          fontFamily: "Monaco, monospace",
+        }}
+      >
+        SHORTCUTS: [ Clear: JJ␣ ] [Cursor On: N␣ ]
+      </label>
 
       <div style={{ textAlign: "center", color: "white" }}>
         <div style={{ marginBottom: "10px" }}>
@@ -1522,4 +1548,4 @@ useEffect(() => {
   );
 };
 
-export default PointerLockDemo;
+export default PointerLockWrapper;
