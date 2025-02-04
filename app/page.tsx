@@ -293,7 +293,7 @@ const PointerLockDemo: React.FC = () => {
     } else {
       refCode.current = arrays[rng];
     }
-    
+
     sentence.current = sentences[rng];
 
     //calculations
@@ -396,7 +396,7 @@ const PointerLockDemo: React.FC = () => {
     if (inPractice.current) {
       return;
     }
- 
+
 
     Promise.resolve().then(async () => {
 
@@ -494,18 +494,27 @@ useEffect(() => {
 
       let chosenWord;
 
-      if (candidates.length === 1 && candidates[0] != "u") {
-        chosenWord = candidates[0];
+      console.log("CODE IS " + code.current);
+      console.log("DICT IS " + dictionaryType);
+
+      // if (candidates.length === 1 && candidates[0] != "u") {
+      //   chosenWord = candidates[0];
+      //
+      //   console.log("????????");
 
         // Shortcut commands
-      } else if (
+      // } else if (
+      if (
         code.current.length === 1 ||
         code.current == "22" ||
         code.current == "88" ||
         code.current == "222" ||
         code.current == "28"
       ) {
+        console.log("CODE IS " + code.current);
+        console.log("DICT IS " + dictionaryType);
         if (dictionaryType === "opt") {
+          console.log("CODE IS " + code.current);
           switch (code.current) {
             case "4":
               chosenWord = "a";
@@ -597,6 +606,13 @@ useEffect(() => {
               break;
           }
         }
+      } else if (candidates.length === 1 && candidates[0] != "u") {
+        chosenWord = candidates[0];
+
+        console.log("????????");
+
+        // Shortcut commands
+      // } else if (
       } else {
         console.log("Chose candidate");
         chosenWord = candidates[0];
@@ -684,8 +700,8 @@ useEffect(() => {
   const ccpm = useRef<number>();
 
 
-  
-  
+
+
 //PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
  const inPractice = useRef<boolean>(false);
  const textWidth = useRef<number>();
@@ -725,14 +741,14 @@ useEffect(() => {
   ];
 
   const arraysOpt = [
-    [7, 8, 6, 1, 4, 2, 2, 8, 2, 1, 6, 2, 4, 2, 2, 1, 2, 4, 2, 1, 2, 7, 4, 6, 6, 1, 4, 6, 6, 2, 1, 7, 8, 6, 1, 2, 4, 7, 2, 1, 8, 4, 4, 1],
-    [8, 4, 4, 2, 2, 4, 7, 6, 1, 7, 8, 6, 1, 7, 2, 7, 8, 2, 1, 6, 7, 4, 6, 1, 8, 4, 2, 2, 2, 8, 6, 2, 8, 6, 1],
-    [2, 7, 1, 2, 4, 6, 1, 6, 4, 2, 2, 2, 1, 2, 2, 1, 7, 8, 6, 1, 4, 4, 2, 2, 2, 2, 4, 1, 2, 8, 6, 2, 1, 8, 6, 1, 2, 4, 8, 6, 1, 2, 2, 7, 4, 1, 7, 8, 6, 1, 7, 4, 2, 2, 1],
-    [8, 6, 1, 8, 4, 4, 6, 1, 2, 2, 8, 2, 2, 4, 1, 2, 2, 4, 4, 1, 7, 8, 6, 1, 6, 4, 7, 7, 8, 1, 6, 2, 8, 6, 1, 6, 2, 4, 2, 2, 2, 1, 2, 4, 4, 2, 2, 2, 4, 1, 4, 2, 2, 1, 4, 2, 4, 7, 2, 8, 1],
-    [2, 4, 7, 2, 6, 1, 2, 4, 7, 1, 4, 1, 7, 2, 4, 6, 1, 8, 2, 4, 8, 2, 1, 2, 4, 7, 2, 6, 1, 4, 1, 7, 2, 4, 6, 1, 6, 4, 4, 6, 1],
-    [4, 2, 2, 1, 2, 6, 1, 4, 2, 6, 1, 2, 6, 1, 4, 2, 1, 2, 6, 2, 6, 1, 4, 2, 1, 2, 2, 2, 4, 8, 7, 2, 6, 6, 6, 1, 6, 2, 2, 8, 6, 1],
-    [2, 1, 8, 4, 2, 7, 1, 2, 4, 2, 2, 4, 1, 6, 6, 1, 7, 8, 6, 1, 6, 2, 4, 4, 6, 1, 2, 4, 7, 1, 4, 2, 2, 4, 4, 2, 6, 1]
-];
+    [7,8,6,1,8,6,2,8,2,1,6,8,7,2,4,1,2,7,4,1,4,6,7,4,6,1,7,6,6,8,1,7,8,6,1,2,4,2,2,1,8,7,4,1],
+    [8,7,7,2,4,4,7,6,1,7,8,6,1,7,8,6,8,2,1,6,7,7,4,1,8,7,4,2,2,8,6,4,8,6,1],
+    [2,7,1,2,4,6,1,6,4,8,2,2,1,2,4,1,7,8,6,1,7,7,8,4,2,4,4,1,2,8,6,4,1,8,6,1,8,7,8,6,1,2,4,7,7,1,7,8,6,1,7,7,2,4,1],
+    [8,6,1,8,4,7,6,1,8,2,8,2,4,4,1,2,8,7,7,1,7,8,6,1,6,7,6,7,8,1,6,2,8,6,1,6,2,7,2,2,2,1,2,7,7,2,2,4,4,1,4,2,2,1,4,8,7,6,4,8,1],
+    [2,7,6,8,6,1,4,7,7,1,4,1,7,2,7,6,1,8,2,7,8,2,1,2,7,6,8,6,1,4,1,7,2,7,6,1,6,7,7,6,1],
+    [4,2,2,1,2,6,1,4,8,6,1,2,6,1,4,4,1,2,6,2,6,1,7,2,1,2,2,2,4,8,7,2,6,6,6,1,6,2,8,8,6,1],
+    [2,1,8,7,4,7,1,2,4,4,4,4,1,6,6,1,7,8,6,1,6,2,4,7,6,1,4,7,7,1,4,4,2,7,7,8,6,1],
+  ];
 
   const sentences = [
     ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
@@ -915,8 +931,8 @@ useEffect(() => {
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  
+
+
     //
    // (1) DRAW THE OCTAGON AND SIDES
    //
@@ -1050,7 +1066,7 @@ useEffect(() => {
       ctx.fillStyle = "gray";
       textWidth.current = ctx.measureText(sentence.current[indexSentence.current]).width;
       ctx.fillText(sentence.current[indexSentence.current], centerX, centerY);
- 
+
       //display what has been typed so far
       ctx.textAlign = "left";
       ctx.fillStyle = "lightgreen";
@@ -1058,7 +1074,7 @@ useEffect(() => {
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
     }
- 
+
    //
    // (2) CHECK COLLISIONS
    //
