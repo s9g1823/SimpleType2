@@ -246,6 +246,7 @@ const PointerLockDemo: React.FC = () => {
         return "/code_tree_opt.json";
       default :
         console.error("Unsupported!");
+        return "/code_tree_opt.json";
     }
   }
 
@@ -257,6 +258,7 @@ const PointerLockDemo: React.FC = () => {
         return "/precomputed_opt.json";
       default :
         console.error("Unsupported!");
+        return "/precomputed_opt.json";
     }
   }
 
