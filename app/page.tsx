@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqSubscribeClient from "./ZmqSubscribeClient";
 
-import { Tree, allWords, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
+import { Tree, allWords, allWordsForCode, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
 
 interface Dictionary {
   [t9Code: string]: string[];
@@ -246,6 +246,19 @@ const PointerLockDemo: React.FC = () => {
         return "/code_tree_opt.json";
       default :
         console.error("Unsupported!");
+        return "/code_tree_opt.json";
+    }
+  }
+
+  const getPreComputedJson = (type: string): string => {
+    switch (type) {
+      case "abc":
+        return "/precomputed.json";
+      case "opt":
+        return "/precomputed_opt.json";
+      default :
+        console.error("Unsupported!");
+        return "/precomputed_opt.json";
     }
   }
 
@@ -282,7 +295,7 @@ const PointerLockDemo: React.FC = () => {
     } else {
       refCode.current = arrays[rng];
     }
-    
+
     sentence.current = sentences[rng];
 
     //calculations
@@ -342,11 +355,11 @@ const PointerLockDemo: React.FC = () => {
       try {
         const [codeTreeData, trigramData, wordFreqData, precomputedData] =
           await Promise.all([
-            fetch(getTreeJson("opt")).then((res) => res.json()),
+            fetch(getTreeJson(dictionaryType)).then((res) => res.json()),
             fetch("/trigram_model.json").then((res) => res.json()),
             fetch("/word_freq.json").then((res) => res.json()),
             // fetch("/precomputed.json").then((res) => res.json()),
-            fetch("/precomputed_opt.json").then((res) => res.json()),
+            fetch(getPreComputedJson(dictionaryType)).then((res) => res.json()),
           ]);
 
         codeTree.current = codeTreeData;
@@ -362,7 +375,7 @@ const PointerLockDemo: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [dictionaryType]);
 
   //
   // ───────────────────────────────────────────"─────────────────────────────────
@@ -385,22 +398,45 @@ const PointerLockDemo: React.FC = () => {
     if (inPractice.current) {
       return;
     }
- 
+
 
     Promise.resolve().then(async () => {
-      possibleWords.current = getRankedMatches(
-        theWords.current,
-        code.current,
-        codeTree.current,
-        trigrams.current,
-        wordFreq.current,
-        precomputedTrees.current,
-      );
+
+      // ====== All possible, sorted by probability
       // const possibleWords =
       //   code.length === 1
       //     ? precomputedTrees.current[code]
       //     : orderByMostFrequent(allWords(getSubtree(code.current, codeTree.current), ""), wordFreq.current);
+
+      // ====== GPT
       // possibleWords.current = await pickWordViaGPT(possibleWords, theWords.current);
+
+
+      // ===== Exact matches
+      if (code.current.length < 5) {
+        // If under 5 characters, only pull from words with exact code-length matches.
+        possibleWords.current = getRankedMatches(
+          theWords.current,
+          code.current,
+          codeTree.current,
+          trigrams.current,
+          wordFreq.current,
+          precomputedTrees.current,
+          false,
+        );
+      } else {
+        // After the 5th letter, begin to suggest autocompletions with the tree
+        // + ngram ordering.
+        possibleWords.current = getRankedMatches(
+          theWords.current,
+          code.current,
+          codeTree.current,
+          trigrams.current,
+          wordFreq.current,
+          precomputedTrees.current,
+          true,
+        );
+      }
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
@@ -460,18 +496,27 @@ useEffect(() => {
 
       let chosenWord;
 
-      if (candidates.length === 1 && candidates[0] != "u") {
-        chosenWord = candidates[0];
+      console.log("CODE IS " + code.current);
+      console.log("DICT IS " + dictionaryType);
+
+      // if (candidates.length === 1 && candidates[0] != "u") {
+      //   chosenWord = candidates[0];
+      //
+      //   console.log("????????");
 
         // Shortcut commands
-      } else if (
+      // } else if (
+      if (
         code.current.length === 1 ||
         code.current == "22" ||
         code.current == "88" ||
         code.current == "222" ||
         code.current == "28"
       ) {
+        console.log("CODE IS " + code.current);
+        console.log("DICT IS " + dictionaryType);
         if (dictionaryType === "opt") {
+          console.log("CODE IS " + code.current);
           switch (code.current) {
             case "4":
               chosenWord = "a";
@@ -563,6 +608,13 @@ useEffect(() => {
               break;
           }
         }
+      } else if (candidates.length === 1 && candidates[0] != "u") {
+        chosenWord = candidates[0];
+
+        console.log("????????");
+
+        // Shortcut commands
+      // } else if (
       } else {
         console.log("Chose candidate");
         chosenWord = candidates[0];
@@ -571,19 +623,21 @@ useEffect(() => {
       // 3) Append the chosen word and code
       console.log("Adding the chosen word: " + chosenWord);
 
-      theWords.current = [...theWords.current, chosenWord || ""];
-      console.log("words: " + theWords.current);
+      if (chosenWord !== "") {
+        theWords.current = [...theWords.current, chosenWord || ""];
+        console.log("words: " + theWords.current);
 
-      console.log("code: " + code.current);
-      theCodes.current = [...theCodes.current, code.current];
-      console.log("codes: " + theCodes.current);
+        console.log("code: " + code.current);
+        theCodes.current = [...theCodes.current, code.current];
+        console.log("codes: " + theCodes.current);
 
       // 4) Clear current code and add word to dirty word list
-      code.current = "";
-      console.log("code: " + code.current);
+        code.current = "";
+        console.log("code: " + code.current);
 
-      dirtyWords.current = [chosenWord || ""];
-      console.log("dirty words: " + dirtyWords.current);
+        dirtyWords.current = [chosenWord || ""];
+        console.log("dirty words: " + dirtyWords.current);
+      }
       return;
     }
     // ──────────────────────────────────────────────────────────────────────────
@@ -648,8 +702,8 @@ useEffect(() => {
   const ccpm = useRef<number>();
 
 
-  
-  
+
+
 //PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
  const inPractice = useRef<boolean>(false);
  const textWidth = useRef<number>();
@@ -689,14 +743,14 @@ useEffect(() => {
   ];
 
   const arraysOpt = [
-    [7, 8, 6, 1, 4, 2, 2, 8, 2, 1, 6, 2, 4, 2, 2, 1, 2, 4, 2, 1, 2, 7, 4, 6, 6, 1, 4, 6, 6, 2, 1, 7, 8, 6, 1, 2, 4, 7, 2, 1, 8, 4, 4, 1],
-    [8, 4, 4, 2, 2, 4, 7, 6, 1, 7, 8, 6, 1, 7, 2, 7, 8, 2, 1, 6, 7, 4, 6, 1, 8, 4, 2, 2, 2, 8, 6, 2, 8, 6, 1],
-    [2, 7, 1, 2, 4, 6, 1, 6, 4, 2, 2, 2, 1, 2, 2, 1, 7, 8, 6, 1, 4, 4, 2, 2, 2, 2, 4, 1, 2, 8, 6, 2, 1, 8, 6, 1, 2, 4, 8, 6, 1, 2, 2, 7, 4, 1, 7, 8, 6, 1, 7, 4, 2, 2, 1],
-    [8, 6, 1, 8, 4, 4, 6, 1, 2, 2, 8, 2, 2, 4, 1, 2, 2, 4, 4, 1, 7, 8, 6, 1, 6, 4, 7, 7, 8, 1, 6, 2, 8, 6, 1, 6, 2, 4, 2, 2, 2, 1, 2, 4, 4, 2, 2, 2, 4, 1, 4, 2, 2, 1, 4, 2, 4, 7, 2, 8, 1],
-    [2, 4, 7, 2, 6, 1, 2, 4, 7, 1, 4, 1, 7, 2, 4, 6, 1, 8, 2, 4, 8, 2, 1, 2, 4, 7, 2, 6, 1, 4, 1, 7, 2, 4, 6, 1, 6, 4, 4, 6, 1],
-    [4, 2, 2, 1, 2, 6, 1, 4, 2, 6, 1, 2, 6, 1, 4, 2, 1, 2, 6, 2, 6, 1, 4, 2, 1, 2, 2, 2, 4, 8, 7, 2, 6, 6, 6, 1, 6, 2, 2, 8, 6, 1],
-    [2, 1, 8, 4, 2, 7, 1, 2, 4, 2, 2, 4, 1, 6, 6, 1, 7, 8, 6, 1, 6, 2, 4, 4, 6, 1, 2, 4, 7, 1, 4, 2, 2, 4, 4, 2, 6, 1]
-];
+    [7,8,6,1,8,6,2,8,2,1,6,8,7,2,4,1,2,7,4,1,4,6,7,4,6,1,7,6,6,8,1,7,8,6,1,2,4,2,2,1,8,7,4,1],
+    [8,7,7,2,4,4,7,6,1,7,8,6,1,7,8,6,8,2,1,6,7,7,4,1,8,7,4,2,2,8,6,4,8,6,1],
+    [2,7,1,2,4,6,1,6,4,8,2,2,1,2,4,1,7,8,6,1,7,7,8,4,2,4,4,1,2,8,6,4,1,8,6,1,8,7,8,6,1,2,4,7,7,1,7,8,6,1,7,7,2,4,1],
+    [8,6,1,8,4,7,6,1,8,2,8,2,4,4,1,2,8,7,7,1,7,8,6,1,6,7,6,7,8,1,6,2,8,6,1,6,2,7,2,2,2,1,2,7,7,2,2,4,4,1,4,2,2,1,4,8,7,6,4,8,1],
+    [2,7,6,8,6,1,4,7,7,1,4,1,7,2,7,6,1,8,2,7,8,2,1,2,7,6,8,6,1,4,1,7,2,7,6,1,6,7,7,6,1],
+    [4,2,2,1,2,6,1,4,8,6,1,2,6,1,4,4,1,2,6,2,6,1,7,2,1,2,2,2,4,8,7,2,6,6,6,1,6,2,8,8,6,1],
+    [2,1,8,7,4,7,1,2,4,4,4,4,1,6,6,1,7,8,6,1,6,2,4,7,6,1,4,7,7,1,4,4,2,7,7,8,6,1],
+  ];
 
   const sentences = [
     ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
@@ -879,8 +933,8 @@ useEffect(() => {
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  
+
+
     //
    // (1) DRAW THE OCTAGON AND SIDES
    //
@@ -1014,7 +1068,7 @@ useEffect(() => {
       ctx.fillStyle = "gray";
       textWidth.current = ctx.measureText(sentence.current[indexSentence.current]).width;
       ctx.fillText(sentence.current[indexSentence.current], centerX, centerY);
- 
+
       //display what has been typed so far
       ctx.textAlign = "left";
       ctx.fillStyle = "lightgreen";
@@ -1022,7 +1076,7 @@ useEffect(() => {
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
     }
- 
+
    //
    // (2) CHECK COLLISIONS
    //
@@ -1036,8 +1090,6 @@ useEffect(() => {
       if (directionalMode.current && !refractory.current) {
         touching = sideLikelihoods.current[index] === 1;
       }
-
-      console.log("PROB: ", sideLikelihoods.current[3]);
 
       if (touching) {
         if (timeLength.current !== undefined) {
@@ -1234,9 +1286,17 @@ useEffect(() => {
         let suggestions = possibleWords.current.slice(
           Math.min(cur_index + 1, possibleWords.current.length),
         );
-        for (let i = 0; i < Math.min(suggestions.length, 3); i++) {
+        let n_suggest = 0;
+        let i = 0;
+        while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+          if (suggestions[i] === lastWord) {
+            i += 1;
+            continue;
+          }
           ctx.fillText(suggestions[i], centerX, currentY);
           currentY += 35;
+          n_suggest += 1;
+          i += 1;
         }
       }
 
@@ -1280,10 +1340,25 @@ useEffect(() => {
           ctx.textBaseline = "middle";
 
           let currentY = suggestionsY;
+
           // Show 3 suggestions max
-          for (let i = 0; i < Math.min(possibleWords.current.length, 3); i++) {
-            ctx.fillText(possibleWords.current[i], centerX, currentY);
+          const lastWord = theWords.current[theWords.current.length - 1] || "";
+          let cur_index = possibleWords.current.indexOf(lastWord);
+
+          let suggestions = possibleWords.current.slice(
+            Math.min(cur_index + 1, possibleWords.current.length),
+          );
+          let n_suggest = 0;
+          let i = 0;
+          while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+            if (suggestions[i] === bestWord) {
+              i += 1;
+              continue;
+            }
+            ctx.fillText(suggestions[i], centerX, currentY);
             currentY += 35;
+            n_suggest += 1;
+            i += 1;
           }
         }
       }
@@ -1532,6 +1607,30 @@ useEffect(() => {
           }}
         >
           Rendering: {directionalRendering.current}
+        </button>
+        <button
+          onClick={() => {
+            switch (dictionaryType) {
+              case "abc":
+                setDictionaryType("opt");
+                break;
+              case "opt":
+                setDictionaryType("abc");
+                break;
+              default:
+                break;
+            }
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+          }}
+        >
+          Layout: {dictionaryType}
         </button>
       </div>
 
