@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqSubscribeClient from "./ZmqSubscribeClient";
 
-import { Tree, allWords, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
+import { Tree, allWords, allWordsForCode, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
 
 interface Dictionary {
   [t9Code: string]: string[];
@@ -249,6 +249,17 @@ const PointerLockDemo: React.FC = () => {
     }
   }
 
+  const getPreComputedJson = (type: string): string => {
+    switch (type) {
+      case "abc":
+        return "/precomputed.json";
+      case "opt":
+        return "/precomputed_opt.json";
+      default :
+        console.error("Unsupported!");
+    }
+  }
+
   const speakWords = (): void => {
     const text = theWords.current.join(" ");
     const utterance = new SpeechSynthesisUtterance(text);
@@ -342,11 +353,11 @@ const PointerLockDemo: React.FC = () => {
       try {
         const [codeTreeData, trigramData, wordFreqData, precomputedData] =
           await Promise.all([
-            fetch(getTreeJson("opt")).then((res) => res.json()),
+            fetch(getTreeJson(dictionaryType)).then((res) => res.json()),
             fetch("/trigram_model.json").then((res) => res.json()),
             fetch("/word_freq.json").then((res) => res.json()),
             // fetch("/precomputed.json").then((res) => res.json()),
-            fetch("/precomputed_opt.json").then((res) => res.json()),
+            fetch(getPreComputedJson(dictionaryType)).then((res) => res.json()),
           ]);
 
         codeTree.current = codeTreeData;
@@ -362,7 +373,7 @@ const PointerLockDemo: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [dictionaryType]);
 
   //
   // ───────────────────────────────────────────"─────────────────────────────────
@@ -388,19 +399,42 @@ const PointerLockDemo: React.FC = () => {
  
 
     Promise.resolve().then(async () => {
-      possibleWords.current = getRankedMatches(
-        theWords.current,
-        code.current,
-        codeTree.current,
-        trigrams.current,
-        wordFreq.current,
-        precomputedTrees.current,
-      );
+
+      // ====== All possible, sorted by probability
       // const possibleWords =
       //   code.length === 1
       //     ? precomputedTrees.current[code]
       //     : orderByMostFrequent(allWords(getSubtree(code.current, codeTree.current), ""), wordFreq.current);
+
+      // ====== GPT
       // possibleWords.current = await pickWordViaGPT(possibleWords, theWords.current);
+
+
+      // ===== Exact matches
+      if (code.current.length < 5) {
+        // If under 5 characters, only pull from words with exact code-length matches.
+        possibleWords.current = getRankedMatches(
+          theWords.current,
+          code.current,
+          codeTree.current,
+          trigrams.current,
+          wordFreq.current,
+          precomputedTrees.current,
+          false,
+        );
+      } else {
+        // After the 5th letter, begin to suggest autocompletions with the tree
+        // + ngram ordering.
+        possibleWords.current = getRankedMatches(
+          theWords.current,
+          code.current,
+          codeTree.current,
+          trigrams.current,
+          wordFreq.current,
+          precomputedTrees.current,
+          true,
+        );
+      }
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
@@ -571,19 +605,21 @@ useEffect(() => {
       // 3) Append the chosen word and code
       console.log("Adding the chosen word: " + chosenWord);
 
-      theWords.current = [...theWords.current, chosenWord || ""];
-      console.log("words: " + theWords.current);
+      if (chosenWord !== "") {
+        theWords.current = [...theWords.current, chosenWord || ""];
+        console.log("words: " + theWords.current);
 
-      console.log("code: " + code.current);
-      theCodes.current = [...theCodes.current, code.current];
-      console.log("codes: " + theCodes.current);
+        console.log("code: " + code.current);
+        theCodes.current = [...theCodes.current, code.current];
+        console.log("codes: " + theCodes.current);
 
       // 4) Clear current code and add word to dirty word list
-      code.current = "";
-      console.log("code: " + code.current);
+        code.current = "";
+        console.log("code: " + code.current);
 
-      dirtyWords.current = [chosenWord || ""];
-      console.log("dirty words: " + dirtyWords.current);
+        dirtyWords.current = [chosenWord || ""];
+        console.log("dirty words: " + dirtyWords.current);
+      }
       return;
     }
     // ──────────────────────────────────────────────────────────────────────────
@@ -1037,8 +1073,6 @@ useEffect(() => {
         touching = sideLikelihoods.current[index] === 1;
       }
 
-      console.log("PROB: ", sideLikelihoods.current[3]);
-
       if (touching) {
         if (timeLength.current !== undefined) {
           timeLength.current = undefined;
@@ -1234,9 +1268,17 @@ useEffect(() => {
         let suggestions = possibleWords.current.slice(
           Math.min(cur_index + 1, possibleWords.current.length),
         );
-        for (let i = 0; i < Math.min(suggestions.length, 3); i++) {
+        let n_suggest = 0;
+        let i = 0;
+        while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+          if (suggestions[i] === lastWord) {
+            i += 1;
+            continue;
+          }
           ctx.fillText(suggestions[i], centerX, currentY);
           currentY += 35;
+          n_suggest += 1;
+          i += 1;
         }
       }
 
@@ -1280,10 +1322,25 @@ useEffect(() => {
           ctx.textBaseline = "middle";
 
           let currentY = suggestionsY;
+
           // Show 3 suggestions max
-          for (let i = 0; i < Math.min(possibleWords.current.length, 3); i++) {
-            ctx.fillText(possibleWords.current[i], centerX, currentY);
+          const lastWord = theWords.current[theWords.current.length - 1] || "";
+          let cur_index = possibleWords.current.indexOf(lastWord);
+
+          let suggestions = possibleWords.current.slice(
+            Math.min(cur_index + 1, possibleWords.current.length),
+          );
+          let n_suggest = 0;
+          let i = 0;
+          while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+            if (suggestions[i] === bestWord) {
+              i += 1;
+              continue;
+            }
+            ctx.fillText(suggestions[i], centerX, currentY);
             currentY += 35;
+            n_suggest += 1;
+            i += 1;
           }
         }
       }
@@ -1532,6 +1589,30 @@ useEffect(() => {
           }}
         >
           Rendering: {directionalRendering.current}
+        </button>
+        <button
+          onClick={() => {
+            switch (dictionaryType) {
+              case "abc":
+                setDictionaryType("opt");
+                break;
+              case "opt":
+                setDictionaryType("abc");
+                break;
+              default:
+                break;
+            }
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+          }}
+        >
+          Layout: {dictionaryType}
         </button>
       </div>
 

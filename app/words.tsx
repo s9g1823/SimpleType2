@@ -24,6 +24,20 @@ export function allWords(tree: Tree, parent: string): string[] {
   return result;
 }
 
+export function allWordsForCode(tree: Tree, code: string): string[] {
+  // Returns exact matches for the provided code
+  let node: any = tree;
+  for (const char of code) {
+    if (!node[char]) {
+      return [];
+    }
+    node = node[char];
+  }
+
+  // NOTE: These are already ordered by most frequent
+  return node["#"] ?? [];
+}
+
 export function getSubtree(
   codeword: string,
   tree: Tree | string[],
@@ -53,11 +67,18 @@ export function getRankedMatches(
   ngrams: Record<string, number>,
   freq: WordFrequency,
   precomputed: Record<string, string[]>,
+  useTree: boolean,
 ): string[] {
-  const possibleWords =
-    code.length === 1
-      ? precomputed[code]
-      : orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
+
+  let possibleWords = [];
+  if (useTree) {
+    possibleWords =
+      code.length === 1
+        ? precomputed[code]
+        : orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
+  } else {
+      possibleWords = orderByMostFrequent(allWordsForCode(tree, code), freq);
+  }
 
   if (!context.length) {
     console.log("High ranked choices are: ", possibleWords.slice(0, 5));
@@ -103,8 +124,8 @@ export function getRankedMatches(
     (word) => word.length === code.length && !choices.includes(word),
   );
 
-  console.log("High ranked choices are: ", choices);
-  console.log("Other words are: ", additionalWords);
+  // console.log("High ranked choices are: ", choices);
+  // console.log("Other words are: ", additionalWords);
   return [...new Set([...choices, ...additionalWords])];
 }
 
