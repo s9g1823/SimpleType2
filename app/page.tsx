@@ -277,7 +277,12 @@ const PointerLockDemo: React.FC = () => {
 
     let rng = Math.floor(Math.random() * arrays.length);
 
-    refCode.current = arrays[rng];
+    if (inPractice.current) {
+      refCode.current = arraysOpt[rng];
+    } else {
+      refCode.current = arrays[rng];
+    }
+    
     sentence.current = sentences[rng];
 
     //calculations
@@ -286,6 +291,32 @@ const PointerLockDemo: React.FC = () => {
 
     timerStart.current = performance.now();
 
+  }
+
+  const startPracticeMode = (): void => {
+      console.log("runs");
+      theCodes.current = [];
+      theWords.current = [];
+      code.current = "";
+
+      inPractice.current = true;
+      indexRefCode.current = 0;
+      indexSentence.current = 0;
+
+      let rng2 = Math.floor(Math.random() * arrays.length);
+
+      if (inPractice.current) {
+        refCode.current = arraysOpt[rng2];
+      } else {
+        refCode.current = arrays[rng2];
+      }
+      sentence.current = sentences[rng2];
+
+      //calculations
+      goodHits.current = 0;
+      badHits.current = 0;
+
+      timerStart.current = performance.now();
   }
 
 
@@ -351,6 +382,11 @@ const PointerLockDemo: React.FC = () => {
       return;
     }
 
+    if (inPractice.current) {
+      return;
+    }
+ 
+
     Promise.resolve().then(async () => {
       possibleWords.current = getRankedMatches(
         theWords.current,
@@ -406,7 +442,7 @@ useEffect(() => {
   const radiusOct = 350;
 
   const gravity = useRef<number>(18);
-  const gravityClosin = useRef<boolean>(false);
+
 
   const finalizeCurrentWord = useCallback(async () => {
     // ──────────────────────────────────────────────────────────────────────────
@@ -432,7 +468,8 @@ useEffect(() => {
         code.current.length === 1 ||
         code.current == "22" ||
         code.current == "88" ||
-        code.current == "222"
+        code.current == "222" ||
+        code.current == "28"
       ) {
         if (dictionaryType === "opt") {
           switch (code.current) {
@@ -476,6 +513,10 @@ useEffect(() => {
             case "222":
               speakWords();
               break;
+
+            case "28" :
+              startPracticeMode();
+              break;
           }
 
         } else if (dictionaryType === "abc") {
@@ -515,6 +556,10 @@ useEffect(() => {
             // Speak
             case "222":
               speakWords();
+              break;
+
+            case "28" :
+              startPracticeMode();
               break;
           }
         }
@@ -602,10 +647,13 @@ useEffect(() => {
   const accuracy = useRef<number>();
   const ccpm = useRef<number>();
 
-  const hitTimes = useRef<number[]>([]); //times for each hit that you do (analysis purposes)
-  const hitTimerStart = useRef<number>();
-  const hitTimerEnd = useRef<number>();
-  const hitTimeLength = useRef<number>();
+
+  
+  
+//PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
+ const inPractice = useRef<boolean>(false);
+ const textWidth = useRef<number>();
+ const wordSubstringer = useRef<number>(0);
 
   const arrays = [
     [
@@ -639,6 +687,16 @@ useEffect(() => {
       1, 4, 4, 3, 1, 6, 4, 2, 8, 4, 4, 6, 1,
     ],
   ];
+
+  const arraysOpt = [
+    [7, 8, 6, 1, 4, 2, 2, 8, 2, 1, 6, 2, 4, 2, 2, 1, 2, 4, 2, 1, 2, 7, 4, 6, 6, 1, 4, 6, 6, 2, 1, 7, 8, 6, 1, 2, 4, 7, 2, 1, 8, 4, 4, 1],
+    [8, 4, 4, 2, 2, 4, 7, 6, 1, 7, 8, 6, 1, 7, 2, 7, 8, 2, 1, 6, 7, 4, 6, 1, 8, 4, 2, 2, 2, 8, 6, 2, 8, 6, 1],
+    [2, 7, 1, 2, 4, 6, 1, 6, 4, 2, 2, 2, 1, 2, 2, 1, 7, 8, 6, 1, 4, 4, 2, 2, 2, 2, 4, 1, 2, 8, 6, 2, 1, 8, 6, 1, 2, 4, 8, 6, 1, 2, 2, 7, 4, 1, 7, 8, 6, 1, 7, 4, 2, 2, 1],
+    [8, 6, 1, 8, 4, 4, 6, 1, 2, 2, 8, 2, 2, 4, 1, 2, 2, 4, 4, 1, 7, 8, 6, 1, 6, 4, 7, 7, 8, 1, 6, 2, 8, 6, 1, 6, 2, 4, 2, 2, 2, 1, 2, 4, 4, 2, 2, 2, 4, 1, 4, 2, 2, 1, 4, 2, 4, 7, 2, 8, 1],
+    [2, 4, 7, 2, 6, 1, 2, 4, 7, 1, 4, 1, 7, 2, 4, 6, 1, 8, 2, 4, 8, 2, 1, 2, 4, 7, 2, 6, 1, 4, 1, 7, 2, 4, 6, 1, 6, 4, 4, 6, 1],
+    [4, 2, 2, 1, 2, 6, 1, 4, 2, 6, 1, 2, 6, 1, 4, 2, 1, 2, 6, 2, 6, 1, 4, 2, 1, 2, 2, 2, 4, 8, 7, 2, 6, 6, 6, 1, 6, 2, 2, 8, 6, 1],
+    [2, 1, 8, 4, 2, 7, 1, 2, 4, 2, 2, 4, 1, 6, 6, 1, 7, 8, 6, 1, 6, 2, 4, 4, 6, 1, 2, 4, 7, 1, 4, 2, 2, 4, 4, 2, 6, 1]
+];
 
   const sentences = [
     ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
@@ -821,7 +879,12 @@ useEffect(() => {
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Draw octagon
+  
+  
+    //
+   // (1) DRAW THE OCTAGON AND SIDES
+   //
+
     const centerX = 800;
     const centerY = 480;
 
@@ -945,7 +1008,25 @@ useEffect(() => {
 
     ctx.fillStyle = "white";
 
-    // Check collisions
+    if (inPractice.current && sentence.current !== undefined && indexSentence.current !== undefined) { //If in practice mode...
+      //display the current word being built
+      ctx.font = "69px Poppins"
+      ctx.fillStyle = "gray";
+      textWidth.current = ctx.measureText(sentence.current[indexSentence.current]).width;
+      ctx.fillText(sentence.current[indexSentence.current], centerX, centerY);
+ 
+      //display what has been typed so far
+      ctx.textAlign = "left";
+      ctx.fillStyle = "lightgreen";
+      ctx.fillText(sentence.current[indexSentence.current].substring(0,wordSubstringer.current), centerX - textWidth.current/2, centerY);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "gray";
+    }
+ 
+   //
+   // (2) CHECK COLLISIONS
+   //
+
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
       let touching =
@@ -965,13 +1046,9 @@ useEffect(() => {
           timerStart.current = undefined;
           goodHits.current = undefined;
           badHits.current = undefined;
-          hitTimes.current = [];
-          hitTimeLength.current = undefined;
-          hitTimerEnd.current = undefined;
-          hitTimerStart.current = undefined;
         }
 
-        if (
+        if ( //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
           refCode.current &&
           indexRefCode.current !== undefined &&
           sideIndex !== refCode.current[indexRefCode.current]
@@ -985,26 +1062,19 @@ useEffect(() => {
             .play()
             .catch((error) => console.error("Error playing audio:", error));
           goodHits.current = (goodHits.current ?? 0) + 1;
+          if (inPractice.current && wordSubstringer.current !== undefined) { //If you are in practice mode, append the next character
+            wordSubstringer.current += 1;
         }
+      }
 
-        //New gravity threshold every time you hit a side (if in gravity random mode)
-        if (gravityClosin.current) {
-          gravity.current += radiusOct * 0.01;
-        }
-
-        if (
+        if ( //If not in Game/Practice mode OR (They are in Game/Practice mode AND hit the right side)
           indexRefCode.current === undefined ||
           (refCode.current &&
             indexRefCode.current !== undefined &&
             sideIndex === refCode.current[indexRefCode.current])
         ) {
-          if (indexRefCode.current !== undefined) {
+          if (indexRefCode.current !== undefined) { //if in Game/Practice mode, increase the Ref
             indexRefCode.current += 1;
-            hitTimes.current?.push(
-              Math.round(performance.now() - (hitTimerStart.current ?? 0)),
-            );
-            console.log("hitting: " + hitTimes.current);
-            hitTimerStart.current = performance.now();
           }
           const codeChar = sideMappings[sideIndex];
           // If side 3 => space => finalize
@@ -1018,6 +1088,9 @@ useEffect(() => {
                 ...theWords.current,
                 sentence.current[indexSentence.current] || "",
               ];
+              if (inPractice.current) {
+                wordSubstringer.current = 0;
+              }
               indexSentence.current += 1;
               code.current = "";
               if (indexSentence.current === sentence.current.length) {
@@ -1055,6 +1128,7 @@ useEffect(() => {
           activeSide.current = null;
         }, 50);
       } else if (
+        !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
         refCode.current[indexRefCode.current] == sideIndex
@@ -1075,7 +1149,10 @@ useEffect(() => {
       ctx.stroke();
     });
 
-    // Draw Labels
+    //
+    // 3) Draw Labels
+    //
+
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "white";
@@ -1106,6 +1183,7 @@ useEffect(() => {
       ctx.fillStyle = "white";
 
       if (
+        !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
         refCode.current[indexRefCode.current] == sideIndex
@@ -1116,8 +1194,9 @@ useEffect(() => {
       ctx.fillText(sideLabels[sideIndex], labelX, labelY);
     });
 
-    // Draw Dot
-
+   //
+   // 4) Draw Dot
+   //
     if (!dataReady.current) {
       ctx.fillStyle = "orange";
     } else {
@@ -1135,7 +1214,7 @@ useEffect(() => {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    if (code.current.length === 0 && !inLights.current) {
+    if (code.current.length === 0 && !inLights.current && !inPractice.current) {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
       ctx.fillText(lastWord, centerX, centerY);
@@ -1161,13 +1240,13 @@ useEffect(() => {
         }
       }
 
-    } else if (code.current.length === 1) {
+    } else if (code.current.length === 1 && !inPractice.current) {
       ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
 
     } else {
       // For now, only do partial styling of the word with suggestions when
       // there is at least 2 characters due to the hardcoding of the shortcuts
-      if (possibleWords.current.length > 0) {
+      if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
         const place = code.current.length;
 
@@ -1250,7 +1329,6 @@ useEffect(() => {
       );
 
       ctx.font = "11px Poppins"; // Smaller font size
-      ctx.fillText(`${hitTimes.current}`, centerX, centerY - 40);
     }
 
     setOctagonSides(newSides);
@@ -1535,21 +1613,20 @@ useEffect(() => {
               60%
             </button>
             <button
-              onClick={() => {
-                gravity.current = radiusOct * 0.3;
-                gravityClosin.current = !gravityClosin.current;
-              }}
-              style={{
-                backgroundColor: "#555555", // Off-black button background
-                color: "white", // White text
-                border: "none",
-                borderRadius: "5px",
-                padding: "5px 10px",
-                cursor: "pointer",
-              }}
-            >
-              Closin
-            </button>
+             onClick={() => {
+               gravity.current = radiusOct * 0.4;
+             }}
+             style={{
+               backgroundColor: "#555555", // Off-black button background
+               color: "white", // White text
+               border: "none",
+               borderRadius: "5px",
+               padding: "5px 10px",
+               cursor: "pointer",
+             }}
+           >
+             40%
+           </button>
           </div>
 
           <style>
