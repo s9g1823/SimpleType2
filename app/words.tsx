@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export type Tree = Record<string, any>;
 export type WordFrequency = Record<string, number>;
 
@@ -104,4 +106,56 @@ export function getRankedMatches(
   console.log("High ranked choices are: ", choices);
   console.log("Other words are: ", additionalWords);
   return [...new Set([...choices, ...additionalWords])];
+}
+
+export async function pickWordViaGPT(candidatesFiltered: string[], daWords: string[]): Promise<string> {
+    console.log("GPT is running with candidates: " + candidatesFiltered);
+    console.log("GPT is running with the words: " + daWords);
+    if (!candidatesFiltered || candidatesFiltered.length === 0) {
+      return "";
+    }
+    const prompt = `
+     Someone is typing a sentence very slowly. You want to guess the next word.
+
+     Here are the words in the sentence so far:
+     ${daWords.join(", ")}
+
+     Pick one word from below that is the most likely next word based on what makes sense and what is a more common word:
+     {${candidatesFiltered.join(", ")}}
+
+
+     Output your top 5 predictions guess for the next word. No quotes, no explanation.
+     Only write the top 5 words, one on each line.
+    `.trim();
+
+    console.log(prompt);
+    try {
+      const response = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 30,
+          temperature: 0.3,
+        },
+        {
+          headers: {
+            Authorization: "Bearer " + process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      console.log(
+        "GPT picked word: " + response.data.choices[0].message.content.trim(),
+      );
+      // return response.data.choices[0].message.content.trim();
+      const outputText = response.data.choices[0].message.content.trim();
+      const top5Predictions = outputText.split("\n").slice(0, 5);
+
+      return top5Predictions;
+
+    } catch (error) {
+      console.log("GPT didn't work for some random reason" + error);
+      return candidatesFiltered[0];
+    }
 }

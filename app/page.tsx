@@ -7,13 +7,12 @@ import React, {
   Suspense,
   useCallback,
 } from "react";
-import axios from "axios";
 import { useSearchParams } from "next/navigation";
 
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqSubscribeClient from "./ZmqSubscribeClient";
 
-import { Tree, WordFrequency, getRankedMatches } from "./words";
+import { Tree, allWords, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
 
 interface Dictionary {
   [t9Code: string]: string[];
@@ -214,26 +213,90 @@ const PointerLockDemo: React.FC = () => {
           7: "T Y U G H",
           8: "I O P K L",
         };
-      default: // optimized is default
+       case "opt" :
         return {
-          1: "⌫",
-          2: "F U D C P",
-          3: "␣",
-          4: "I L Y W",
-          5: "E G B V X",
-          6: "A M R",
-          7: "T H N Q",
-          8: "S O J K Z",
+          1: "␣",
+          2: "F I K L W Y Z",
+          3: "▢",
+          4: "A G J N P X",
+          5: "⌫",
+          6: "E B S U V",
+          7: "T O M",
+          8: "H C D Q R"
+        };
+      default :
+        return {
+          1: "␣",
+          2: "W X Y Z",
+          3: "S T U V",
+          4: "N O P Q R",
+          5: "⌫",
+          6: "A B C D E",
+          7: "F G H I",
+          8: "J K L M",
         };
     }
   };
+
+  const getTreeJson = (type: string): string => {
+    switch (type) {
+      case "abc":
+        return "/code_tree.json";
+      case "opt":
+        return "/code_tree_opt.json";
+      default :
+        console.error("Unsupported!");
+    }
+  }
+
+  const speakWords = (): void => {
+    const text = theWords.current.join(" ");
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.75; // Speed (0.1 - 10, default: 1)
+    utterance.pitch = 1; // Pitch (0 - 2, default: 1)
+    utterance.volume = 1; // Volume (0 - 1)
+
+    const voices = speechSynthesis.getVoices();
+    utterance.voice =
+      voices.find((v) => v.name.includes("Eddy (English (US))")) ||
+      null;
+
+    speechSynthesis.speak(utterance);
+  };
+
+  const startGameMode = (): void => {
+    console.log("runs");
+    theCodes.current = [];
+    theWords.current = [];
+    console.log("Resetting code");
+    code.current = "";
+
+    inLights.current = true;
+    indexRefCode.current = 0;
+    indexSentence.current = 0;
+
+    let rng = Math.floor(Math.random() * arrays.length);
+
+    refCode.current = arrays[rng];
+    sentence.current = sentences[rng];
+
+    //calculations
+    goodHits.current = 0;
+    badHits.current = 0;
+
+    timerStart.current = performance.now();
+
+  }
+
+
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
   // E) LOAD DICTIONARY ONCE
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const [dictionaryType, setDictionaryType] = useState("abc");
+  // const [dictionaryType, setDictionaryType] = useState("abc");
+  const [dictionaryType, setDictionaryType] = useState("opt");
 
   const sideLabels = getSideLabels(dictionaryType);
 
@@ -248,10 +311,11 @@ const PointerLockDemo: React.FC = () => {
       try {
         const [codeTreeData, trigramData, wordFreqData, precomputedData] =
           await Promise.all([
-            fetch("/code_tree.json").then((res) => res.json()),
+            fetch(getTreeJson("opt")).then((res) => res.json()),
             fetch("/trigram_model.json").then((res) => res.json()),
             fetch("/word_freq.json").then((res) => res.json()),
-            fetch("/precomputed.json").then((res) => res.json()),
+            // fetch("/precomputed.json").then((res) => res.json()),
+            fetch("/precomputed_opt.json").then((res) => res.json()),
           ]);
 
         codeTree.current = codeTreeData;
@@ -283,7 +347,11 @@ const PointerLockDemo: React.FC = () => {
       return;
     }
 
-    Promise.resolve().then(() => {
+    if (code.current.length === 1) {
+      return;
+    }
+
+    Promise.resolve().then(async () => {
       possibleWords.current = getRankedMatches(
         theWords.current,
         code.current,
@@ -292,69 +360,17 @@ const PointerLockDemo: React.FC = () => {
         wordFreq.current,
         precomputedTrees.current,
       );
+      // const possibleWords =
+      //   code.length === 1
+      //     ? precomputedTrees.current[code]
+      //     : orderByMostFrequent(allWords(getSubtree(code.current, codeTree.current), ""), wordFreq.current);
+      // possibleWords.current = await pickWordViaGPT(possibleWords, theWords.current);
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
     });
   }, [code.current]);
 
-  //
-  // ─────────────────────────────────────────────────────────────────────────────
-  // F) GPT LOOKUP
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const pickWordViaGPT = useCallback(
-    async (
-      candidatesFiltered: string[],
-      daWords: string[],
-    ): Promise<string> => {
-      console.log("GPT is running with candidates: " + candidatesFiltered);
-      console.log("GPT is running with the words: " + theWords);
-      if (!candidatesFiltered || candidatesFiltered.length === 0) {
-        return "";
-      }
-      const prompt = `
-     A kid is typing a sentence very slowly. You want to guess the next word.
-
-     Here are the words so far:
-     ${daWords.join(", ")}
-
-     Pick one word from below that is the most likely next word based on what makes sense and what is a more common word:
-     {${candidatesFiltered.join(", ")}}
-
-
-     Output only your guess for the next word. No quotes, no explanation.
-
-    `.trim();
-
-      console.log(prompt);
-      try {
-        const response = await axios.post(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            model: "gpt-3.5-turbo",
-            messages: [{ role: "user", content: prompt }],
-            max_tokens: 30,
-            temperature: 0.3,
-          },
-          {
-            headers: {
-              Authorization: "Bearer " + process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        console.log(
-          "GPT picked word: " + response.data.choices[0].message.content.trim(),
-        );
-        return response.data.choices[0].message.content.trim();
-      } catch (error) {
-        console.log("GPT didn't work for some random reason");
-        return candidatesFiltered[0];
-      }
-    },
-    [],
-  );
   //
   // ─────────────────────────────────────────────────────────────────────────────
   // G) CONSOLE LOGS FOR DEBUGGIN'
@@ -418,7 +434,51 @@ useEffect(() => {
         code.current == "88" ||
         code.current == "222"
       ) {
-        if (dictionaryType === "abc") {
+        if (dictionaryType === "opt") {
+          switch (code.current) {
+            case "4":
+              chosenWord = "a";
+              break;
+
+            case "6":
+              speed.current = speed.current - 0.3;
+              console.log("speed " + speed.current);
+              break;
+            case "7":
+              speed.current = speed.current + 0.3;
+              console.log("speed " + speed.current);
+              break;
+
+            case "6":
+              new Audio("on2.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
+              break;
+
+            case "2":
+              chosenWord = "I";
+              break;
+
+            case "8":
+              startGameMode();
+              break;
+
+            case "22":
+              gravity.current = 0.4 * radiusOct;
+              break;
+
+            // Clear all
+            case "88":
+              theWords.current = [];
+              break;
+
+            // Speak
+            case "222":
+              speakWords();
+              break;
+          }
+
+        } else if (dictionaryType === "abc") {
           switch (code.current) {
             case "6":
               chosenWord = "a";
@@ -440,28 +500,9 @@ useEffect(() => {
               chosenWord = "I";
               break;
             case "8":
-              console.log("runs");
-              theCodes.current = [];
-              theWords.current = [];
-              console.log("Resetting code");
-              code.current = "";
-
-              inLights.current = true;
-              indexRefCode.current = 0;
-              indexSentence.current = 0;
-
-              let rng = Math.floor(Math.random() * arrays.length);
-
-              refCode.current = arrays[rng];
-              sentence.current = sentences[rng];
-
-              //calculations
-              goodHits.current = 0;
-              badHits.current = 0;
-
-              timerStart.current = performance.now();
-
+              startGameMode();
               break;
+
             case "22":
               gravity.current = 0.4 * radiusOct;
               break;
@@ -473,21 +514,11 @@ useEffect(() => {
 
             // Speak
             case "222":
-              const text = theWords.current.join(" ");
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.rate = 0.75; // Speed (0.1 - 10, default: 1)
-              utterance.pitch = 1; // Pitch (0 - 2, default: 1)
-              utterance.volume = 1; // Volume (0 - 1)
-
-              const voices = speechSynthesis.getVoices();
-              utterance.voice = voices.find((v) => v.name.includes("Eddy (English (US))")) || null;
-
-              speechSynthesis.speak(utterance);
+              speakWords();
               break;
           }
         }
       } else {
-        // chosenWord = await pickWordViaGPT(candidates, theWords.current);
         console.log("Chose candidate");
         chosenWord = candidates[0];
       }
@@ -1129,6 +1160,10 @@ useEffect(() => {
           currentY += 35;
         }
       }
+
+    } else if (code.current.length === 1) {
+      ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
+
     } else {
       // For now, only do partial styling of the word with suggestions when
       // there is at least 2 characters due to the hardcoding of the shortcuts
@@ -1261,67 +1296,67 @@ useEffect(() => {
           left: "10px",
         }}
       >
-      {/* Top-left button */}
-      <button
-        style={{
-          // position: "fixed",
-          // top: "10px",
-          // left: "10px",
-          padding: "15px 25px",
-          fontSize: "18px",
-          color: "white",
-          border: "1px solid white", // Thin white border
-          borderRadius: "8px",
-          cursor: "pointer",
-          boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-        }}
-        onClick={(e) => {
-          const button = e.currentTarget as HTMLElement;
-          button.style.backgroundColor = "lightblue";
-          setTimeout(() => {
-            button.style.backgroundColor = "black";
-          }, 150);
+        {/* Top-left button */}
+        <button
+          style={{
+            // position: "fixed",
+            // top: "10px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          }}
+          onClick={(e) => {
+            const button = e.currentTarget as HTMLElement;
+            button.style.backgroundColor = "lightblue";
+            setTimeout(() => {
+              button.style.backgroundColor = "black";
+            }, 150);
 
-          const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
-          audio.play();
-        }}
-      >
-        🗣️ Cursor Off
-      </button>
+            const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
+            audio.play();
+          }}
+        >
+          🗣️ Cursor Off
+        </button>
 
-      {/* Copy to clipboard button */}
-      <button
-        style={{
-          position: "relative",
-          // left: "100%",
-          // top: "120px",
-          // left: "10px",
-          padding: "15px 25px",
-          fontSize: "18px",
-          color: "white",
-          border: "1px solid white", // Thin white border
-          borderRadius: "8px",
-          cursor: "pointer",
-          boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-          transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-        }}
-        onClick={(e) => {
-          const button = e.currentTarget as HTMLElement;
-          button.style.backgroundColor = "lightblue";
-          setTimeout(() => {
-            button.style.backgroundColor = "black";
-          }, 150);
+        {/* Copy to clipboard button */}
+        <button
+          style={{
+            position: "relative",
+            // left: "100%",
+            // top: "120px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          }}
+          onClick={(e) => {
+            const button = e.currentTarget as HTMLElement;
+            button.style.backgroundColor = "lightblue";
+            setTimeout(() => {
+              button.style.backgroundColor = "black";
+            }, 150);
 
-          try {
-            navigator.clipboard.writeText(theWords.current.join(" "));
-          } catch (err) {
-            console.error("Clipboard not supported!");
-          }
-        }}
-      >
-        📋 Copy to clipboard
-      </button>
+            try {
+              navigator.clipboard.writeText(theWords.current.join(" "));
+            } catch (err) {
+              console.error("Clipboard not supported!");
+            }
+          }}
+        >
+          📋 Copy to clipboard
+        </button>
       </div>
 
       <label
