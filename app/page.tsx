@@ -1190,6 +1190,7 @@ useEffect(() => {
           activeSide.current = null;
         }, 50);
       } else if (
+        !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
         refCode.current[indexRefCode.current] == sideIndex
