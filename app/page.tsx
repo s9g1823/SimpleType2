@@ -321,7 +321,7 @@ const PointerLockDemo: React.FC = () => {
     let rng = Math.floor(Math.random() * arrays.length);
 
     refCode.current = arrays[rng];
-    
+
     sentence.current = sentences[rng];
 
     //calculations
@@ -334,9 +334,11 @@ const PointerLockDemo: React.FC = () => {
 
   const startPracticeMode = (): void => {
 
-      isPlaying.current = true;
-      setVideoOpacity(0.18);
-    
+      // isPlaying.current = true;
+      isPlaying.current = false;
+      // setVideoOpacity(0.18);
+      setVideoOpacity(0);
+
       console.log("runs");
       theCodes.current = [];
       theWords.current = [];
@@ -539,7 +541,7 @@ useEffect(() => {
         code.current == "22" ||
         code.current == "88" ||
         code.current == "222" ||
-        code.current == "28"
+        code.current == "33"
       ) {
         console.log("CODE IS " + code.current);
         console.log("DICT IS " + dictionaryType);
@@ -614,9 +616,6 @@ useEffect(() => {
             case "7":
               chosenWord = "I";
               break;
-            case "8":
-              startGameMode();
-              break;
 
             case "22":
               gravity.current = 0.4 * radiusOct;
@@ -625,6 +624,8 @@ useEffect(() => {
             // Clear all
             case "88":
               theWords.current = [];
+              theCodes.current = [];
+              code.current = "";
               break;
 
             // Speak
@@ -632,8 +633,12 @@ useEffect(() => {
               speakWords();
               break;
 
-            case "28" :
+            case "33" :
               startPracticeMode();
+              break;
+
+            case "8":
+              startGameMode();
               break;
           }
         }
@@ -650,9 +655,9 @@ useEffect(() => {
       }
 
       // 3) Append the chosen word and code
-      console.log("Adding the chosen word: " + chosenWord);
-
-      if (chosenWord !== "") {
+      //
+      if (chosenWord !== undefined && chosenWord !== "") {
+        console.log("Adding the chosen word: " + chosenWord);
         theWords.current = [...theWords.current, chosenWord || ""];
         console.log("words: " + theWords.current);
 
@@ -1279,7 +1284,7 @@ useEffect(() => {
     if (code.current.length === 0 && !inLights.current && !inPractice.current) {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
-      
+
       ctx.fillText(lastWord, centerX, centerY);
 
       // Only display suggestions when we are also displaying a current word.
@@ -1515,7 +1520,7 @@ useEffect(() => {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      
+
       </div>
       <div
         style={{
@@ -1598,7 +1603,7 @@ useEffect(() => {
           fontFamily: "Monaco, monospace",
         }}
       >
-        SHORTCUTS: [ Clear: JJ␣ ] [ Cursor On: N␣ ] [ Speak: WWW␣ ]
+        SHORTCUTS: [ Clear: LL␣ ] [ Cursor On: Q␣ ] [ Speak: WWW␣ ]
       </label>
 
       <div style={{ textAlign: "center", color: "white" }}>
