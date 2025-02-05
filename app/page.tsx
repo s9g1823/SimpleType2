@@ -1133,6 +1133,7 @@ useEffect(() => {
                 indexRefCode.current = undefined;
                 sentence.current = undefined;
                 indexSentence.current = undefined;
+                inPractice.current = false;
               }
             } else if (!inLights.current) {
               finalizeCurrentWord();
