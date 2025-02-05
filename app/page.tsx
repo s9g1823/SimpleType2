@@ -194,13 +194,13 @@ const PointerLockDemo: React.FC = () => {
       case "abc":
         return {
           1: "␣",
-          2: "W X Y Z",
-          3: "S T U V",
-          4: "N O P Q R",
+          2: "V W X Y Z",
+          3: "▢",
+          4: "Q R S T U",
           5: "⌫",
-          6: "A B C D E",
-          7: "F G H I",
-          8: "J K L M",
+          6: "A B C D E F",
+          7: "G H I J K",
+          8: "L M N O P",
         };
       // case "abc4":
       //   return {
@@ -320,12 +320,8 @@ const PointerLockDemo: React.FC = () => {
 
     let rng = Math.floor(Math.random() * arrays.length);
 
-    if (inPractice.current) {
-      refCode.current = arraysOpt[rng];
-    } else {
-      refCode.current = arrays[rng];
-    }
-
+    refCode.current = arrays[rng];
+    
     sentence.current = sentences[rng];
 
     //calculations
@@ -337,6 +333,10 @@ const PointerLockDemo: React.FC = () => {
   }
 
   const startPracticeMode = (): void => {
+
+      isPlaying.current = true;
+      setVideoOpacity(0.18);
+    
       console.log("runs");
       theCodes.current = [];
       theWords.current = [];
@@ -348,12 +348,9 @@ const PointerLockDemo: React.FC = () => {
 
       let rng2 = Math.floor(Math.random() * arrays.length);
 
-      if (inPractice.current) {
-        refCode.current = arraysOpt[rng2];
-      } else {
-        refCode.current = arrays[rng2];
-      }
+      refCode.current = arrays[rng2];
       sentence.current = sentences[rng2];
+      randomyt.current = yts[rng2];
 
       //calculations
       goodHits.current = 0;
@@ -742,60 +739,59 @@ useEffect(() => {
  const wordSubstringer = useRef<number>(0);
 
   const arrays = [
-    [
-      3, 7, 6, 1, 4, 3, 7, 6, 8, 1, 6, 4, 4, 2, 4, 1, 7, 4, 2, 1, 8, 3, 8, 4, 3,
-      1, 4, 3, 6, 4, 1, 3, 7, 6, 1, 8, 6, 2, 2, 1, 6, 4, 7, 1,
-    ],
-    [
-      6, 4, 8, 7, 4, 6, 3, 6, 1, 3, 7, 6, 1, 3, 4, 3, 6, 8, 1, 3, 3, 4, 4, 1, 6,
-      4, 4, 7, 7, 6, 6, 4, 6, 6, 1,
-    ],
-    [
-      7, 3, 1, 2, 6, 3, 1, 6, 6, 4, 8, 2, 1, 7, 4, 1, 3, 7, 6, 1, 8, 4, 4, 4, 7,
-      4, 7, 1, 2, 7, 6, 4, 1, 7, 6, 1, 4, 4, 6, 6, 1, 7, 4, 3, 4, 1, 3, 7, 6, 1,
-      3, 4, 2, 4, 1,
-    ],
-    [
-      7, 6, 1, 6, 6, 8, 6, 1, 4, 7, 6, 7, 4, 7, 1, 7, 4, 4, 8, 1, 3, 7, 6, 1, 3,
-      4, 3, 3, 7, 1, 3, 7, 6, 6, 1, 3, 8, 4, 2, 8, 2, 1, 8, 4, 4, 8, 7, 4, 7, 1,
-      6, 8, 8, 1, 6, 4, 4, 3, 4, 6, 1,
-    ],
-    [
-      2, 4, 3, 4, 6, 1, 4, 4, 3, 1, 6, 1, 3, 7, 8, 6, 1, 6, 8, 4, 6, 8, 1, 2, 4,
-      3, 4, 6, 1, 6, 1, 3, 7, 8, 6, 1, 6, 4, 8, 6, 1,
-    ],
-    [
-      6, 8, 8, 1, 2, 6, 1, 6, 4, 6, 1, 7, 3, 1, 6, 4, 1, 7, 3, 8, 6, 1, 4, 7, 1,
-      7, 8, 7, 7, 7, 3, 8, 6, 3, 3, 1, 6, 7, 4, 6, 3, 1,
-    ],
-    [
-      7, 1, 6, 4, 4, 3, 1, 2, 6, 4, 4, 6, 1, 6, 6, 1, 3, 7, 6, 1, 6, 8, 6, 8, 6,
-      1, 4, 4, 3, 1, 6, 4, 2, 8, 4, 4, 6, 1,
-    ],
-  ];
-
-  const arraysOpt = [
-    [7,8,6,1,8,6,2,8,2,1,6,8,7,2,4,1,2,7,4,1,4,6,7,4,6,1,7,6,6,8,1,7,8,6,1,2,4,2,2,1,8,7,4,1],
-    [4,2,2,1,2,6,1,4,8,6,1,2,6,1,4,4,1,2,6,2,6,1,7,2,1,2,2,2,4,8,7,2,6,6,6,1,6,2,8,8,6,1],
-    [2,1,8,7,4,7,1,2,4,4,4,4,1,6,6,1,7,8,6,1,6,2,4,7,6,1,4,7,7,1,4,4,2,7,7,8,6,1],
-    [2,6,1,4,7,1,2,7,4,4,6,8,1,6,4,2,1,2,6,6,1,2,4,6,7,6,4,8,1,2,6,1,6,4,2,1,4,2,2,2,8,7,4,7,2,6,6,1],
-    [2,1,4,7,1,6,7,8,8,2,1,8,4,6,6,1,2,1,4,7,1,4,2,8,4,2,8,1,2,1,8,4,4,7,1,8,7,1,7,8,4,7,1],
-    [2,6,6,2,1,7,8,6,1,2,6,4,8,1,2,4,1,7,2,1,6,4,6,7,2,6,1,6,2,6,6,1],
-    [2,1,6,6,6,1,4,1,2,2,7,7,2,6,1,6,2,2,8,7,6,6,7,7,7,1,7,2,1,4,1,7,4,4,1],
-    [2,7,6,8,1,7,7,7,8,6,8,1,2,4,6,1,4,1,8,4,7,6,7,6,8,1],
-    [6,8,2,4,4,1,7,6,7,1,7,8,6,1,8,7,2,2,1,8,4,4,8,1,4,8,6,4,4,8,6,1],
+    [6, 8, 8, 1, 2, 8, 4, 1, 7, 8, 4, 1, 4, 8, 1, 6, 8, 1, 7, 4, 1, 8, 6, 6, 4, 1, 8, 6, 1, 6, 4, 1, 4, 7, 6, 1, 6, 8, 4, 1, 6, 8, 4, 1, 6, 8, 4, 1, 6, 8, 4, 1],
+    [7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 4, 7, 8, 2, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 7, 4, 6, 6, 4, 6, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 2, 6, 4, 2, 4, 7, 7, 8, 7, 1, 6, 4, 1, 8, 8, 8, 7, 1, 6, 4, 1, 7, 4, 4, 1, 6, 4, 6, 6, 1],
+    [7, 6, 6, 4, 4, 6, 4, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 4, 6, 6, 7, 1, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 6, 7, 6, 1, 7, 8, 1, 7, 4, 4, 4, 1, 7, 8, 8, 8, 6, 1, 4, 7, 6, 7, 6, 1],
+    [7, 8, 1, 4, 7, 7, 4, 1, 2, 8, 4, 8, 6, 1, 6, 8, 8, 6, 4, 6, 4, 6, 1, 6, 8, 8, 2, 6, 4, 4, 1, 7, 4, 8, 2, 1, 7, 6, 6, 4, 4, 6, 6, 7, 6, 1, 4, 7, 6, 1, 8, 8, 8, 2, 1, 6, 8, 7, 8, 7, 1, 2, 7, 6, 4, 1, 4, 7, 6, 1, 7, 8, 8, 2, 1],
+    [6, 8, 7, 8, 8, 7, 8, 7, 1, 2, 8, 4, 4, 1, 6, 7, 8, 4, 1, 2, 8, 4, 1, 6, 8, 8, 0, 4, 1, 7, 6, 4, 1, 4, 8, 8, 1, 6, 6, 4, 1],
+    [2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 1, 2, 6, 8, 6, 8, 8, 6, 1, 7, 4, 6, 4, 4, 1, 2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 6, 7, 6, 6, 1],
+    [6, 8, 4, 1, 4, 8, 8, 6, 1, 4, 6, 6, 4, 8, 8, 1, 7, 1, 6, 6, 8, 0, 4, 1, 6, 2, 8, 8, 6, 7, 8, 1, 7, 1, 7, 8, 8, 2, 1, 4, 6, 7, 8, 4, 1, 8, 6, 4, 6, 4, 1, 2, 8, 8, 4, 1, 6, 6, 8, 8, 1, 8, 2, 1, 8, 6, 8, 6, 1],
+    [7, 4, 4, 1, 4, 7, 8, 6, 1, 4, 8, 1, 6, 8, 6, 4, 4, 1, 8, 8, 1, 8, 7, 6, 6, 1, 6, 6, 7, 1, 6, 6, 7, 1, 6, 6, 7, 1],
+    [6, 6, 8, 1, 2, 8, 4, 1, 4, 8, 6, 6, 7, 1, 4, 8, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 2, 8, 4, 1, 6, 4, 6, 1, 8, 8, 4, 1, 6, 8, 8, 1, 7, 8, 8, 6, 1, 2, 7, 4, 7, 1],
+    [2, 6, 1, 7, 6, 2, 6, 1, 6, 6, 6, 8, 1, 7, 8, 2, 6, 4, 4, 7, 8, 7, 1, 7, 8, 1, 7, 8, 6, 4, 6, 4, 4, 4, 4, 6, 4, 4, 4, 6, 1, 4, 8, 1, 4, 6, 6, 8, 6, 1, 4, 7, 7, 8, 7, 4, 1],
+    [6, 8, 6, 1, 7, 1, 6, 4, 7, 6, 6, 1, 7, 7, 8, 1, 6, 8, 1, 7, 1, 8, 8, 8, 7, 1, 8, 7, 7, 6, 1, 7, 1, 2, 8, 4, 8, 6, 1, 7, 8, 8, 2, 1],
+    [8, 6, 8, 6, 1, 7, 4, 4, 4, 1, 7, 7, 8, 8, 6, 6, 1, 6, 1, 8, 6, 8, 1, 8, 4, 4, 1, 6, 1, 7, 4, 8, 1, 8, 8, 4, 8, 1, 7, 7, 4, 1, 7, 6, 6, 6, 1],
+    [4, 6, 8, 6, 8, 6, 6, 4, 1, 4, 8, 1, 8, 6, 4, 1, 7, 6, 4, 1, 7, 8, 4, 8, 1, 2, 8, 4, 4, 1, 7, 6, 6, 4, 4, 1, 6, 8, 6, 1, 4, 7, 6, 8, 1, 2, 8, 4, 1, 6, 6, 8, 1, 4, 4, 6, 4, 4, 1],
+    [4, 8, 8, 6, 2, 7, 6, 4, 6, 1, 8, 2, 6, 4, 1, 4, 7, 6, 1, 4, 6, 7, 8, 6, 8, 2, 1, 6, 8, 4, 6, 6, 7, 4, 6, 4, 1, 6, 8, 2, 1],
+    [2, 8, 4, 4, 1, 4, 7, 7, 8, 1, 8, 7, 1, 2, 6, 6, 7, 1, 2, 8, 4, 4, 1, 4, 7, 7, 8, 1, 6, 8, 6, 1, 6, 8, 8, 6, 4, 1],
+    [7, 1, 7, 6, 2, 6, 1, 7, 8, 4, 4, 6, 8, 1, 8, 8, 6, 6, 4, 1, 8, 8, 2, 1, 7, 1, 7, 8, 8, 2, 1, 7, 8, 2, 1, 4, 8, 1, 4, 6, 7, 6, 1, 6, 6, 4, 6, 1],
+    [7, 8, 2, 1, 6, 8, 8, 6, 1, 2, 7, 6, 8, 1, 7, 1, 4, 6, 4, 4, 4, 8, 6, 6, 1, 2, 8, 4, 1, 2, 6, 4, 6, 1, 7, 8, 8, 6, 1, 6, 2, 6, 2, 1],
+    [7, 1, 2, 6, 4, 1, 8, 8, 4, 7, 8, 7, 1, 8, 2, 1, 8, 7, 8, 6, 1, 6, 6, 6, 6, 4, 4, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 2, 6, 4, 4, 6, 6, 1, 8, 8, 1, 6, 1, 8, 7, 6, 6, 1, 6, 6, 6, 6, 1],
+    [8, 8, 1, 2, 6, 2, 1, 7, 4, 1, 2, 6, 4, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 8, 7, 7, 7, 4, 1, 4, 7, 6, 4, 1, 2, 6, 1, 6, 4, 6, 6, 7, 1, 4, 8, 1],
+    [4, 7, 6, 1, 4, 8, 4, 8, 6, 1, 8, 6, 1, 7, 4, 8, 6, 7, 4, 6, 1, 8, 6, 6, 1, 7, 8, 1, 4, 7, 6, 1, 6, 7, 4, 4, 6, 8, 6, 6, 1, 7, 0, 8, 1, 7, 6, 4, 4, 7, 8, 7, 1, 4, 4, 6, 6, 1, 4, 8, 1, 7, 4, 1, 8, 8, 2, 1],
+    [4, 7, 7, 4, 1, 4, 7, 8, 6, 1, 4, 7, 6, 1, 8, 6, 2, 2, 1, 6, 8, 7, 1, 7, 4, 8, 8, 4, 1, 8, 2, 6, 4, 1, 4, 7, 6, 1, 4, 4, 7, 6, 7, 1, 6, 4, 8, 2, 8, 1, 6, 8, 2, 1],
+    [8, 6, 4, 4, 1, 8, 6, 4, 4, 2, 1, 6, 4, 6, 6, 7, 6, 1, 4, 4, 2, 8, 6, 1],
+    [4, 7, 6, 1, 6, 6, 8, 8, 6, 4, 6, 4, 4, 1, 2, 7, 8, 8, 1, 8, 8, 4, 6, 1, 4, 7, 6, 1, 6, 8, 6, 6, 4, 7, 8, 8, 1],
+    [2, 6, 4, 1, 6, 8, 1, 6, 4, 7, 2, 8, 8, 6, 1, 4, 6, 8, 7, 6, 4, 1, 2, 8, 4, 8, 6, 8, 0, 4, 1, 6, 6, 1, 4, 8, 8, 1, 8, 8, 8, 7, 1, 7, 8, 1, 4, 8, 2, 8, 1],
+    [7, 1, 6, 8, 1, 6, 8, 8, 6, 1, 6, 6, 8, 1, 2, 8, 4, 1, 7, 6, 6, 4, 1, 7, 1, 2, 7, 8, 8, 1, 6, 8, 2, 1, 2, 7, 4, 7, 1, 8, 8, 1, 7, 8, 8, 6, 1, 8, 8, 1, 6, 6, 6, 4, 1]
   ];
 
   const sentences = [
-    ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
-    ["all", "we", "are", "is", "an", "isle", "of", "flightless", "birds"],
-    ["i", "dont", "wanna", "be", "the", "blame", "not", "anymore"],
-    ['we', 'no', 'longer', 'say', 'yes', 'instead', 'we', 'say', 'affirmative'],
-    ['i', 'am', 'sorry', 'dave', 'i', 'am', 'afraid', 'i', 'cant', 'do', 'that'],
-    ['feel', 'the', 'fear', 'in', 'my', 'enemys', 'eyes'],
-    ['i', 'see', 'a', 'little', 'silhouetto', 'of', 'a', 'man'],
-    ['Your', 'mother', 'was', 'a', 'hamster'],
-    ['Bring', 'out', 'the', 'Holy', 'Hand', 'Grenade'],
+  ['all', 'you', 'got', 'to', 'do', 'is', 'meet', 'me', 'at', 'the', 'apt', 'apt', 'apt', 'apt'],
+  ['i', 'want', 'your', 'ugly', 'I', 'want', 'your', 'disease', 'i', 'want', 'your', 'everything', 'as', 'long', 'as', 'its', 'free'],
+  ['heartbreakers', 'gonna', 'break', 'fakers', 'gonna', 'fake', 'im', 'just', 'gonna', 'shake'],
+  ['in', 'this', 'world', 'concrete', 'flowers', 'grow', 'heartache', 'she', 'only', 'doing', 'what', 'she', 'know'],
+  ['flipping', 'your', 'fins', 'you', "don't", 'get', 'too', 'far'],
+  ['within', 'my', 'heart', 'a', 'welcome', 'guest', 'within', 'my', 'heart', 'abide'],
+  ['for', 'some', 'reason', 'i', "can't", 'explain', 'i', 'know', 'saint', 'peter', 'wont', 'call', 'my', 'name'],
+  ['its', 'time', 'to', 'focus', 'on', 'life', 'fah', 'fah', 'fah'],
+  ['can', 'you', 'speak', 'to', 'the', 'part', 'you', 'are', 'not', 'all', 'good', 'with'],
+  ['we', 'have', 'been', 'investing', 'in', 'infrastructure', 'to', 'scale', 'things'],
+  ['and', 'I', 'asked', 'him', 'do', 'I', 'look', 'like', 'I', 'would', 'know'],
+  ['mama', 'just', 'killed', 'a', 'man', 'put', 'a', 'gun', 'onto', 'his', 'head'],
+  ['remember', 'to', 'let', 'her', 'into', 'your', 'heart', 'and', 'then', 'you', 'can', 'start'],
+  ['somewhere', 'over', 'the', 'rainbow', 'bluebirds', 'fly'],
+  ['your', 'skin', 'oh', 'yeah', 'your', 'skin', 'and', 'bones'],
+  ['i', 'have', 'gotten', 'older', 'now', 'I', 'know', 'how', 'to', 'take', 'care'],
+  ['how', 'come', 'when', 'I', 'returned', 'you', 'were', 'gone', 'away'],
+  ['i', 'was', 'losing', 'my', 'mind', 'because', 'the', 'love', 'the', 'love', 'the', 'love', 'wasted', 'on', 'a', 'nice', 'face'],
+  ['no', 'way', 'it', 'was', 'the', 'last', 'night', 'that', 'we', 'break', 'up'],
+  ['the', 'sound', 'of', 'gunfire', 'off', 'in', 'the', 'distance', "I'm", 'getting', 'used', 'to', 'it', 'now'],
+  ['this', 'time', 'the', 'lazy', 'dog', 'jumps', 'over', 'the', 'quick', 'brown', 'fox'],
+  ['lets', 'party', 'arabic', 'style'],
+  ['the', 'democrats', 'will', 'lose', 'the', 'election'],
+  ['was', 'an', 'arizona', 'ranger', "wouldn't", 'be', 'too', 'long', 'in', 'town'],
+  ['i', 'am', 'cold', 'can', 'you', 'hear', 'I', 'will', 'fly', 'with', 'no', 'hope', 'no', 'fear']
   ];
 
   useEffect(() => {
@@ -1082,7 +1078,7 @@ useEffect(() => {
 
       //display what has been typed so far
       ctx.textAlign = "left";
-      ctx.fillStyle = "lightgreen";
+      ctx.fillStyle = "yellow";
       ctx.fillText(sentence.current[indexSentence.current].substring(0,wordSubstringer.current), centerX - textWidth.current/2, centerY);
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
@@ -1161,6 +1157,8 @@ useEffect(() => {
                 timeLength.current =
                   timerEnd.current - (timerStart.current ?? 0);
                 inLights.current = false;
+                inPractice.current = false;
+                isPlaying.current = false;
                 refCode.current = undefined;
                 indexRefCode.current = undefined;
                 sentence.current = undefined;
@@ -1280,6 +1278,7 @@ useEffect(() => {
     if (code.current.length === 0 && !inLights.current && !inPractice.current) {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
+      
       ctx.fillText(lastWord, centerX, centerY);
 
       // Only display suggestions when we are also displaying a current word.
@@ -1434,7 +1433,39 @@ useEffect(() => {
     return () => cancelAnimationFrame(animation);
   }, [drawScene]);
 
+  const [videoVisible, setVideoVisible] = useState(true);
+  const [videoOpacity, setVideoOpacity] = useState(0);
   //useless edit
+
+  const isPlaying = useRef<boolean>(true);
+  const yts = [
+    "ekr2nIex040",
+    "VCTOpdlZJ8U",
+    "Tv94swj4sjo",
+    "9Vnbsuny2LI",
+    "Vml504G6ytY",
+    "7j5ISmcqOas",
+    "dvgZkm1xWPE",
+    "9Y8OA70vmeY",
+    "YUuE2D6MwS8",
+    "Ux5AiKmra-E",
+    "hucCiV_CNN0",
+    "fJ9rUzIMcZQ",
+    "A_MjCqQoLLA",
+    "V1bFr2SWP1I",
+    "yKNxeF4KMsY",
+    "TGkMYMxi-hw",
+    "e_AZJzYe7CU",
+    "8twpQTna_9w",
+    "jECXQ57vW7g",
+    "8al5cSQNmME",
+    "eBf4s0HfgjQ",
+    "ZqW_5Ka0n7g",
+    "YOJsKatW-Ts",
+    "-NuX79Ud8zI",
+    "CHXfuGXM1Gg"
+  ]
+  const randomyt = useRef<string>();
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1453,6 +1484,38 @@ useEffect(() => {
         color: "white",
       }}
     >
+      {/* Video Overlay */}
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 1000,
+          opacity: videoOpacity,
+          transition: "opacity 0.5s ease-in-out",
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          width: "600px", // Increased size for larger circle
+          height: "600px", // Should be equal to width for perfect circle
+          borderRadius: "50%", // Adjusted for larger circle
+          overflow: "hidden",
+          pointerEvents: videoVisible ? "auto" : "none",
+          display: "flex",
+          justifyContent: "center", // Center the video horizontally
+          alignItems: "center", // Center the video vertically
+        }}
+      >
+        <iframe
+          width="560"
+          height="315"
+          src={`https://www.youtube.com/embed/${randomyt.current}?controls=0&loop=1&autoplay=${isPlaying.current ? 1 : 0}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      
+      </div>
       <div
         style={{
           position: "fixed",
@@ -1798,6 +1861,9 @@ useEffect(() => {
         style={{
           border: "1px dotted black",
           marginTop: "100px", // Adjust this value as needed
+          position: "relative",  // Add this
+          zIndex: 2000,         // Higher than video overlay
+          opacity: 1            // Ensure canvas is fully opaque
         }}
       />
       <div
