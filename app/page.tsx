@@ -202,6 +202,17 @@ const PointerLockDemo: React.FC = () => {
           7: "F G H I",
           8: "J K L M",
         };
+      // case "abc4":
+      //   return {
+      //     1: "␣",
+      //     2: "?",
+      //     3: "▢",
+      //     4: "U V W X Y Z",
+      //     5: "⌫",
+      //     6: "A B C D E F G",
+      //     7: "H I J K L M",
+      //     8: "N O P Q R S T",
+      //   };
       case "abc5":
         return {
           1: "␣",
@@ -255,6 +266,8 @@ const PointerLockDemo: React.FC = () => {
         return "/code_tree.json";
       case "abc5":
         return "/code_tree_abc5.json";
+      // case "abc4":
+      //   return "/code_tree_abc4.json";
       case "opt":
         return "/code_tree_opt.json";
       default :
@@ -269,6 +282,8 @@ const PointerLockDemo: React.FC = () => {
         return "/precomputed.json";
       case "abc5":
         return "/precomputed_abc5.json";
+      // case "abc4":
+      //   return "/precomputed_abc4.json";
       case "opt":
         return "/precomputed_opt.json";
       default :
@@ -355,6 +370,7 @@ const PointerLockDemo: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // const [dictionaryType, setDictionaryType] = useState("abc");
+  // const [dictionaryType, setDictionaryType] = useState("abc5");
   const [dictionaryType, setDictionaryType] = useState("abc5");
 
   const sideLabels = getSideLabels(dictionaryType);
@@ -579,7 +595,8 @@ useEffect(() => {
               break;
           }
 
-        } else if (dictionaryType === "abc") {
+        // } else if (dictionaryType === "abc" || dictionaryType == "abc5" || dictionaryType == "abc4") {
+        } else if (dictionaryType === "abc" || dictionaryType == "abc5") {
           switch (code.current) {
             case "6":
               chosenWord = "a";
@@ -1613,7 +1630,6 @@ useEffect(() => {
                 break;
               case "abc5":
                 setDictionaryType("abc");
-                break;
                 break;
               default:
                 break;

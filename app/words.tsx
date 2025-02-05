@@ -82,7 +82,7 @@ export function getRankedMatches(
 
   if (!context.length) {
     console.log("High ranked choices are: ", possibleWords.slice(0, 5));
-    return possibleWords.slice(0, 5); // Return top 5 immediately if no context
+    return possibleWords.slice(0, 10); // Return top 5 immediately if no context
   }
 
   // Take last 2 context words to use from the back since this is a trigram.
