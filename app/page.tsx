@@ -202,6 +202,17 @@ const PointerLockDemo: React.FC = () => {
           7: "F G H I",
           8: "J K L M",
         };
+      case "abc5":
+        return {
+          1: "␣",
+          2: "V W X Y Z",
+          3: "▢",
+          4: "Q R S T U",
+          5: "⌫",
+          6: "A B C D E F",
+          7: "G H I J K",
+          8: "L M N O P",
+        };
       case "qwerty":
         return {
           1: "⌫",
@@ -242,6 +253,8 @@ const PointerLockDemo: React.FC = () => {
     switch (type) {
       case "abc":
         return "/code_tree.json";
+      case "abc5":
+        return "/code_tree_abc5.json";
       case "opt":
         return "/code_tree_opt.json";
       default :
@@ -254,6 +267,8 @@ const PointerLockDemo: React.FC = () => {
     switch (type) {
       case "abc":
         return "/precomputed.json";
+      case "abc5":
+        return "/precomputed_abc5.json";
       case "opt":
         return "/precomputed_opt.json";
       default :
@@ -340,7 +355,7 @@ const PointerLockDemo: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   // const [dictionaryType, setDictionaryType] = useState("abc");
-  const [dictionaryType, setDictionaryType] = useState("opt");
+  const [dictionaryType, setDictionaryType] = useState("abc5");
 
   const sideLabels = getSideLabels(dictionaryType);
 
@@ -413,18 +428,18 @@ const PointerLockDemo: React.FC = () => {
 
 
       // ===== Exact matches
-      if (code.current.length < 5) {
-        // If under 5 characters, only pull from words with exact code-length matches.
-        possibleWords.current = getRankedMatches(
-          theWords.current,
-          code.current,
-          codeTree.current,
-          trigrams.current,
-          wordFreq.current,
-          precomputedTrees.current,
-          false,
-        );
-      } else {
+      // if (code.current.length < 5) {
+      //   // If under 5 characters, only pull from words with exact code-length matches.
+      //   possibleWords.current = getRankedMatches(
+      //     theWords.current,
+      //     code.current,
+      //     codeTree.current,
+      //     trigrams.current,
+      //     wordFreq.current,
+      //     precomputedTrees.current,
+      //     false,
+      //   );
+      // } else {
         // After the 5th letter, begin to suggest autocompletions with the tree
         // + ngram ordering.
         possibleWords.current = getRankedMatches(
@@ -436,7 +451,7 @@ const PointerLockDemo: React.FC = () => {
           precomputedTrees.current,
           true,
         );
-      }
+      // }
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
@@ -1594,7 +1609,11 @@ useEffect(() => {
                 setDictionaryType("opt");
                 break;
               case "opt":
+                setDictionaryType("abc5");
+                break;
+              case "abc5":
                 setDictionaryType("abc");
+                break;
                 break;
               default:
                 break;
