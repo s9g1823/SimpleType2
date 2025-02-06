@@ -1652,20 +1652,6 @@ useEffect(() => {
         </button>
       </div>
 
-      <label
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: "25%",
-          padding: "15px 25px",
-          fontSize: "15px",
-          color: "lightgray",
-          fontFamily: "Monaco, monospace",
-        }}
-      >
-        SHORTCUTS: [ Clear: LL␣ ] [ Cursor On: Q␣ ] [ Speak: WWW␣ ]
-      </label>
-
       <div style={{ textAlign: "center", color: "white" }}>
         <div style={{ marginBottom: "10px" }}>
           <input
@@ -1928,10 +1914,10 @@ useEffect(() => {
           border: "1px dotted black",
           marginTop: "100px", // Adjust this value as needed
           position: "relative",  // Add this
-          zIndex: 2000,         // Higher than video overlay
+          // zIndex: 2000,         // Higher than video overlay
           opacity: 1,            // Ensure canvas is fully opaque
-          zIndex: 0,
           pointerEvents: systemCursorEnabled ? "auto": "none",
+          zIndex: 0,
         }}
       />
       <div
