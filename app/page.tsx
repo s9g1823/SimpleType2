@@ -365,7 +365,7 @@ const PointerLockDemo: React.FC = () => {
         code.current = "";
 
       isPlaying.current = true;
-      setVideoOpacity(0.18);
+      setVideoOpacity(0);
 
       console.log("runs");
       theCodes.current = [];
