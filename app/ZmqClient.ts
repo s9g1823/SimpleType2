@@ -1,16 +1,18 @@
 import { decode } from "@msgpack/msgpack";
 import EventEmitter from "eventemitter3";
 import * as zmq from "jszmq";
-import { Sub } from "jszmq";
+import { Req, Sub } from "jszmq";
 
-export default class ZmqSubscribeClient {
+export default class ZmqClient {
   events: EventEmitter;
 
   host: string;
-  port: number;
+  port_sub: number;
+  port_pub: number;
   decode: typeof decode;
   topics: string[];
-  connectionUrl: string;
+  connectionUrlSub: string;
+  connectionUrlPub: string;
 
   hasStarted: boolean;
   startedAt: null | number;
@@ -22,17 +24,19 @@ export default class ZmqSubscribeClient {
   static factory(
     namespace: string,
     host: string,
-    port: number,
+    port_sub: number,
+    port_pub: number,
     topics: string[],
     decoder = decode,
-  ): ZmqSubscribeClient {
-    return new ZmqSubscribeClient(namespace, host, port, topics, decoder);
+  ): ZmqClient {
+    return new ZmqClient(namespace, host, port_sub, port_pub, topics, decoder);
   }
 
   constructor(
     namespace: string,
     host: string,
-    port: number,
+    port_sub: number,
+    port_pub: number,
     topics: string[],
     decoder: typeof decode,
   ) {
@@ -41,16 +45,19 @@ export default class ZmqSubscribeClient {
     this.events = new EventEmitter();
     this.decode = decoder;
     this.host = host;
-    this.port = port;
+    this.port_sub = port_sub;
+    this.port_pub = port_pub;
     this.topics = topics;
     // The protocol is not configurable because websocket is the only zmq
     // tranport option in the browser.
-    this.connectionUrl = `ws://${this.host}:${this.port}`;
+    this.connectionUrlSub = `ws://${this.host}:${this.port_sub}`;
+    this.connectionUrlPub = `ws://${this.host}:${this.port_pub}`;
 
     this.hasStarted = false;
     this.startedAt = null;
 
     this.subscriber = null;
+    this.requester = null;
   }
 
   start(): void {
@@ -75,20 +82,29 @@ export default class ZmqSubscribeClient {
     this.hasStarted = false;
   }
 
+  publish(topic: string, message: string): void {
+    this.requester.send(topic);
+  }
+
   #connect(): void {
     this.subscriber = new Sub();
 
     // @todo - how can we confirm that the connection was established?
-    this.subscriber.connect(this.connectionUrl);
+    this.subscriber.connect(this.connectionUrlSub);
+
+    this.requester = new Req();
+    this.requester.connect(this.connectionUrlPub);
   }
 
   #disconnect(): void {
-    if (this.subscriber === null) {
-      throw new Error("`subscriber` does not exist");
+    if (this.subscriber !== null) {
+      this.subscriber.close();
     }
 
-    // @todo - how can we confirm that the connection was terminated?
-    this.subscriber.close();
+    if (this.requester !== null) {
+      this.requester.close();
+    }
+
   }
 
   #subscribe(): void {
@@ -96,8 +112,8 @@ export default class ZmqSubscribeClient {
       throw new Error("`subscriber` does not exist");
     }
 
-    this.subscriber.on(ZmqSubscribeClient.EVENT_MESSAGE, (topic, message) => {
-      this.events.emit(ZmqSubscribeClient.EVENT_MESSAGE, this.decode(message));
+    this.subscriber.on(ZmqClient.EVENT_MESSAGE, (topic, message) => {
+      this.events.emit(ZmqClient.EVENT_MESSAGE, this.decode(message));
     });
 
     this.topics.forEach((topic) => {

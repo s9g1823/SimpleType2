@@ -10,7 +10,7 @@ import React, {
 import { useSearchParams } from "next/navigation";
 
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
-import ZmqSubscribeClient from "./ZmqSubscribeClient";
+import ZmqClient from "./ZmqClient";
 
 import { Tree, allWords, allWordsForCode, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
 
@@ -23,6 +23,11 @@ interface OctagonSide {
   startY: number;
   endX: number;
   endY: number;
+}
+
+enum OctagonPage {
+  Keyboard = "keyboard",
+  Home = "home",
 }
 
 enum DirectionalRendering {
@@ -116,13 +121,13 @@ const PointerLockDemo: React.FC = () => {
     }
 
     zmqService.current.events.on(
-      ZmqSubscribeClient.EVENT_MESSAGE,
+      ZmqClient.EVENT_MESSAGE,
       handleDecodeData,
     );
 
     return () => {
       zmqService.current.events.off(
-        ZmqSubscribeClient.EVENT_MESSAGE,
+        ZmqClient.EVENT_MESSAGE,
         handleDecodeData,
       );
     };
@@ -321,7 +326,7 @@ const PointerLockDemo: React.FC = () => {
     let rng = Math.floor(Math.random() * arrays.length);
 
     refCode.current = arrays[rng];
-    
+
     sentence.current = sentences[rng];
 
     //calculations
@@ -336,7 +341,7 @@ const PointerLockDemo: React.FC = () => {
 
       isPlaying.current = true;
       setVideoOpacity(0.18);
-    
+
       console.log("runs");
       theCodes.current = [];
       theWords.current = [];
@@ -539,7 +544,7 @@ useEffect(() => {
         code.current == "22" ||
         code.current == "88" ||
         code.current == "222" ||
-        code.current == "28"
+        code.current == "33"
       ) {
         console.log("CODE IS " + code.current);
         console.log("DICT IS " + dictionaryType);
@@ -614,9 +619,6 @@ useEffect(() => {
             case "7":
               chosenWord = "I";
               break;
-            case "8":
-              startGameMode();
-              break;
 
             case "22":
               gravity.current = 0.4 * radiusOct;
@@ -625,6 +627,8 @@ useEffect(() => {
             // Clear all
             case "88":
               theWords.current = [];
+              theCodes.current = [];
+              code.current = "";
               break;
 
             // Speak
@@ -632,8 +636,12 @@ useEffect(() => {
               speakWords();
               break;
 
-            case "28" :
+            case "33" :
               startPracticeMode();
+              break;
+
+            case "8":
+              startGameMode();
               break;
           }
         }
@@ -650,9 +658,9 @@ useEffect(() => {
       }
 
       // 3) Append the chosen word and code
-      console.log("Adding the chosen word: " + chosenWord);
-
-      if (chosenWord !== "") {
+      //
+      if (chosenWord !== undefined && chosenWord !== "") {
+        console.log("Adding the chosen word: " + chosenWord);
         theWords.current = [...theWords.current, chosenWord || ""];
         console.log("words: " + theWords.current);
 
@@ -1279,7 +1287,7 @@ useEffect(() => {
     if (code.current.length === 0 && !inLights.current && !inPractice.current) {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
-      
+
       ctx.fillText(lastWord, centerX, centerY);
 
       // Only display suggestions when we are also displaying a current word.
@@ -1515,7 +1523,7 @@ useEffect(() => {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      
+
       </div>
       <div
         style={{
@@ -1548,6 +1556,7 @@ useEffect(() => {
 
             const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
             audio.play();
+            zmqService.current.publish("cursor", "off");
           }}
         >
           🗣️ Cursor Off
@@ -1598,7 +1607,7 @@ useEffect(() => {
           fontFamily: "Monaco, monospace",
         }}
       >
-        SHORTCUTS: [ Clear: JJ␣ ] [ Cursor On: N␣ ] [ Speak: WWW␣ ]
+        SHORTCUTS: [ Clear: LL␣ ] [ Cursor On: Q␣ ] [ Speak: WWW␣ ]
       </label>
 
       <div style={{ textAlign: "center", color: "white" }}>

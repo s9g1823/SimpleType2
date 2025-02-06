@@ -86,8 +86,7 @@ export function getRankedMatches(
   }
 
   // Take last 2 context words to use from the back since this is a trigram.
-  const contextString = context.slice(-2).join(" ") + " ";
-  console.log("context is: ", contextString);
+  const contextString = context.slice(-2).map(word => word.toLowerCase()).join(" ") + " ";
 
   const matchingTrigrams: Array<[string, number]> = [];
   for (const key in ngrams) {
