@@ -28,6 +28,7 @@ interface OctagonSide {
 enum OctagonPage {
   Keyboard = "keyboard",
   Home = "home",
+  Settings = "settings",
 }
 
 enum DirectionalRendering {
@@ -105,11 +106,6 @@ const PointerLockDemo: React.FC = () => {
           position.current.y +
           velocities.current.final_velocity_y * speed.current * 0.01;
 
-        // For testing
-        // for (let i = 0; i <= 8; i++) {
-        //     sideLikelihoods.current[i] = i * (1 / 8);
-        // }
-
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
         }
@@ -145,6 +141,8 @@ const PointerLockDemo: React.FC = () => {
 
   // The lines making up the octagon, if needed for reference
   const [octagonSides, setOctagonSides] = useState<OctagonSide[]>([]);
+
+  const activePage = useRef<OctagonPage>(OctagonPage.Keyboard);
 
   const [isLocked, setIsLocked] = useState(false);
   const togglePointerLock = useCallback(() => {
@@ -192,6 +190,28 @@ const PointerLockDemo: React.FC = () => {
     7: "7",
     8: "8",
   };
+
+  const homeLabels: Record<number, string> = {
+    1: "Clear",
+    2: " ⚙️",
+    3: "▢",
+    4: "🗣️",
+    5: "🔤 ",
+    6: "Exit",
+    7: "📝 Practice",
+    8: "🕹️Game",
+  }
+
+  const settingsLabels: Record<number, string> = {
+    1: "Threshold on",
+    2: "Threshold off",
+    3: "▢",
+    4: "Speed-",
+    5: "Speed+",
+    6: "",
+    7: "",
+    8: "",
+  }
 
   // If you want bold labels around the octagon:
   const getSideLabels = (type: string): Record<number, string> => {
@@ -339,6 +359,11 @@ const PointerLockDemo: React.FC = () => {
 
   const startPracticeMode = (): void => {
 
+        theWords.current = [];
+        theCodes.current = [];
+        dirtyWords.current = [];
+        code.current = "";
+
       isPlaying.current = true;
       setVideoOpacity(0.18);
 
@@ -362,6 +387,21 @@ const PointerLockDemo: React.FC = () => {
       badHits.current = 0;
 
       timerStart.current = performance.now();
+  }
+
+  const stopPracticeMode = (): void => {
+
+      inLights.current = false;
+      inPractice.current = false;
+      isPlaying.current = false;
+      setVideoOpacity(0);
+      refCode.current = undefined;
+      indexRefCode.current = undefined;
+      sentence.current = undefined;
+      indexSentence.current = undefined;
+
+      textWidth.current = undefined;
+      wordSubstringer.current = 0;
   }
 
 
@@ -510,8 +550,8 @@ useEffect(() => {
 
   const radiusOct = 350;
 
-  const gravity = useRef<number>(0.27 * radiusOct);
-
+  const gravityDefault = 0.27 * radiusOct;
+  const gravity = useRef<number>(gravityDefault);
 
   const finalizeCurrentWord = useCallback(async () => {
     // ──────────────────────────────────────────────────────────────────────────
@@ -539,83 +579,12 @@ useEffect(() => {
 
         // Shortcut commands
       // } else if (
-      if (
-        code.current.length === 1 ||
-        code.current == "22" ||
-        code.current == "88" ||
-        code.current == "222" ||
-        code.current == "33"
-      ) {
-        console.log("CODE IS " + code.current);
-        console.log("DICT IS " + dictionaryType);
-        if (dictionaryType === "opt") {
-          console.log("CODE IS " + code.current);
-          switch (code.current) {
-            case "4":
-              chosenWord = "a";
-              break;
-
-            case "6":
-              speed.current = speed.current - 0.3;
-              console.log("speed " + speed.current);
-              break;
-            case "7":
-              speed.current = speed.current + 0.3;
-              console.log("speed " + speed.current);
-              break;
-
-            case "6":
-              new Audio("on2.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
-              break;
-
-            case "2":
-              chosenWord = "I";
-              break;
-
-            case "8":
-              startGameMode();
-              break;
-
-            case "22":
-              gravity.current = 0.4 * radiusOct;
-              break;
-
-            // Clear all
-            case "88":
-              theWords.current = [];
-              break;
-
-            // Speak
-            case "222":
-              speakWords();
-              break;
-
-            case "28" :
-              startPracticeMode();
-              break;
-          }
-
-        // } else if (dictionaryType === "abc" || dictionaryType == "abc5" || dictionaryType == "abc4") {
-        } else if (dictionaryType === "abc" || dictionaryType == "abc5") {
+      if (code.current.length === 1) {
           switch (code.current) {
             case "6":
               chosenWord = "a";
               break;
-            case "2":
-              speed.current = speed.current - 0.3;
-              console.log("speed " + speed.current);
-              break;
-            case "3":
-              speed.current = speed.current + 0.3;
-              console.log("speed " + speed.current);
-              break;
-            case "4":
-              new Audio("on2.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
-              break;
+
             case "7":
               chosenWord = "I";
               break;
@@ -624,38 +593,11 @@ useEffect(() => {
               gravity.current = 0.4 * radiusOct;
               break;
 
-            // Clear all
-            case "88":
-              theWords.current = [];
-              theCodes.current = [];
-              code.current = "";
-              break;
-
-            // Speak
-            case "222":
-              speakWords();
-              break;
-
-            case "33" :
-              startPracticeMode();
-              break;
-
-            case "8":
-              startGameMode();
-              break;
           }
-        }
-      } else if (candidates.length === 1 && candidates[0] != "u") {
-        chosenWord = candidates[0];
-
-        console.log("????????");
-
-        // Shortcut commands
-      // } else if (
-      } else {
-        console.log("Chose candidate");
-        chosenWord = candidates[0];
       }
+
+      console.log("Chose candidate");
+      chosenWord = candidates[0];
 
       // 3) Append the chosen word and code
       //
@@ -743,6 +685,7 @@ useEffect(() => {
 
 //PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
  const inPractice = useRef<boolean>(false);
+ const inGameMode = useRef<boolean>(false); // Hack: just used for tracking display
  const textWidth = useRef<number>();
  const wordSubstringer = useRef<number>(0);
 
@@ -751,9 +694,9 @@ useEffect(() => {
     [7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 4, 7, 8, 2, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 7, 4, 6, 6, 4, 6, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 2, 6, 4, 2, 4, 7, 7, 8, 7, 1, 6, 4, 1, 8, 8, 8, 7, 1, 6, 4, 1, 7, 4, 4, 1, 6, 4, 6, 6, 1],
     [7, 6, 6, 4, 4, 6, 4, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 4, 6, 6, 7, 1, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 6, 7, 6, 1, 7, 8, 1, 7, 4, 4, 4, 1, 7, 8, 8, 8, 6, 1, 4, 7, 6, 7, 6, 1],
     [7, 8, 1, 4, 7, 7, 4, 1, 2, 8, 4, 8, 6, 1, 6, 8, 8, 6, 4, 6, 4, 6, 1, 6, 8, 8, 2, 6, 4, 4, 1, 7, 4, 8, 2, 1, 7, 6, 6, 4, 4, 6, 6, 7, 6, 1, 4, 7, 6, 1, 8, 8, 8, 2, 1, 6, 8, 7, 8, 7, 1, 2, 7, 6, 4, 1, 4, 7, 6, 1, 7, 8, 8, 2, 1],
-    [6, 8, 7, 8, 8, 7, 8, 7, 1, 2, 8, 4, 4, 1, 6, 7, 8, 4, 1, 2, 8, 4, 1, 6, 8, 8, 0, 4, 1, 7, 6, 4, 1, 4, 8, 8, 1, 6, 6, 4, 1],
+    [6, 8, 7, 8, 8, 7, 8, 7, 1, 2, 8, 4, 4, 1, 6, 7, 8, 4, 1, 2, 8, 4, 1, 6, 8, 8, 4, 1, 7, 6, 4, 1, 4, 8, 8, 1, 6, 6, 4, 1],
     [2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 1, 2, 6, 8, 6, 8, 8, 6, 1, 7, 4, 6, 4, 4, 1, 2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 6, 7, 6, 6, 1],
-    [6, 8, 4, 1, 4, 8, 8, 6, 1, 4, 6, 6, 4, 8, 8, 1, 7, 1, 6, 6, 8, 0, 4, 1, 6, 2, 8, 8, 6, 7, 8, 1, 7, 1, 7, 8, 8, 2, 1, 4, 6, 7, 8, 4, 1, 8, 6, 4, 6, 4, 1, 2, 8, 8, 4, 1, 6, 6, 8, 8, 1, 8, 2, 1, 8, 6, 8, 6, 1],
+    [6, 8, 4, 1, 4, 8, 8, 6, 1, 4, 6, 6, 4, 8, 8, 1, 7, 1, 6, 6, 8, 4, 1, 6, 2, 8, 8, 6, 7, 8, 1, 7, 1, 7, 8, 8, 2, 1, 4, 6, 7, 8, 4, 1, 8, 6, 4, 6, 4, 1, 2, 8, 8, 4, 1, 6, 6, 8, 8, 1, 8, 2, 1, 8, 6, 8, 6, 1],
     [7, 4, 4, 1, 4, 7, 8, 6, 1, 4, 8, 1, 6, 8, 6, 4, 4, 1, 8, 8, 1, 8, 7, 6, 6, 1, 6, 6, 7, 1, 6, 6, 7, 1, 6, 6, 7, 1],
     [6, 6, 8, 1, 2, 8, 4, 1, 4, 8, 6, 6, 7, 1, 4, 8, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 2, 8, 4, 1, 6, 4, 6, 1, 8, 8, 4, 1, 6, 8, 8, 1, 7, 8, 8, 6, 1, 2, 7, 4, 7, 1],
     [2, 6, 1, 7, 6, 2, 6, 1, 6, 6, 6, 8, 1, 7, 8, 2, 6, 4, 4, 7, 8, 7, 1, 7, 8, 1, 7, 8, 6, 4, 6, 4, 4, 4, 4, 6, 4, 4, 4, 6, 1, 4, 8, 1, 4, 6, 6, 8, 6, 1, 4, 7, 7, 8, 7, 4, 1],
@@ -766,11 +709,11 @@ useEffect(() => {
     [7, 8, 2, 1, 6, 8, 8, 6, 1, 2, 7, 6, 8, 1, 7, 1, 4, 6, 4, 4, 4, 8, 6, 6, 1, 2, 8, 4, 1, 2, 6, 4, 6, 1, 7, 8, 8, 6, 1, 6, 2, 6, 2, 1],
     [7, 1, 2, 6, 4, 1, 8, 8, 4, 7, 8, 7, 1, 8, 2, 1, 8, 7, 8, 6, 1, 6, 6, 6, 6, 4, 4, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 2, 6, 4, 4, 6, 6, 1, 8, 8, 1, 6, 1, 8, 7, 6, 6, 1, 6, 6, 6, 6, 1],
     [8, 8, 1, 2, 6, 2, 1, 7, 4, 1, 2, 6, 4, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 8, 7, 7, 7, 4, 1, 4, 7, 6, 4, 1, 2, 6, 1, 6, 4, 6, 6, 7, 1, 4, 8, 1],
-    [4, 7, 6, 1, 4, 8, 4, 8, 6, 1, 8, 6, 1, 7, 4, 8, 6, 7, 4, 6, 1, 8, 6, 6, 1, 7, 8, 1, 4, 7, 6, 1, 6, 7, 4, 4, 6, 8, 6, 6, 1, 7, 0, 8, 1, 7, 6, 4, 4, 7, 8, 7, 1, 4, 4, 6, 6, 1, 4, 8, 1, 7, 4, 1, 8, 8, 2, 1],
+    [4, 7, 6, 1, 4, 8, 4, 8, 6, 1, 8, 6, 1, 7, 4, 8, 6, 7, 4, 6, 1, 8, 6, 6, 1, 7, 8, 1, 4, 7, 6, 1, 6, 7, 4, 4, 6, 8, 6, 6, 1, 7, 8, 1, 7, 6, 4, 4, 7, 8, 7, 1, 4, 4, 6, 6, 1, 4, 8, 1, 7, 4, 1, 8, 8, 2, 1],
     [4, 7, 7, 4, 1, 4, 7, 8, 6, 1, 4, 7, 6, 1, 8, 6, 2, 2, 1, 6, 8, 7, 1, 7, 4, 8, 8, 4, 1, 8, 2, 6, 4, 1, 4, 7, 6, 1, 4, 4, 7, 6, 7, 1, 6, 4, 8, 2, 8, 1, 6, 8, 2, 1],
     [8, 6, 4, 4, 1, 8, 6, 4, 4, 2, 1, 6, 4, 6, 6, 7, 6, 1, 4, 4, 2, 8, 6, 1],
     [4, 7, 6, 1, 6, 6, 8, 8, 6, 4, 6, 4, 4, 1, 2, 7, 8, 8, 1, 8, 8, 4, 6, 1, 4, 7, 6, 1, 6, 8, 6, 6, 4, 7, 8, 8, 1],
-    [2, 6, 4, 1, 6, 8, 1, 6, 4, 7, 2, 8, 8, 6, 1, 4, 6, 8, 7, 6, 4, 1, 2, 8, 4, 8, 6, 8, 0, 4, 1, 6, 6, 1, 4, 8, 8, 1, 8, 8, 8, 7, 1, 7, 8, 1, 4, 8, 2, 8, 1],
+    [2, 6, 4, 1, 6, 8, 1, 6, 4, 7, 2, 8, 8, 6, 1, 4, 6, 8, 7, 6, 4, 1, 2, 8, 4, 8, 6, 8, 4, 1, 6, 6, 1, 4, 8, 8, 1, 8, 8, 8, 7, 1, 7, 8, 1, 4, 8, 2, 8, 1],
     [7, 1, 6, 8, 1, 6, 8, 8, 6, 1, 6, 6, 8, 1, 2, 8, 4, 1, 7, 6, 6, 4, 1, 7, 1, 2, 7, 8, 8, 1, 6, 8, 2, 1, 2, 7, 4, 7, 1, 8, 8, 1, 7, 8, 8, 6, 1, 8, 8, 1, 6, 6, 6, 4, 1]
   ];
 
@@ -779,9 +722,9 @@ useEffect(() => {
   ['i', 'want', 'your', 'ugly', 'I', 'want', 'your', 'disease', 'i', 'want', 'your', 'everything', 'as', 'long', 'as', 'its', 'free'],
   ['heartbreakers', 'gonna', 'break', 'fakers', 'gonna', 'fake', 'im', 'just', 'gonna', 'shake'],
   ['in', 'this', 'world', 'concrete', 'flowers', 'grow', 'heartache', 'she', 'only', 'doing', 'what', 'she', 'know'],
-  ['flipping', 'your', 'fins', 'you', "don't", 'get', 'too', 'far'],
+  ['flipping', 'your', 'fins', 'you', "dont", 'get', 'too', 'far'],
   ['within', 'my', 'heart', 'a', 'welcome', 'guest', 'within', 'my', 'heart', 'abide'],
-  ['for', 'some', 'reason', 'i', "can't", 'explain', 'i', 'know', 'saint', 'peter', 'wont', 'call', 'my', 'name'],
+  ['for', 'some', 'reason', 'i', "cant", 'explain', 'i', 'know', 'saint', 'peter', 'wont', 'call', 'my', 'name'],
   ['its', 'time', 'to', 'focus', 'on', 'life', 'fah', 'fah', 'fah'],
   ['can', 'you', 'speak', 'to', 'the', 'part', 'you', 'are', 'not', 'all', 'good', 'with'],
   ['we', 'have', 'been', 'investing', 'in', 'infrastructure', 'to', 'scale', 'things'],
@@ -794,11 +737,11 @@ useEffect(() => {
   ['how', 'come', 'when', 'I', 'returned', 'you', 'were', 'gone', 'away'],
   ['i', 'was', 'losing', 'my', 'mind', 'because', 'the', 'love', 'the', 'love', 'the', 'love', 'wasted', 'on', 'a', 'nice', 'face'],
   ['no', 'way', 'it', 'was', 'the', 'last', 'night', 'that', 'we', 'break', 'up'],
-  ['the', 'sound', 'of', 'gunfire', 'off', 'in', 'the', 'distance', "I'm", 'getting', 'used', 'to', 'it', 'now'],
+  ['the', 'sound', 'of', 'gunfire', 'off', 'in', 'the', 'distance', "Im", 'getting', 'used', 'to', 'it', 'now'],
   ['this', 'time', 'the', 'lazy', 'dog', 'jumps', 'over', 'the', 'quick', 'brown', 'fox'],
   ['lets', 'party', 'arabic', 'style'],
   ['the', 'democrats', 'will', 'lose', 'the', 'election'],
-  ['was', 'an', 'arizona', 'ranger', "wouldn't", 'be', 'too', 'long', 'in', 'town'],
+  ['was', 'an', 'arizona', 'ranger', "wouldnt", 'be', 'too', 'long', 'in', 'town'],
   ['i', 'am', 'cold', 'can', 'you', 'hear', 'I', 'will', 'fly', 'with', 'no', 'hope', 'no', 'fear']
   ];
 
@@ -1115,6 +1058,101 @@ useEffect(() => {
           badHits.current = undefined;
         }
 
+        // =========== Handle page-dependent interactions with buttons
+        let startingPage = activePage.current;
+        if (activePage.current === OctagonPage.Keyboard) {
+
+          // Transistion keyboard -> home menu
+          if (sideIndex == 3) {
+            activePage.current = OctagonPage.Home;
+          }
+
+        } else if (activePage.current === OctagonPage.Home) {
+
+
+          switch (sideIndex) {
+            // Transistion home -> keyboard
+            case 5:
+              activePage.current = OctagonPage.Keyboard; // Hack: just used for tracking display
+              break;
+            // Transistion home -> settings
+            case 2:
+              activePage.current = OctagonPage.Settings;
+              break;
+            // Speak
+            case 4:
+              speakWords();
+              break;
+            // Practice mode
+            case 7:
+              if (!inPractice.current && !inLights.current) {
+                startPracticeMode();
+                activePage.current = OctagonPage.Keyboard;
+              } else {
+                stopPracticeMode();
+              }
+              break;
+            // Game mode
+            case 8:
+              if (!inLights.current && !inPractice.current) {
+                // startPracticeMode();
+                inGameMode.current = true;
+                startGameMode();
+                activePage.current = OctagonPage.Keyboard;
+              } else {
+                inGameMode.current = false;
+                stopPracticeMode();
+              }
+              break;
+            // Clear all
+            case 1:
+              console.log("Clearing all text!");
+              theWords.current = [];
+              theCodes.current = [];
+              dirtyWords.current = [];
+              code.current = "";
+              break;
+
+            // Exit octagon: cursor on
+            case 6:
+              try {
+                zmqService.current.publish("cursor", "on");
+              } catch (err) {
+                console.error("Cannot turn off cursor" + err);
+              }
+              break;
+          }
+
+        } else if (activePage.current === OctagonPage.Settings) {
+
+          switch (sideIndex) {
+            // Transistion settings -> home
+            case 3:
+              activePage.current = OctagonPage.Home;
+              break;
+            // Speed -
+            case 4:
+              speed.current = speed.current - 0.1;
+              break;
+            // Speed +
+            case 5:
+              speed.current = speed.current + 0.1;
+              break;
+
+            // Radius on
+            case 1:
+              gravity.current = 0.4 * radiusOct;
+              break;
+
+            // Radius off
+            case 2:
+              gravity.current = gravityDefault;
+              break;
+          }
+        }
+        const pageChange = activePage.current != startingPage;
+        console.log("PAGE CHANGE: " + pageChange);
+
         if ( //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
           refCode.current &&
           indexRefCode.current !== undefined &&
@@ -1164,19 +1202,14 @@ useEffect(() => {
                 timerEnd.current = performance.now();
                 timeLength.current =
                   timerEnd.current - (timerStart.current ?? 0);
-                inLights.current = false;
-                inPractice.current = false;
-                isPlaying.current = false;
-                refCode.current = undefined;
-                indexRefCode.current = undefined;
-                sentence.current = undefined;
-                indexSentence.current = undefined;
-                inPractice.current = false;
+                stopPracticeMode();
               }
-            } else if (!inLights.current) {
+            } else if (!inLights.current && activePage.current == OctagonPage.Keyboard) {
               finalizeCurrentWord();
             }
-          } else if (codeChar === "⌫") {
+
+          // Backspace: Only allow in keyboard mode
+          } else if (codeChar === "⌫" && activePage.current === OctagonPage.Keyboard && !pageChange) {
             if (code.current) {
               console.log("trying to remove just the last letter");
               code.current = code.current.substring(0, code.current.length - 1);
@@ -1184,7 +1217,9 @@ useEffect(() => {
               theWords.current.pop();
               theCodes.current.pop();
             }
-          } else if (codeChar && !inLights.current) {
+
+          // Standard typing case: append code character
+          } else if (codeChar && !inLights.current && activePage.current == OctagonPage.Keyboard && !pageChange) {
             // Add digit to typedCodes
             code.current = code.current + codeChar;
             console.log(code.current);
@@ -1197,6 +1232,8 @@ useEffect(() => {
         setTimeout(() => {
           activeSide.current = null;
         }, 50);
+
+      // No collision
       } else if (
         !inPractice.current &&
         refCode.current &&
@@ -1261,7 +1298,26 @@ useEffect(() => {
         ctx.fillStyle = "yellow";
       }
 
-      ctx.fillText(sideLabels[sideIndex], labelX, labelY);
+      switch (activePage.current) {
+        case OctagonPage.Keyboard:
+          ctx.fillText(sideLabels[sideIndex], labelX, labelY);
+          break;
+        case OctagonPage.Home:
+          // Handle practice mode
+          if (inPractice.current && sideIndex == 7) {
+            ctx.font = "bold 30px Poppins, sans-serif";
+            ctx.fillText("❌ Quit Practice", labelX, labelY);
+          } else if (inGameMode.current && sideIndex == 8) {
+            ctx.font = "bold 30px Poppins, sans-serif";
+            ctx.fillText("❌ Quit Game", labelX, labelY);
+          } else {
+            ctx.fillText(homeLabels[sideIndex], labelX, labelY);
+          }
+          break;
+        case OctagonPage.Settings:
+          ctx.fillText(settingsLabels[sideIndex], labelX, labelY);
+          break;
+      }
     });
 
    //
@@ -1423,6 +1479,7 @@ useEffect(() => {
       );
 
       ctx.font = "11px Poppins"; // Smaller font size
+      inGameMode.current = false;
     }
 
     setOctagonSides(newSides);
@@ -1546,20 +1603,19 @@ useEffect(() => {
             cursor: "pointer",
             boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
             transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            zIndex: 1000000,
           }}
           onClick={(e) => {
             const button = e.currentTarget as HTMLElement;
             button.style.backgroundColor = "lightblue";
             setTimeout(() => {
               button.style.backgroundColor = "black";
-            }, 150);
+            }, 300);
 
-            const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
-            audio.play();
             zmqService.current.publish("cursor", "off");
           }}
         >
-          🗣️ Cursor Off
+          Cursor Off
         </button>
 
         {/* Copy to clipboard button */}
@@ -1873,7 +1929,9 @@ useEffect(() => {
           marginTop: "100px", // Adjust this value as needed
           position: "relative",  // Add this
           zIndex: 2000,         // Higher than video overlay
-          opacity: 1            // Ensure canvas is fully opaque
+          opacity: 1,            // Ensure canvas is fully opaque
+          zIndex: 0,
+          pointerEvents: systemCursorEnabled ? "auto": "none",
         }}
       />
       <div

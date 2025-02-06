@@ -17,6 +17,8 @@ export default class ZmqClient {
   hasStarted: boolean;
   startedAt: null | number;
 
+  requester: Req | null;
+
   subscriber: null | zmq.Sub;
 
   static EVENT_MESSAGE = "message";
@@ -83,7 +85,9 @@ export default class ZmqClient {
   }
 
   publish(topic: string, message: string): void {
-    this.requester.send([topic, message]);
+    if (this.requester !== null) {
+      this.requester.send([topic, message]);
+    }
   }
 
   #connect(): void {
