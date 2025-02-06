@@ -334,10 +334,8 @@ const PointerLockDemo: React.FC = () => {
 
   const startPracticeMode = (): void => {
 
-      // isPlaying.current = true;
-      isPlaying.current = false;
-      // setVideoOpacity(0.18);
-      setVideoOpacity(0);
+      isPlaying.current = true;
+      setVideoOpacity(0.18);
 
       console.log("runs");
       theCodes.current = [];
