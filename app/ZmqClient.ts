@@ -83,7 +83,7 @@ export default class ZmqClient {
   }
 
   publish(topic: string, message: string): void {
-    this.requester.send(topic);
+    this.requester.send([topic, message]);
   }
 
   #connect(): void {
