@@ -505,7 +505,7 @@ useEffect(() => {
 
   const radiusOct = 350;
 
-  const gravity = useRef<number>(18);
+  const gravity = useRef<number>(0.27 * radiusOct);
 
 
   const finalizeCurrentWord = useCallback(async () => {
