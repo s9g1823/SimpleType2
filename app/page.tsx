@@ -10,7 +10,7 @@ import React, {
 import { useSearchParams } from "next/navigation";
 
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
-import ZmqSubscribeClient from "./ZmqSubscribeClient";
+import ZmqClient from "./ZmqClient";
 
 import { Tree, allWords, allWordsForCode, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
 
@@ -121,13 +121,13 @@ const PointerLockDemo: React.FC = () => {
     }
 
     zmqService.current.events.on(
-      ZmqSubscribeClient.EVENT_MESSAGE,
+      ZmqClient.EVENT_MESSAGE,
       handleDecodeData,
     );
 
     return () => {
       zmqService.current.events.off(
-        ZmqSubscribeClient.EVENT_MESSAGE,
+        ZmqClient.EVENT_MESSAGE,
         handleDecodeData,
       );
     };
@@ -1556,6 +1556,7 @@ useEffect(() => {
 
             const audio = new Audio("off3.mp3"); // Replace with the path to your MP3 file
             audio.play();
+            zmqService.current.publish("cursor", "off");
           }}
         >
           🗣️ Cursor Off

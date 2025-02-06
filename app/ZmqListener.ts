@@ -1,4 +1,4 @@
-import ZmqSubscribeClient from "./ZmqSubscribeClient";
+import ZmqClient from "./ZmqClient";
 import { decode } from "@msgpack/msgpack";
 
 export interface DecodePacket {
@@ -23,15 +23,17 @@ export interface DecodePacket {
   raw_left_click_probability: number;
 }
 
-export default class VelocityZmqListener extends ZmqSubscribeClient {
+export default class VelocityZmqListener extends ZmqClient {
   static PORT = 5578;
   static TOPIC = "INTERMEDIATE_STATES";
+  static PORT_CURSOR = 5577;
 
   static factory(): VelocityZmqListener {
     return new VelocityZmqListener(
       "VelocityListener",
       "localhost",
       VelocityZmqListener.PORT,
+      VelocityZmqListener.PORT_CURSOR,
       [VelocityZmqListener.TOPIC],
       decode,
     );
