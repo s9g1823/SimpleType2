@@ -25,6 +25,11 @@ interface OctagonSide {
   endY: number;
 }
 
+enum OctagonPage {
+  Keyboard = "keyboard",
+  Home = "home",
+}
+
 enum DirectionalRendering {
   CenterOutGradient = "Center Out",
   CenterInGradient = "Center In",
