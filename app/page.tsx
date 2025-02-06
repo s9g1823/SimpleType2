@@ -594,10 +594,10 @@ useEffect(() => {
               break;
 
           }
+      } else {
+        console.log("Chose candidate");
+        chosenWord = candidates[0];
       }
-
-      console.log("Chose candidate");
-      chosenWord = candidates[0];
 
       // 3) Append the chosen word and code
       //
