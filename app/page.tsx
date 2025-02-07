@@ -951,7 +951,6 @@ useEffect(() => {
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
-    const innerSides: OctagonSide[] = [];
 
     ctx.beginPath();
     for (let i = 0; i <= sides; i++) {
@@ -1010,13 +1009,6 @@ useEffect(() => {
             endX: innerOffsetEndX,
             endY: innerOffsetEndY,
           };
-          // innerSides.push({
-          //   startX: innerOffsetStartX,
-          //   startY: innerOffsetStartY,
-          //   endX: innerOffsetEndX,
-          //   endY: innerOffsetEndX,
-          // });
-          //
           const gradient = ctx.createLinearGradient(
             (innerOffsetStartX + innerOffsetEndX) / 2,
             (innerOffsetStartY + innerOffsetEndY) / 2,
