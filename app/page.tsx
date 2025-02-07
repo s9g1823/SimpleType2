@@ -994,7 +994,7 @@ useEffect(() => {
           endY: endOffsetY,
         });
 
-        if (directionalMode.current) {
+        if (true) {
           const delta2X = vertexInnerX - prevInnerX!;
           const delta2Y = vertexInnerY - prevInnerY!;
           const innerOffsetStartX = prevInnerX! + delta2X * 0;
