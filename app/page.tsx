@@ -68,7 +68,7 @@ const PointerLockDemo: React.FC = () => {
   const velocities = useRef<DecodePacket | null>(null);
   const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
 
-  const directionalMode = useRef<boolean>(true);
+  const directionalMode = useRef<boolean>(false);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
   const directionalRendering = useRef<DirectionalRendering>(
     DirectionalRendering.TrapezoidTile,
