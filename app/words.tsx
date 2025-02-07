@@ -85,6 +85,7 @@ export function getRankedMatches(
     return possibleWords.slice(0, 10); // Return top 5 immediately if no context
   }
 
+  console.log("Context is" + context.slice(-2));
   // Take last 2 context words to use from the back since this is a trigram.
   const contextString = context.slice(-2).map(word => word.toLowerCase()).join(" ") + " ";
 

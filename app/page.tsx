@@ -37,6 +37,12 @@ enum DirectionalRendering {
   TrapezoidTile = "Trapezoid",
 }
 
+enum DwellZoneRendering {
+  Never = "none",
+  OnHover = "OnHover",
+  Visible = "visible",
+}
+
 import "@fontsource/poppins"; // Defaults to weight 400
 
 const PointerLockWrapper: React.FC = () => {
@@ -62,11 +68,18 @@ const PointerLockDemo: React.FC = () => {
   const velocities = useRef<DecodePacket | null>(null);
   const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
 
-  const directionalMode = useRef<boolean>(false);
+  const directionalMode = useRef<boolean>(true);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
   const directionalRendering = useRef<DirectionalRendering>(
     DirectionalRendering.TrapezoidTile,
   );
+
+  const dwellDurationMs = useRef<number>(500);
+
+  const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Visible);
+
+  const radiusOct = 350;
+  const dwellZoneRadius = useRef<number>(radiusOct / 1.618);
 
   useEffect(() => {
     zmqService.current.start();
@@ -173,6 +186,10 @@ const PointerLockDemo: React.FC = () => {
   const bestWord = useRef<string>("");
 
   const dirtyWords = useRef<string[]>([]);
+
+  // Track if each side is in the dwell state
+  const isInDwell = useRef<boolean[]>(Array(8).fill(false));
+  const handleDwellEnd = useRef<boolean[]>(Array(8).fill(false));
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -548,9 +565,8 @@ useEffect(() => {
   //Then moving slider will also be able to adjust accordingly
   //Closin button will make it go 2% closer each hit
 
-  const radiusOct = 350;
-
-  const gravityDefault = 0.27 * radiusOct;
+  // const gravityDefault = 0.27 * radiusOct;
+  const gravityDefault = 0 * radiusOct;
   const gravity = useRef<number>(gravityDefault);
 
   const finalizeCurrentWord = useCallback(async () => {
@@ -800,10 +816,6 @@ useEffect(() => {
           // console.log(newX);
           position.current = { x: newX, y: newY };
         } else {
-          console.log(
-            "WE ARE GETTING IT" + velocities.current.final_velocity_x,
-          );
-
           const newX =
             position.current.x +
             velocities.current.final_velocity_x * speed.current * 0.01;
@@ -855,7 +867,7 @@ useEffect(() => {
   );
 
   const isDotTouchingSide = useCallback(
-    (dotX: number, dotY: number, side: OctagonSide) => {
+    (dotX: number, dotY: number, side: OctagonSide, cutoff = 0) => {
       const { startX, startY, endX, endY } = side;
       const dx = endX - startX;
       const dy = endY - startY;
@@ -871,10 +883,38 @@ useEffect(() => {
         (dotX - closestX) ** 2 + (dotY - closestY) ** 2,
       );
 
-      return distance <= gravity.current;
+      // return distance <= gravity.current;
+      return distance <= cutoff;
     },
     [],
   );
+
+  type Point = {x: number, y: number};
+
+  const isPointInPolygon = useCallback(
+    (point: Point, polygon: Point[]) => {
+    const x = point.x;
+    const y = point.y;
+    let inside = false;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x;
+        const yi = polygon[i].y;
+        const xj = polygon[j].x;
+        const yj = polygon[j].y;
+
+        if ((yi > y) !== (yj > y)) {
+            const intersectX = (xj - xi) * (y - yi) / (yj - yi) + xi;
+            if (x < intersectX) {
+                inside = !inside;
+            }
+        }
+    }
+
+    return inside;
+
+  }, []);
+
 
   const predictedWord = useRef<String>();
 
@@ -901,12 +941,7 @@ useEffect(() => {
     const centerY = 480;
 
     const radius = radiusOct;
-    // const innerRadius = (radius / 1.618); // Golden ratio lol
-    // const radius = 450;
-    const innerRadius =
-      directionalRendering.current === DirectionalRendering.TrapezoidTile
-        ? radius / 1.618
-        : 0; // Golden ratio lol
+    const innerRadius = dwellZoneRadius.current;
 
     const sides = 8;
     const angleStep = (2 * Math.PI) / sides;
@@ -916,6 +951,7 @@ useEffect(() => {
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
+    const innerSides: OctagonSide[] = [];
 
     ctx.beginPath();
     for (let i = 0; i <= sides; i++) {
@@ -968,6 +1004,19 @@ useEffect(() => {
           const innerOffsetEndX = prevInnerX! + delta2X * 1;
           const innerOffsetEndY = prevInnerY! + delta2Y * 1;
 
+          let innerSide: OctagonSide = {
+            startX: innerOffsetStartX,
+            startY: innerOffsetStartY,
+            endX: innerOffsetEndX,
+            endY: innerOffsetEndY,
+          };
+          // innerSides.push({
+          //   startX: innerOffsetStartX,
+          //   startY: innerOffsetStartY,
+          //   endX: innerOffsetEndX,
+          //   endY: innerOffsetEndX,
+          // });
+          //
           const gradient = ctx.createLinearGradient(
             (innerOffsetStartX + innerOffsetEndX) / 2,
             (innerOffsetStartY + innerOffsetEndY) / 2,
@@ -978,28 +1027,44 @@ useEffect(() => {
           const alpha = sideLikelihoods.current[i - 1] * 0.65;
 
           let style: CanvasGradient | string | undefined;
-          switch (directionalRendering.current) {
-            // Outward bar mode
-            case DirectionalRendering.CenterOutGradient:
-              gradient.addColorStop(0, "green");
-              gradient.addColorStop(sideLikelihoods.current[i - 1], "black");
-              style = gradient;
-              break;
-            // Gradient towards center
-            case DirectionalRendering.CenterInGradient:
-              gradient.addColorStop(
-                1 - sideLikelihoods.current[i - 1],
-                "black",
-              );
-              gradient.addColorStop(1, "green");
-              style = gradient;
-              break;
-            case DirectionalRendering.TrapezoidTile:
-              style = `rgba(0, 255, 0, ${alpha})`;
-              break;
-          }
 
-          // directionalRendering.current = DirectionalRendering.TrapezoidTile;
+          const coordinates: Point [] = [
+            {x: startOffsetX, y: startOffsetY},
+            {x: endOffsetX, y: endOffsetY},
+            {x: innerOffsetEndX, y: innerOffsetEndY},
+            {x: innerOffsetStartX, y: innerOffsetStartY},
+          ];
+
+          let idx = i - 1;
+          if (isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates)) {
+
+              if (dwellZoneRendering.current == DwellZoneRendering.Never) {
+                style = `rgba(0, 0, 0)`;
+              } else {
+                style = `rgba(0, 100, 0)`;
+              }
+
+              if (!isInDwell.current[idx]) {
+                isInDwell.current[idx] = true;
+                setTimeout(() => {
+
+                  // HACK: set this bit & let the isTouching logic handle it.
+                  if (isInDwell.current[idx]) {
+                    handleDwellEnd.current[idx] = true;
+                  }
+                  isInDwell.current[idx] = false;
+                }, dwellDurationMs.current);
+              }
+          } else {
+            isInDwell.current[idx] = false;
+
+            if (dwellZoneRendering.current == DwellZoneRendering.Visible) {
+              style = `rgba(0, 25, 0)`;
+            } else {
+              style = `rgba(0, 0, 0)`;
+            }
+
+          }
 
           // Draw trapezoid
           ctx.beginPath();
@@ -1045,10 +1110,16 @@ useEffect(() => {
         isDotTouchingSide(position.current.x, position.current.y, side) ||
         isDotOutsideSide(position.current.x, position.current.y, side);
 
-      if (directionalMode.current && !refractory.current) {
-        touching = sideLikelihoods.current[index] === 1;
+      if (handleDwellEnd.current[index] && isInDwell.current[index]) {
+        touching = true;
+        handleDwellEnd.current[index] = false;
       }
 
+      // if (directionalMode.current && !refractory.current) {
+      //   touching = sideLikelihoods.current[index] === 1;
+      // }
+
+      // If the dot is past the inner threshold, activate the dwell region.
       if (touching) {
         if (timeLength.current !== undefined) {
           timeLength.current = undefined;
@@ -1189,10 +1260,14 @@ useEffect(() => {
               sentence.current !== undefined &&
               indexSentence.current !== undefined
             ) {
-              theWords.current = [
-                ...theWords.current,
-                sentence.current[indexSentence.current] || "",
-              ];
+
+              if (sentence.current[indexSentence.current]) {
+                theWords.current = [
+                  ...theWords.current,
+                  sentence.current[indexSentence.current],
+                ];
+              }
+
               if (inPractice.current) {
                 wordSubstringer.current = 0;
               }
@@ -1330,7 +1405,8 @@ useEffect(() => {
     }
     ctx.beginPath();
 
-    const cursorSize = directionalMode.current ? 0 : 11;
+    // const cursorSize = directionalMode.current ? 0 : 11;
+    const cursorSize = 11;
     ctx.arc(position.current.x, position.current.y, cursorSize, 0, 2 * Math.PI);
     ctx.fill();
 
@@ -1690,36 +1766,18 @@ useEffect(() => {
       <div
         style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
-        <button
-          onClick={() => {
-            directionalMode.current = !directionalMode.current;
-          }}
-          style={{
-            backgroundColor: "#555555", // Off-black button background
-            color: "white", // White text
-            border: "none",
-            borderRadius: "5px",
-            padding: "5px 15px",
-            cursor: "pointer",
-          }}
-        >
-          Direction Mode: {directionalMode.current ? "True" : "False"}
-        </button>
 
         <button
           onClick={() => {
-            switch (directionalRendering.current) {
-              case DirectionalRendering.CenterInGradient:
-                directionalRendering.current =
-                  DirectionalRendering.CenterOutGradient;
+            switch (dwellZoneRendering.current) {
+              case DwellZoneRendering.OnHover:
+                dwellZoneRendering.current = DwellZoneRendering.Never;
                 break;
-              case DirectionalRendering.CenterOutGradient:
-                directionalRendering.current =
-                  DirectionalRendering.TrapezoidTile;
+              case DwellZoneRendering.Never:
+                dwellZoneRendering.current = DwellZoneRendering.Visible;
                 break;
-              case DirectionalRendering.TrapezoidTile:
-                directionalRendering.current =
-                  DirectionalRendering.CenterInGradient;
+              case DwellZoneRendering.Visible:
+                dwellZoneRendering.current = DwellZoneRendering.OnHover;
                 break;
             }
           }}
@@ -1730,37 +1788,47 @@ useEffect(() => {
             borderRadius: "5px",
             padding: "5px 15px",
             cursor: "pointer",
+            zIndex: 1000000,
           }}
         >
-          Rendering: {directionalRendering.current}
+          Dwell Rendering: {dwellZoneRendering.current}
         </button>
-        <button
-          onClick={() => {
-            switch (dictionaryType) {
-              case "abc":
-                setDictionaryType("opt");
-                break;
-              case "opt":
-                setDictionaryType("abc5");
-                break;
-              case "abc5":
-                setDictionaryType("abc");
-                break;
-              default:
-                break;
-            }
-          }}
+
+        <input
+          id="dwell-zone-slider"
+          type="range"
+          min={0}
+          max={radiusOct}
+          step="5"
+          value={dwellZoneRadius.current}
+          onChange={(e) => (dwellZoneRadius.current = parseFloat(e.target.value))}
           style={{
-            backgroundColor: "#555555", // Off-black button background
-            color: "white", // White text
-            border: "none",
+            width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
             borderRadius: "5px",
-            padding: "5px 15px",
-            cursor: "pointer",
+            height: "10px", // Custom track height
+            outline: "none", // Removes outline on focus
           }}
-        >
-          Layout: {dictionaryType}
-        </button>
+        />
+
+        <input
+          id="dwell-duration"
+          type="number"
+          min={0}
+          max={5000}
+          step="50"
+          value={dwellDurationMs.current}
+          onChange={(e) => (dwellDurationMs.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
       </div>
 
       {/* Speed Slider */}
