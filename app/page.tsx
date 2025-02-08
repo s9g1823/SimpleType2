@@ -68,7 +68,7 @@ const PointerLockDemo: React.FC = () => {
   const velocities = useRef<DecodePacket | null>(null);
   const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
 
-  const directionalMode = useRef<boolean>(true);
+  const directionalMode = useRef<boolean>(false);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
   const directionalRendering = useRef<DirectionalRendering>(
     DirectionalRendering.TrapezoidTile,
@@ -989,7 +989,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
-    const innerSides: OctagonSide[] = [];
 
     ctx.beginPath();
     for (let i = 0; i <= sides; i++) {
@@ -1033,7 +1032,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           endY: endOffsetY,
         });
 
-        if (directionalMode.current) {
+        if (true) {
           const delta2X = vertexInnerX - prevInnerX!;
           const delta2Y = vertexInnerY - prevInnerY!;
           const innerOffsetStartX = prevInnerX! + delta2X * 0;
@@ -1048,13 +1047,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
             endX: innerOffsetEndX,
             endY: innerOffsetEndY,
           };
-          // innerSides.push({
-          //   startX: innerOffsetStartX,
-          //   startY: innerOffsetStartY,
-          //   endX: innerOffsetEndX,
-          //   endY: innerOffsetEndX,
-          // });
-          //
           const gradient = ctx.createLinearGradient(
             (innerOffsetStartX + innerOffsetEndX) / 2,
             (innerOffsetStartY + innerOffsetEndY) / 2,
