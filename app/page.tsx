@@ -125,7 +125,7 @@ const PointerLockDemo: React.FC = () => {
       } else {
         setTimeout(() => {
           refractory.current = false;
-        }, 150);
+        }, 5);
       }
     }
 
@@ -393,7 +393,7 @@ const PointerLockDemo: React.FC = () => {
       indexRefCode.current = 0;
       indexSentence.current = 0;
 
-      let rng2 = Math.floor(Math.random() * arrays.length);
+      let rng2 = 23;
 
       refCode.current = arrays[rng2];
       sentence.current = sentences[rng2];
@@ -710,8 +710,6 @@ useEffect(() => {
     [7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 4, 7, 8, 2, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 7, 4, 6, 6, 4, 6, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 2, 6, 4, 2, 4, 7, 7, 8, 7, 1, 6, 4, 1, 8, 8, 8, 7, 1, 6, 4, 1, 7, 4, 4, 1, 6, 4, 6, 6, 1],
     [7, 6, 6, 4, 4, 6, 4, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 4, 6, 6, 7, 1, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 6, 7, 6, 1, 7, 8, 1, 7, 4, 4, 4, 1, 7, 8, 8, 8, 6, 1, 4, 7, 6, 7, 6, 1],
     [7, 8, 1, 4, 7, 7, 4, 1, 2, 8, 4, 8, 6, 1, 6, 8, 8, 6, 4, 6, 4, 6, 1, 6, 8, 8, 2, 6, 4, 4, 1, 7, 4, 8, 2, 1, 7, 6, 6, 4, 4, 6, 6, 7, 6, 1, 4, 7, 6, 1, 8, 8, 8, 2, 1, 6, 8, 7, 8, 7, 1, 2, 7, 6, 4, 1, 4, 7, 6, 1, 7, 8, 8, 2, 1],
-    [6, 8, 7, 8, 8, 7, 8, 7, 1, 2, 8, 4, 4, 1, 6, 7, 8, 4, 1, 2, 8, 4, 1, 6, 8, 8, 4, 1, 7, 6, 4, 1, 4, 8, 8, 1, 6, 6, 4, 1],
-    [2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 1, 2, 6, 8, 6, 8, 8, 6, 1, 7, 4, 6, 4, 4, 1, 2, 7, 4, 7, 7, 8, 1, 8, 2, 1, 7, 6, 6, 4, 4, 1, 6, 6, 7, 6, 6, 1],
     [6, 8, 4, 1, 4, 8, 8, 6, 1, 4, 6, 6, 4, 8, 8, 1, 7, 1, 6, 6, 8, 4, 1, 6, 2, 8, 8, 6, 7, 8, 1, 7, 1, 7, 8, 8, 2, 1, 4, 6, 7, 8, 4, 1, 8, 6, 4, 6, 4, 1, 2, 8, 8, 4, 1, 6, 6, 8, 8, 1, 8, 2, 1, 8, 6, 8, 6, 1],
     [7, 4, 4, 1, 4, 7, 8, 6, 1, 4, 8, 1, 6, 8, 6, 4, 4, 1, 8, 8, 1, 8, 7, 6, 6, 1, 6, 6, 7, 1, 6, 6, 7, 1, 6, 6, 7, 1],
     [6, 6, 8, 1, 2, 8, 4, 1, 4, 8, 6, 6, 7, 1, 4, 8, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 2, 8, 4, 1, 6, 4, 6, 1, 8, 8, 4, 1, 6, 8, 8, 1, 7, 8, 8, 6, 1, 2, 7, 4, 7, 1],
@@ -730,7 +728,8 @@ useEffect(() => {
     [8, 6, 4, 4, 1, 8, 6, 4, 4, 2, 1, 6, 4, 6, 6, 7, 6, 1, 4, 4, 2, 8, 6, 1],
     [4, 7, 6, 1, 6, 6, 8, 8, 6, 4, 6, 4, 4, 1, 2, 7, 8, 8, 1, 8, 8, 4, 6, 1, 4, 7, 6, 1, 6, 8, 6, 6, 4, 7, 8, 8, 1],
     [2, 6, 4, 1, 6, 8, 1, 6, 4, 7, 2, 8, 8, 6, 1, 4, 6, 8, 7, 6, 4, 1, 2, 8, 4, 8, 6, 8, 4, 1, 6, 6, 1, 4, 8, 8, 1, 8, 8, 8, 7, 1, 7, 8, 1, 4, 8, 2, 8, 1],
-    [7, 1, 6, 8, 1, 6, 8, 8, 6, 1, 6, 6, 8, 1, 2, 8, 4, 1, 7, 6, 6, 4, 1, 7, 1, 2, 7, 8, 8, 1, 6, 8, 2, 1, 2, 7, 4, 7, 1, 8, 8, 1, 7, 8, 8, 6, 1, 8, 8, 1, 6, 6, 6, 4, 1]
+    [7, 1, 6, 8, 1, 6, 8, 8, 6, 1, 6, 6, 8, 1, 2, 8, 4, 1, 7, 6, 6, 4, 1, 7, 1, 2, 7, 8, 8, 1, 6, 8, 2, 1, 2, 7, 4, 7, 1, 8, 8, 1, 7, 8, 8, 6, 1, 8, 8, 1, 6, 6, 6, 4, 1],
+    [4, 7, 6, 8, 8, 1, 2, 6, 1, 8, 8, 6, 2, 1, 6, 1, 7, 6, 8, 6, 1]
   ];
 
   const sentences = [
@@ -738,8 +737,6 @@ useEffect(() => {
   ['i', 'want', 'your', 'ugly', 'I', 'want', 'your', 'disease', 'i', 'want', 'your', 'everything', 'as', 'long', 'as', 'its', 'free'],
   ['heartbreakers', 'gonna', 'break', 'fakers', 'gonna', 'fake', 'im', 'just', 'gonna', 'shake'],
   ['in', 'this', 'world', 'concrete', 'flowers', 'grow', 'heartache', 'she', 'only', 'doing', 'what', 'she', 'know'],
-  ['flipping', 'your', 'fins', 'you', "dont", 'get', 'too', 'far'],
-  ['within', 'my', 'heart', 'a', 'welcome', 'guest', 'within', 'my', 'heart', 'abide'],
   ['for', 'some', 'reason', 'i', "cant", 'explain', 'i', 'know', 'saint', 'peter', 'wont', 'call', 'my', 'name'],
   ['its', 'time', 'to', 'focus', 'on', 'life', 'fah', 'fah', 'fah'],
   ['can', 'you', 'speak', 'to', 'the', 'part', 'you', 'are', 'not', 'all', 'good', 'with'],
@@ -758,7 +755,8 @@ useEffect(() => {
   ['lets', 'party', 'arabic', 'style'],
   ['the', 'democrats', 'will', 'lose', 'the', 'election'],
   ['was', 'an', 'arizona', 'ranger', "wouldnt", 'be', 'too', 'long', 'in', 'town'],
-  ['i', 'am', 'cold', 'can', 'you', 'hear', 'I', 'will', 'fly', 'with', 'no', 'hope', 'no', 'fear']
+  ['i', 'am', 'cold', 'can', 'you', 'hear', 'I', 'will', 'fly', 'with', 'no', 'hope', 'no', 'fear'],
+  ['shall', 'we', 'play', 'a', 'game']
   ];
 
   useEffect(() => {
@@ -827,7 +825,7 @@ useEffect(() => {
       } else {
         setTimeout(() => {
           refractory.current = false;
-        }, 100);
+        }, 0);
       }
     }
   }, []);
@@ -839,6 +837,9 @@ useEffect(() => {
   //
   const isDotOutsideSide = useCallback(
     (dotX: number, dotY: number, side: OctagonSide) => {
+      if (inDiagnostics.current) {
+        return;
+      }
       const { startX, startY, endX, endY } = side;
 
       // Vector of the side
@@ -868,6 +869,10 @@ useEffect(() => {
 
   const isDotTouchingSide = useCallback(
     (dotX: number, dotY: number, side: OctagonSide, cutoff = 0) => {
+      if (inDiagnostics.current) {
+        return;
+      }
+      
       const { startX, startY, endX, endY } = side;
       const dx = endX - startX;
       const dy = endY - startY;
@@ -893,6 +898,9 @@ useEffect(() => {
 
   const isPointInPolygon = useCallback(
     (point: Point, polygon: Point[]) => {
+      if (inDiagnostics.current) {
+        return;
+      }
     const x = point.x;
     const y = point.y;
     let inside = false;
@@ -915,14 +923,44 @@ useEffect(() => {
 
   }, []);
 
+const centerX = 800;
+const centerY = 480;
+
+const directions = 8; // Total directions
+const angleStep = (2 * Math.PI) / directions; // Angle between each direction
+
+const initialDistances = [100, 200]; // Initial distances from the center
 
   const predictedWord = useRef<String>();
 
   function predictTheWord() {
     code.current;
   }
+  const inDiagnostics = useRef<boolean>(false);
+  
+  const showCursor = useRef<boolean>(false);
+  
+  const lockCursor = useRef<boolean>(false);
+  
+  const showTargets = useRef<boolean>(false);
+  const lineStartPoints = [
+    { startX: 500, startY: 280 },  // Distance 100, Angle 0 degrees (East)
+    { startX: 500, startY: 180 }, // Distance 200, Angle 0 degrees (East)
+    { startX: 1000, startY: 180 }, // Distance 100, Angle 45 degrees (NE)
+    { startX: 1100, startY: 180 }, // Distance 200, Angle 45 degrees (NE)
+  ];
+
+  const lineEndPoints = [
+    { startX: 1100, startY: 280 },  // Distance 100, Angle 0 degrees (East)
+    { startX: 1100, startY: 180 }, // Distance 200, Angle 0 degrees (East)
+    { startX: 1000, startY: 780 }, // Distance 100, Angle 45 degrees (NE)
+    { startX: 1100, startY: 780 }, // Distance 200, Angle 45 degrees (NE)
+  ];
+  const targetIndex = useRef<number>(-1);
+
 
   const drawScene = useCallback(() => {
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -1058,7 +1096,7 @@ useEffect(() => {
           } else {
             isInDwell.current[idx] = false;
 
-            if (dwellZoneRendering.current == DwellZoneRendering.Visible) {
+            if (dwellZoneRendering.current == DwellZoneRendering.Visible && !inDiagnostics.current) {
               style = `rgba(0, 25, 0)`;
             } else {
               style = `rgba(0, 0, 0)`;
@@ -1316,12 +1354,47 @@ useEffect(() => {
         refCode.current[indexRefCode.current] == sideIndex
       ) {
         //when not touching and in Game mode
-        ctx.strokeStyle = "yellow";
+        ctx.fillStyle = "yellow";
+        ctx.font = '127px Arial'
+        switch (refCode.current[indexRefCode.current]) {
+          case 1 :
+            ctx.fillText("→", centerX, centerY);
+            break;
+          case 2 :
+            ctx.fillText("↘", centerX, centerY);
+            break;
+          case 3 :
+            ctx.fillText("↓", centerX, centerY);
+            break;
+          case 4 :
+            ctx.fillText("↙", centerX, centerY);
+            break;
+          case 5 :
+            ctx.fillText("←", centerX, centerY);
+            break;
+          case 6 :
+            ctx.fillText("↖", centerX, centerY);
+            break;
+          case 7 :
+            ctx.fillText("↑", centerX, centerY);
+            break;
+          case 8 :
+            ctx.fillText("↗", centerX, centerY);
+            break;
+        }
+        ctx.fillStyle = "white";
+
+
       } else {
         if (activeSide.current === sideIndex) {
           ctx.strokeStyle = "white";
         } else {
-          ctx.strokeStyle = "rgba(0, 124, 56)"; // Blue with 30% opacity
+          if (inDiagnostics.current) {
+            ctx.strokeStyle = "black"; // Green  
+          } else {
+            ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
+          }
+          
         }
       }
       ctx.lineWidth = 14;
@@ -1337,7 +1410,14 @@ useEffect(() => {
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
+
+    if (inDiagnostics.current) {
+      ctx.fillStyle = "black";
+
+    } else {
+      ctx.fillStyle = "white";  
+    }
+    
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
@@ -1362,7 +1442,12 @@ useEffect(() => {
           ? "bold 69px Poppins, sans-serif"
           : "bold 50px Poppins, sans-serif";
 
-      ctx.fillStyle = "white";
+    if (inDiagnostics.current) {
+      ctx.fillStyle = "black";
+
+    } else {
+      ctx.fillStyle = "white";  
+    }
 
       if (
         !inPractice.current &&
@@ -1370,7 +1455,7 @@ useEffect(() => {
         indexRefCode.current !== undefined &&
         refCode.current[indexRefCode.current] == sideIndex
       ) {
-        ctx.fillStyle = "yellow";
+        // ctx.fillStyle = "yellow";
       }
 
       switch (activePage.current) {
@@ -1406,8 +1491,8 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = 11;
-    ctx.arc(position.current.x, position.current.y, cursorSize, 0, 2 * Math.PI);
+    const cursorSize = showCursor.current ? 0 : 11;
+    ctx.arc(lockCursor.current ? centerX : position.current.x, lockCursor.current ? centerY : position.current.y, cursorSize, 0, 2 * Math.PI);
     ctx.fill();
 
     // Using monospace font because it is easier to render– sorry Sehej BRUH
@@ -1558,6 +1643,20 @@ useEffect(() => {
       inGameMode.current = false;
     }
 
+    //
+    // (5) Diagnostics jawns
+    //
+
+    if (showTargets.current) {
+      //show the target
+      ctx.beginPath();
+      ctx.moveTo(lineEndPoints[targetIndex.current].startX, lineEndPoints[targetIndex.current].startY); // Starting from the center
+      ctx.lineTo(lineStartPoints[targetIndex.current].startX, lineStartPoints[targetIndex.current].startY); // Line to the zeroth index
+      ctx.strokeStyle = 'blue'; // Set the line color to blue
+      ctx.lineWidth = 14; // Set the line width to be thin
+      ctx.stroke(); // Actually draw the line on the canvas
+    }
+
     setOctagonSides(newSides);
   }, [
     position,
@@ -1566,7 +1665,7 @@ useEffect(() => {
     finalizeCurrentWord,
     sideMappings,
     sideLabels,
-    code,
+    code
   ]);
 
   // Animate
@@ -1585,8 +1684,6 @@ useEffect(() => {
     "VCTOpdlZJ8U",
     "Tv94swj4sjo",
     "9Vnbsuny2LI",
-    "Vml504G6ytY",
-    "7j5ISmcqOas",
     "dvgZkm1xWPE",
     "9Y8OA70vmeY",
     "YUuE2D6MwS8",
@@ -1830,7 +1927,7 @@ useEffect(() => {
         />
 
       </div>
-
+      
       {/* Speed Slider */}
       <div
         style={{
@@ -1860,7 +1957,17 @@ useEffect(() => {
           onChange={(e) => (speed.current = parseFloat(e.target.value))}
           style={{ width: "150px" }}
         />
-
+      {/* Display Velocity Values */}
+      <div
+        style={{
+          fontSize: "12px",
+          color: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for discreet display
+          marginBottom: "5px",
+        }}
+      >
+                Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)}, 
+                Vy: {(velocities.current?.final_velocity_y ?? 0).toFixed(2)}
+      </div>
         {/* Discrete tally below speed slider */}
         <div
           style={{
@@ -1894,7 +2001,7 @@ useEffect(() => {
           <div style={{ marginTop: "10px" }}>
             <button
               onClick={() => {
-                gravity.current = radiusOct * 0.6;
+                inDiagnostics.current = !inDiagnostics.current;
               }}
               style={{
                 backgroundColor: "#555555", // Off-black button background
@@ -1906,12 +2013,12 @@ useEffect(() => {
                 cursor: "pointer",
               }}
             >
-              60%
+              Diagnostics
             </button>
             <button
              onClick={() => {
-               gravity.current = radiusOct * 0.4;
-             }}
+              inDiagnostics.current = !inDiagnostics.current;
+            }}
              style={{
                backgroundColor: "#555555", // Off-black button background
                color: "white", // White text
@@ -1921,7 +2028,7 @@ useEffect(() => {
                cursor: "pointer",
              }}
            >
-             40%
+             D
            </button>
           </div>
 
@@ -2009,7 +2116,59 @@ useEffect(() => {
       >
         {isLocked ? "🔒" : "🔓"}
       </div>
-    </div>
+
+{/* New Buttons Row */}
+<div
+          style={{
+            display: "flex",
+            flexDirection: "row", // Align buttons horizontally
+            gap: "10px", // Space between buttons
+          }}
+        >
+          {[...Array(4)].map((_, index) => (
+            <button
+              key={index}
+              style={{
+                width: "50px",
+                height: "50px",
+                backgroundColor: "black", // Black background
+                border: "2px solid white",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                switch (index) {
+                  case 0:
+                    // Action for the first button
+                    showCursor.current = !showCursor.current;
+                    console.log(`Cursor is now ${showCursor.current ? 'On' : 'Off'}`);
+                    break;
+                  case 1:
+                    // Action for the second button
+                    lockCursor.current = true;
+                    console.log("clicked second button");
+                    break;
+                  case 2:
+                    showTargets.current = true;
+                    lockCursor.current = false;
+                  
+                    // Increment the target index and wrap around if needed
+                    targetIndex.current++;
+                    targetIndex.current = (targetIndex.current) % lineStartPoints.length;
+                    
+                    break;
+                  case 3:
+                    // Action for the fourth button
+                    alert("Fourth button clicked!");
+                    break;
+                  default:
+                    break;
+                }
+              }}
+            ></button>
+          ))}
+        </div>
+        </div>
   );
 };
 
