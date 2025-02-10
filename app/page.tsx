@@ -114,10 +114,12 @@ const PointerLockDemo: React.FC = () => {
       if (!refractory.current) {
         const newX =
           position.current.x +
-          velocities.current.final_velocity_x * speed.current * 0.01;
+          velocities.current.final_velocity_x * speed.current * 0.015;
+          // velocities.current.final_velocity_x * speed.current * 0.01;
         const newY =
           position.current.y +
-          velocities.current.final_velocity_y * speed.current * 0.01;
+          velocities.current.final_velocity_y * speed.current * 0.015;
+          // velocities.current.final_velocity_y * speed.current * 0.01;
 
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
@@ -872,7 +874,7 @@ useEffect(() => {
       if (inDiagnostics.current) {
         return;
       }
-      
+
       const { startX, startY, endX, endY } = side;
       const dx = endX - startX;
       const dy = endY - startY;
@@ -937,11 +939,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
     code.current;
   }
   const inDiagnostics = useRef<boolean>(false);
-  
+
   const showCursor = useRef<boolean>(false);
-  
+
   const lockCursor = useRef<boolean>(false);
-  
+
   const showTargets = useRef<boolean>(false);
   const lineStartPoints = [
     { startX: 500, startY: 280 },  // Distance 100, Angle 0 degrees (East)
@@ -1382,11 +1384,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
           ctx.strokeStyle = "white";
         } else {
           if (inDiagnostics.current) {
-            ctx.strokeStyle = "black"; // Green  
+            ctx.strokeStyle = "black"; // Green
           } else {
             ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
           }
-          
+
         }
       }
       ctx.lineWidth = 14;
@@ -1407,9 +1409,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
       ctx.fillStyle = "black";
 
     } else {
-      ctx.fillStyle = "white";  
+      ctx.fillStyle = "white";
     }
-    
+
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
@@ -1438,7 +1440,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
       ctx.fillStyle = "black";
 
     } else {
-      ctx.fillStyle = "white";  
+      ctx.fillStyle = "white";
     }
 
       if (
@@ -1919,7 +1921,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
         />
 
       </div>
-      
+
       {/* Speed Slider */}
       <div
         style={{
@@ -1957,7 +1959,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           marginBottom: "5px",
         }}
       >
-                Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)}, 
+                Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)},
                 Vy: {(velocities.current?.final_velocity_y ?? 0).toFixed(2)}
       </div>
         {/* Discrete tally below speed slider */}
@@ -2143,11 +2145,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
                   case 2:
                     showTargets.current = true;
                     lockCursor.current = false;
-                  
+
                     // Increment the target index and wrap around if needed
                     targetIndex.current++;
                     targetIndex.current = (targetIndex.current) % lineStartPoints.length;
-                    
+
                     break;
                   case 3:
                     // Action for the fourth button
