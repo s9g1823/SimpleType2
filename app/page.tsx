@@ -582,20 +582,10 @@ useEffect(() => {
 
       let chosenWord;
 
-      if (code.current.length === 1 && (code.current == "6" || code.current == "7")) {
-          switch (code.current) {
-            case "6":
-              chosenWord = "a";
-              break;
-
-            case "7":
-              chosenWord = "I";
-              break;
-
-          }
-      } else {
-        console.log("Chose candidate");
-        chosenWord = candidates[0];
+      console.log("Chose candidate");
+      chosenWord = candidates[0];
+      if (chosenWord === "i") {
+          chosenWord = "I";
       }
 
       // 3) Append the chosen word and code
