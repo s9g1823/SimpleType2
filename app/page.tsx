@@ -193,6 +193,10 @@ const PointerLockDemo: React.FC = () => {
   const isInDwell = useRef<boolean[]>(Array(8).fill(false));
   const handleDwellEnd = useRef<boolean[]>(Array(8).fill(false));
 
+  // Dwell click
+  const dwellClickMode = useRef<boolean>(false);
+  const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
+
   //
   // ─────────────────────────────────────────────────────────────────────────────
   // D) SIDE MAPPINGS
@@ -1069,6 +1073,20 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
           }
 
+          if (
+            (dwellClickMode.current)
+            && (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < 100)) {
+            let touchingVelocity = isPointInPolygon(
+              {x: position.current.x, y: position.current.y},
+              coordinates
+            ) || false;
+            if (touchingVelocity) {
+              dwellClicked.current[idx] = true;
+            }
+          } else {
+            dwellClicked.current[idx] = false;
+          }
+
           // Draw trapezoid
           ctx.beginPath();
           ctx.moveTo(startOffsetX, startOffsetY);
@@ -1113,9 +1131,14 @@ const initialDistances = [100, 200]; // Initial distances from the center
         isDotTouchingSide(position.current.x, position.current.y, side) ||
         isDotOutsideSide(position.current.x, position.current.y, side);
 
-      if (handleDwellEnd.current[index] && isInDwell.current[index]) {
+      if (!dwellClickMode.current && handleDwellEnd.current[index] && isInDwell.current[index]) {
         touching = true;
         handleDwellEnd.current[index] = false;
+      }
+
+      if (dwellClickMode.current && dwellClicked.current[index]) {
+        touching = true;
+        dwellClicked.current[index] = false;
       }
 
       // if (directionalMode.current && !refractory.current) {
@@ -1821,6 +1844,22 @@ const initialDistances = [100, 200]; // Initial distances from the center
       <div
         style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
+        <button
+          onClick={() => {
+              dwellClickMode.current = !dwellClickMode.current;
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Dwell Click: {dwellClickMode.current ? "On" : "Off"}
+        </button>
 
         <button
           onClick={() => {
