@@ -82,7 +82,7 @@ export function getRankedMatches(
 
   if (!context.length) {
     console.log("High ranked choices are: ", possibleWords.slice(0, 5));
-    return possibleWords.slice(0, 10); // Return top 5 immediately if no context
+    return orderByMostFrequent(possibleWords.slice(0, 10), freq); // Return top 5 immediately if no context
   }
 
   console.log("Context is" + context.slice(-2));

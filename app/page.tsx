@@ -483,14 +483,9 @@ const PointerLockDemo: React.FC = () => {
       return;
     }
 
-    if (code.current.length === 1) {
-      return;
-    }
-
     if (inPractice.current) {
       return;
     }
-
 
     Promise.resolve().then(async () => {
 
@@ -587,17 +582,7 @@ useEffect(() => {
 
       let chosenWord;
 
-      console.log("CODE IS " + code.current);
-      console.log("DICT IS " + dictionaryType);
-
-      // if (candidates.length === 1 && candidates[0] != "u") {
-      //   chosenWord = candidates[0];
-      //
-      //   console.log("????????");
-
-        // Shortcut commands
-      // } else if (
-      if (code.current.length === 1) {
+      if (code.current.length === 1 && (code.current == "6" || code.current == "7")) {
           switch (code.current) {
             case "6":
               chosenWord = "a";
@@ -605,10 +590,6 @@ useEffect(() => {
 
             case "7":
               chosenWord = "I";
-              break;
-
-            case "22":
-              gravity.current = 0.4 * radiusOct;
               break;
 
           }
@@ -1530,12 +1511,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
         }
       }
 
-    } else if (code.current.length === 1 && !inPractice.current) {
-      ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
+    // } else if (code.current.length === 1 && !inPractice.current) {
+    //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
 
     } else {
-      // For now, only do partial styling of the word with suggestions when
-      // there is at least 2 characters due to the hardcoding of the shortcuts
       if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
         const place = code.current.length;
@@ -1548,13 +1527,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
           // Color the known part of the word with standard styling
           if (i < place) {
             ctx.fillStyle = "white";
-            // Use a gray styling for anything that remains.
+          // Use a gray styling for anything that remains.
           } else {
-            // For now, only do partial styling of the word with suggestions when
-            // there is at least 2 characters due to the hardcoding of the shortcuts
-            if (code.current.length < 2) {
-              break;
-            }
             ctx.fillStyle = "gray";
           }
 
@@ -1562,7 +1536,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           currentX += ctx.measureText(char).width;
         }
 
-        if (code.current.length > 1) {
+        if (code.current.length > 0) {
           // Draw suggestions on screen
           ctx.font = "30px Monaco";
           ctx.fillStyle = "grey";
