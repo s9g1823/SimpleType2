@@ -960,6 +960,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
   ];
   const targetIndex = useRef<number>(-1);
 
+  const dwellClickMode = useRef<boolean>(false);
+
 
   const drawScene = useCallback(() => {
 
@@ -991,6 +993,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
+    
+    let touchingVelocity = false;
 
     ctx.beginPath();
     for (let i = 0; i <= sides; i++) {
@@ -1067,6 +1071,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
             {x: innerOffsetStartX, y: innerOffsetStartY},
           ];
 
+          if ((dwellClickMode.current) && Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < 100) {
+            touchingVelocity = isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates) || false;
+          }
+
           let idx = i - 1;
           if (isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates)) {
 
@@ -1142,9 +1150,14 @@ const initialDistances = [100, 200]; // Initial distances from the center
         isDotTouchingSide(position.current.x, position.current.y, side) ||
         isDotOutsideSide(position.current.x, position.current.y, side);
 
-      if (handleDwellEnd.current[index] && isInDwell.current[index]) {
+      if (!dwellClickMode.current && handleDwellEnd.current[index] && isInDwell.current[index]) {
         touching = true;
         handleDwellEnd.current[index] = false;
+      }
+
+      //if we previously call touching velocity to be true, then touching is also true!
+      if (touchingVelocity === true) {
+        touching = true;
       }
 
       // if (directionalMode.current && !refractory.current) {
@@ -2153,7 +2166,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
                     break;
                   case 3:
                     // Action for the fourth button
-                    alert("Fourth button clicked!");
+                    dwellClickMode.current = !dwellClickMode.current;
                     break;
                   default:
                     break;
