@@ -196,6 +196,7 @@ const PointerLockDemo: React.FC = () => {
   // Dwell click
   const dwellClickMode = useRef<boolean>(false);
   const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
+  const dwellClickThreshold = useRef<number>(100);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1075,7 +1076,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
           if (
             (dwellClickMode.current)
-            && (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < 100)) {
+            && (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current)) {
             let touchingVelocity = isPointInPolygon(
               {x: position.current.x, y: position.current.y},
               coordinates
@@ -1914,6 +1915,23 @@ const initialDistances = [100, 200]; // Initial distances from the center
           step="50"
           value={dwellDurationMs.current}
           onChange={(e) => (dwellDurationMs.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+        <input
+          id="dwell-click-threshold"
+          type="number"
+          min={0}
+          max={300}
+          step="25"
+          value={dwellClickThreshold.current}
+          onChange={(e) => (dwellClickThreshold.current = parseFloat(e.target.value))}
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles
