@@ -941,8 +941,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
   ];
   const targetIndex = useRef<number>(-1);
 
-  const dwellClickMode = useRef<boolean>(false);
-
 
   const drawScene = useCallback(() => {
 
