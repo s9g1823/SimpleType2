@@ -1677,7 +1677,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
   const leederboredVals = useRef<LeaderboardEntry[]>([
     {player: "easy E", ccpm: 42.30},
     {player: "little B", ccpm: 55.69},
-    {player: "natty C", ccpm: 66.22}
+    {player: "nata C", ccpm: 66.22}
   ]);
 
   const sortedLeaderboard = leederboredVals.current
@@ -1776,28 +1776,28 @@ const initialDistances = [100, 200]; // Initial distances from the center
     <div
       style={{
         position: "fixed",
-        bottom: "127px", // Adjust the distance from the bottom as needed
-        left: "44px",
+        bottom: "100px", // Adjust the distance from the bottom as needed
+        left: "20px",
         backgroundColor: "rgba(0, 42, 0, 0.7)",
         padding: "20px",
         color: "white",
         zIndex: 999,
       }}
     >
-      <h3 style={{ margin: 0, fontSize: 56 }}>Leaderboard</h3>
-      <div style={{ display: "flex", gap: "40px" }}>
+      <h3 style={{ margin: 0, fontSize: 44 }}>Leaderboard</h3>
+      <div style={{ display: "flex", gap: "23px" }}>
         <div>
         {sortedLeaderboard.map((_, index) => (
-              <div key={index} style={{ fontSize: '35px' }}>#{index + 1}</div>
+              <div key={index} style={{ fontSize: '23px' }}>#{index + 1}</div>
             ))}        </div>
         <div>
           {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: '35px' }}>{entry.player}</div>
+              <div key={index} style={{ fontSize: '23px' }}>{entry.player}</div>
             ))}
         </div>
         <div>
         {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: '35px' }}>{Math.round(entry.ccpm) + " CPM"}</div>
+              <div key={index} style={{ fontSize: '23px' }}>{Math.round(entry.ccpm) + " CPM"}</div>
             ))}        </div>
       </div>
     </div>
