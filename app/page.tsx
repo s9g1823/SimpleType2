@@ -194,6 +194,11 @@ const PointerLockDemo: React.FC = () => {
   const isInDwell = useRef<boolean[]>(Array(8).fill(false));
   const handleDwellEnd = useRef<boolean[]>(Array(8).fill(false));
 
+  // Dwell click
+  const dwellClickMode = useRef<boolean>(false);
+  const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
+  const dwellClickThreshold = useRef<number>(100);
+
   //
   // ─────────────────────────────────────────────────────────────────────────────
   // D) SIDE MAPPINGS
@@ -305,6 +310,23 @@ const PointerLockDemo: React.FC = () => {
     }
   };
 
+  // From letter -> code
+  const createReverseMapping = (type: string): Record<string, number> => {
+    const mapping = getSideLabels(type);
+    const reverseMapping: Record<string, number> = {};
+
+    for (const [key, value] of Object.entries(mapping)) {
+      const code = parseInt(key, 10);
+      const letters = value.split(" "); // Split letters by space
+      for (const letter of letters) {
+        reverseMapping[letter] = code;
+      }
+    }
+    reverseMapping[" "] = 1;
+
+    return reverseMapping;
+  };
+
   const getTreeJson = (type: string): string => {
     switch (type) {
       case "abc":
@@ -363,11 +385,10 @@ const PointerLockDemo: React.FC = () => {
     indexRefCode.current = 0;
     indexSentence.current = 0;
 
-    let rng = Math.floor(Math.random() * arrays.length);
+    let rng = Math.floor(Math.random() * sentences.length);
 
-    refCode.current = arrays[rng];
-
-    sentence.current = sentences[rng];
+    refCode.current = sentenceToCodes(sentences[rng], dictionaryType);
+    sentence.current = sentences[rng].split(" ");
 
     //calculations
     goodHits.current = 0;
@@ -379,10 +400,10 @@ const PointerLockDemo: React.FC = () => {
 
   const startPracticeMode = (): void => {
 
-        theWords.current = [];
-        theCodes.current = [];
-        dirtyWords.current = [];
-        code.current = "";
+      theWords.current = [];
+      theCodes.current = [];
+      dirtyWords.current = [];
+      code.current = "";
 
       isPlaying.current = true;
       setVideoOpacity(0);
@@ -397,10 +418,12 @@ const PointerLockDemo: React.FC = () => {
       indexSentence.current = 0;
 
       let rng2 = 23;
+      // let rng2 = Math.floor(Math.random() * sentences.length);
 
-      refCode.current = arrays[rng2];
-      sentence.current = sentences[rng2];
       randomyt.current = yts[rng2];
+
+      refCode.current = sentenceToCodes(sentences[rng2], dictionaryType);
+      sentence.current = sentences[rng2].split(" ");
 
       //calculations
       goodHits.current = 0;
@@ -431,8 +454,6 @@ const PointerLockDemo: React.FC = () => {
   // E) LOAD DICTIONARY ONCE
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // const [dictionaryType, setDictionaryType] = useState("abc");
-  // const [dictionaryType, setDictionaryType] = useState("abc5");
   const [dictionaryType, setDictionaryType] = useState("abc5");
 
   const sideLabels = getSideLabels(dictionaryType);
@@ -484,14 +505,9 @@ const PointerLockDemo: React.FC = () => {
       return;
     }
 
-    if (code.current.length === 1) {
-      return;
-    }
-
     if (inPractice.current) {
       return;
     }
-
 
     Promise.resolve().then(async () => {
 
@@ -588,34 +604,10 @@ useEffect(() => {
 
       let chosenWord;
 
-      console.log("CODE IS " + code.current);
-      console.log("DICT IS " + dictionaryType);
-
-      // if (candidates.length === 1 && candidates[0] != "u") {
-      //   chosenWord = candidates[0];
-      //
-      //   console.log("????????");
-
-        // Shortcut commands
-      // } else if (
-      if (code.current.length === 1) {
-          switch (code.current) {
-            case "6":
-              chosenWord = "a";
-              break;
-
-            case "7":
-              chosenWord = "I";
-              break;
-
-            case "22":
-              gravity.current = 0.4 * radiusOct;
-              break;
-
-          }
-      } else {
-        console.log("Chose candidate");
-        chosenWord = candidates[0];
+      console.log("Chose candidate");
+      chosenWord = candidates[0];
+      if (chosenWord === "i") {
+          chosenWord = "I";
       }
 
       // 3) Append the chosen word and code
@@ -705,59 +697,50 @@ useEffect(() => {
  const textWidth = useRef<number>();
  const wordSubstringer = useRef<number>(0);
 
-  const arrays = [
-    [6, 8, 8, 1, 2, 8, 4, 1, 7, 8, 4, 1, 4, 8, 1, 6, 8, 1, 7, 4, 1, 8, 6, 6, 4, 1, 8, 6, 1, 6, 4, 1, 4, 7, 6, 1, 6, 8, 4, 1, 6, 8, 4, 1, 6, 8, 4, 1, 6, 8, 4, 1],
-    [7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 4, 7, 8, 2, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 7, 4, 6, 6, 4, 6, 1, 7, 1, 2, 6, 8, 4, 1, 2, 8, 4, 4, 1, 6, 2, 6, 4, 2, 4, 7, 7, 8, 7, 1, 6, 4, 1, 8, 8, 8, 7, 1, 6, 4, 1, 7, 4, 4, 1, 6, 4, 6, 6, 1],
-    [7, 6, 6, 4, 4, 6, 4, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 4, 6, 6, 7, 1, 6, 6, 7, 6, 4, 4, 1, 7, 8, 8, 8, 6, 1, 6, 6, 7, 6, 1, 7, 8, 1, 7, 4, 4, 4, 1, 7, 8, 8, 8, 6, 1, 4, 7, 6, 7, 6, 1],
-    [7, 8, 1, 4, 7, 7, 4, 1, 2, 8, 4, 8, 6, 1, 6, 8, 8, 6, 4, 6, 4, 6, 1, 6, 8, 8, 2, 6, 4, 4, 1, 7, 4, 8, 2, 1, 7, 6, 6, 4, 4, 6, 6, 7, 6, 1, 4, 7, 6, 1, 8, 8, 8, 2, 1, 6, 8, 7, 8, 7, 1, 2, 7, 6, 4, 1, 4, 7, 6, 1, 7, 8, 8, 2, 1],
-    [6, 8, 4, 1, 4, 8, 8, 6, 1, 4, 6, 6, 4, 8, 8, 1, 7, 1, 6, 6, 8, 4, 1, 6, 2, 8, 8, 6, 7, 8, 1, 7, 1, 7, 8, 8, 2, 1, 4, 6, 7, 8, 4, 1, 8, 6, 4, 6, 4, 1, 2, 8, 8, 4, 1, 6, 6, 8, 8, 1, 8, 2, 1, 8, 6, 8, 6, 1],
-    [7, 4, 4, 1, 4, 7, 8, 6, 1, 4, 8, 1, 6, 8, 6, 4, 4, 1, 8, 8, 1, 8, 7, 6, 6, 1, 6, 6, 7, 1, 6, 6, 7, 1, 6, 6, 7, 1],
-    [6, 6, 8, 1, 2, 8, 4, 1, 4, 8, 6, 6, 7, 1, 4, 8, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 2, 8, 4, 1, 6, 4, 6, 1, 8, 8, 4, 1, 6, 8, 8, 1, 7, 8, 8, 6, 1, 2, 7, 4, 7, 1],
-    [2, 6, 1, 7, 6, 2, 6, 1, 6, 6, 6, 8, 1, 7, 8, 2, 6, 4, 4, 7, 8, 7, 1, 7, 8, 1, 7, 8, 6, 4, 6, 4, 4, 4, 4, 6, 4, 4, 4, 6, 1, 4, 8, 1, 4, 6, 6, 8, 6, 1, 4, 7, 7, 8, 7, 4, 1],
-    [6, 8, 6, 1, 7, 1, 6, 4, 7, 6, 6, 1, 7, 7, 8, 1, 6, 8, 1, 7, 1, 8, 8, 8, 7, 1, 8, 7, 7, 6, 1, 7, 1, 2, 8, 4, 8, 6, 1, 7, 8, 8, 2, 1],
-    [8, 6, 8, 6, 1, 7, 4, 4, 4, 1, 7, 7, 8, 8, 6, 6, 1, 6, 1, 8, 6, 8, 1, 8, 4, 4, 1, 6, 1, 7, 4, 8, 1, 8, 8, 4, 8, 1, 7, 7, 4, 1, 7, 6, 6, 6, 1],
-    [4, 6, 8, 6, 8, 6, 6, 4, 1, 4, 8, 1, 8, 6, 4, 1, 7, 6, 4, 1, 7, 8, 4, 8, 1, 2, 8, 4, 4, 1, 7, 6, 6, 4, 4, 1, 6, 8, 6, 1, 4, 7, 6, 8, 1, 2, 8, 4, 1, 6, 6, 8, 1, 4, 4, 6, 4, 4, 1],
-    [4, 8, 8, 6, 2, 7, 6, 4, 6, 1, 8, 2, 6, 4, 1, 4, 7, 6, 1, 4, 6, 7, 8, 6, 8, 2, 1, 6, 8, 4, 6, 6, 7, 4, 6, 4, 1, 6, 8, 2, 1],
-    [2, 8, 4, 4, 1, 4, 7, 7, 8, 1, 8, 7, 1, 2, 6, 6, 7, 1, 2, 8, 4, 4, 1, 4, 7, 7, 8, 1, 6, 8, 6, 1, 6, 8, 8, 6, 4, 1],
-    [7, 1, 7, 6, 2, 6, 1, 7, 8, 4, 4, 6, 8, 1, 8, 8, 6, 6, 4, 1, 8, 8, 2, 1, 7, 1, 7, 8, 8, 2, 1, 7, 8, 2, 1, 4, 8, 1, 4, 6, 7, 6, 1, 6, 6, 4, 6, 1],
-    [7, 8, 2, 1, 6, 8, 8, 6, 1, 2, 7, 6, 8, 1, 7, 1, 4, 6, 4, 4, 4, 8, 6, 6, 1, 2, 8, 4, 1, 2, 6, 4, 6, 1, 7, 8, 8, 6, 1, 6, 2, 6, 2, 1],
-    [7, 1, 2, 6, 4, 1, 8, 8, 4, 7, 8, 7, 1, 8, 2, 1, 8, 7, 8, 6, 1, 6, 6, 6, 6, 4, 4, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 4, 7, 6, 1, 8, 8, 2, 6, 1, 2, 6, 4, 4, 6, 6, 1, 8, 8, 1, 6, 1, 8, 7, 6, 6, 1, 6, 6, 6, 6, 1],
-    [8, 8, 1, 2, 6, 2, 1, 7, 4, 1, 2, 6, 4, 1, 4, 7, 6, 1, 8, 6, 4, 4, 1, 8, 7, 7, 7, 4, 1, 4, 7, 6, 4, 1, 2, 6, 1, 6, 4, 6, 6, 7, 1, 4, 8, 1],
-    [4, 7, 6, 1, 4, 8, 4, 8, 6, 1, 8, 6, 1, 7, 4, 8, 6, 7, 4, 6, 1, 8, 6, 6, 1, 7, 8, 1, 4, 7, 6, 1, 6, 7, 4, 4, 6, 8, 6, 6, 1, 7, 8, 1, 7, 6, 4, 4, 7, 8, 7, 1, 4, 4, 6, 6, 1, 4, 8, 1, 7, 4, 1, 8, 8, 2, 1],
-    [4, 7, 7, 4, 1, 4, 7, 8, 6, 1, 4, 7, 6, 1, 8, 6, 2, 2, 1, 6, 8, 7, 1, 7, 4, 8, 8, 4, 1, 8, 2, 6, 4, 1, 4, 7, 6, 1, 4, 4, 7, 6, 7, 1, 6, 4, 8, 2, 8, 1, 6, 8, 2, 1],
-    [8, 6, 4, 4, 1, 8, 6, 4, 4, 2, 1, 6, 4, 6, 6, 7, 6, 1, 4, 4, 2, 8, 6, 1],
-    [4, 7, 6, 1, 6, 6, 8, 8, 6, 4, 6, 4, 4, 1, 2, 7, 8, 8, 1, 8, 8, 4, 6, 1, 4, 7, 6, 1, 6, 8, 6, 6, 4, 7, 8, 8, 1],
-    [2, 6, 4, 1, 6, 8, 1, 6, 4, 7, 2, 8, 8, 6, 1, 4, 6, 8, 7, 6, 4, 1, 2, 8, 4, 8, 6, 8, 4, 1, 6, 6, 1, 4, 8, 8, 1, 8, 8, 8, 7, 1, 7, 8, 1, 4, 8, 2, 8, 1],
-    [7, 1, 6, 8, 1, 6, 8, 8, 6, 1, 6, 6, 8, 1, 2, 8, 4, 1, 7, 6, 6, 4, 1, 7, 1, 2, 7, 8, 8, 1, 6, 8, 2, 1, 2, 7, 4, 7, 1, 8, 8, 1, 7, 8, 8, 6, 1, 8, 8, 1, 6, 6, 6, 4, 1],
-    [4, 7, 6, 8, 8, 1, 2, 6, 1, 8, 8, 6, 2, 1, 6, 1, 7, 6, 8, 6, 1]
-  ];
+ const sentences = [
+   "all you got to do is meet me at the apt apt apt apt",
+   "i want your ugly I want your disease i want your everything as long as its free",
+   "heartbreakers gonna break fakers gonna fake im just gonna shake",
+   "in this world concrete flowers grow heartache she only doing what she know",
+   "for some reason i cant explain i know saint peter wont call my name",
+   "its time to focus on life fah fah fah",
+   "can you speak to the part you are not all good with",
+   "we have been investing in infrastructure to scale things",
+   "and I asked him do I look like I would know",
+   "mama just killed a man put a gun onto his head",
+   "remember to let her into your heart and then you can start",
+   "somewhere over the rainbow bluebirds fly",
+   "your skin oh yeah your skin and bones",
+   "i have gotten older now I know how to take care",
+   "how come when I returned you were gone away",
+   "i was losing my mind because the love the love the love wasted on a nice face",
+   "no way it was the last night that we break up",
+   "the sound of gunfire off in the distance Im getting used to it now",
+   "this time the lazy dog jumps over the quick brown fox",
+   "lets party arabic style",
+   "the democrats will lose the election",
+   "was an arizona ranger wouldnt be too long in town",
+   "i am cold can you hear I will fly with no hope no fear",
+   "shall we play a game"
+ ];
 
-  const sentences = [
-  ['all', 'you', 'got', 'to', 'do', 'is', 'meet', 'me', 'at', 'the', 'apt', 'apt', 'apt', 'apt'],
-  ['i', 'want', 'your', 'ugly', 'I', 'want', 'your', 'disease', 'i', 'want', 'your', 'everything', 'as', 'long', 'as', 'its', 'free'],
-  ['heartbreakers', 'gonna', 'break', 'fakers', 'gonna', 'fake', 'im', 'just', 'gonna', 'shake'],
-  ['in', 'this', 'world', 'concrete', 'flowers', 'grow', 'heartache', 'she', 'only', 'doing', 'what', 'she', 'know'],
-  ['for', 'some', 'reason', 'i', "cant", 'explain', 'i', 'know', 'saint', 'peter', 'wont', 'call', 'my', 'name'],
-  ['its', 'time', 'to', 'focus', 'on', 'life', 'fah', 'fah', 'fah'],
-  ['can', 'you', 'speak', 'to', 'the', 'part', 'you', 'are', 'not', 'all', 'good', 'with'],
-  ['we', 'have', 'been', 'investing', 'in', 'infrastructure', 'to', 'scale', 'things'],
-  ['and', 'I', 'asked', 'him', 'do', 'I', 'look', 'like', 'I', 'would', 'know'],
-  ['mama', 'just', 'killed', 'a', 'man', 'put', 'a', 'gun', 'onto', 'his', 'head'],
-  ['remember', 'to', 'let', 'her', 'into', 'your', 'heart', 'and', 'then', 'you', 'can', 'start'],
-  ['somewhere', 'over', 'the', 'rainbow', 'bluebirds', 'fly'],
-  ['your', 'skin', 'oh', 'yeah', 'your', 'skin', 'and', 'bones'],
-  ['i', 'have', 'gotten', 'older', 'now', 'I', 'know', 'how', 'to', 'take', 'care'],
-  ['how', 'come', 'when', 'I', 'returned', 'you', 'were', 'gone', 'away'],
-  ['i', 'was', 'losing', 'my', 'mind', 'because', 'the', 'love', 'the', 'love', 'the', 'love', 'wasted', 'on', 'a', 'nice', 'face'],
-  ['no', 'way', 'it', 'was', 'the', 'last', 'night', 'that', 'we', 'break', 'up'],
-  ['the', 'sound', 'of', 'gunfire', 'off', 'in', 'the', 'distance', "Im", 'getting', 'used', 'to', 'it', 'now'],
-  ['this', 'time', 'the', 'lazy', 'dog', 'jumps', 'over', 'the', 'quick', 'brown', 'fox'],
-  ['lets', 'party', 'arabic', 'style'],
-  ['the', 'democrats', 'will', 'lose', 'the', 'election'],
-  ['was', 'an', 'arizona', 'ranger', "wouldnt", 'be', 'too', 'long', 'in', 'town'],
-  ['i', 'am', 'cold', 'can', 'you', 'hear', 'I', 'will', 'fly', 'with', 'no', 'hope', 'no', 'fear'],
-  ['shall', 'we', 'play', 'a', 'game']
-  ];
+
+  const sentenceToCodes = (sentence: string, type: string): number[] => {
+    const reverseMapping = createReverseMapping(type);
+
+    const codes = sentence
+      .toUpperCase()
+      .split("")
+      .map(char => reverseMapping[char] ?? 0);
+
+    // Hazard: assumes space is 1
+    if (codes.length === 0 || codes[codes.length - 1] !== 1) {
+      codes.push(1);
+    }
+
+    return codes;
+  };
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1104,6 +1087,20 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
           }
 
+          if (
+            (dwellClickMode.current)
+            && (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current)) {
+            let touchingVelocity = isPointInPolygon(
+              {x: position.current.x, y: position.current.y},
+              coordinates
+            ) || false;
+            if (touchingVelocity) {
+              dwellClicked.current[idx] = true;
+            }
+          } else {
+            dwellClicked.current[idx] = false;
+          }
+
           // Draw trapezoid
           ctx.beginPath();
           ctx.moveTo(startOffsetX, startOffsetY);
@@ -1153,9 +1150,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
         handleDwellEnd.current[index] = false;
       }
 
-      //if we previously call touching velocity to be true, then touching is also true!
-      if (touchingVelocity === true) {
+      if (dwellClickMode.current && dwellClicked.current[index]) {
         touching = true;
+        dwellClicked.current[index] = false;
       }
 
       // if (directionalMode.current && !refractory.current) {
@@ -1541,12 +1538,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
         }
       }
 
-    } else if (code.current.length === 1 && !inPractice.current) {
-      ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
+    // } else if (code.current.length === 1 && !inPractice.current) {
+    //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
 
     } else {
-      // For now, only do partial styling of the word with suggestions when
-      // there is at least 2 characters due to the hardcoding of the shortcuts
       if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
         const place = code.current.length;
@@ -1559,13 +1554,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
           // Color the known part of the word with standard styling
           if (i < place) {
             ctx.fillStyle = "white";
-            // Use a gray styling for anything that remains.
+          // Use a gray styling for anything that remains.
           } else {
-            // For now, only do partial styling of the word with suggestions when
-            // there is at least 2 characters due to the hardcoding of the shortcuts
-            if (code.current.length < 2) {
-              break;
-            }
             ctx.fillStyle = "gray";
           }
 
@@ -1573,7 +1563,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           currentX += ctx.measureText(char).width;
         }
 
-        if (code.current.length > 1) {
+        if (code.current.length > 0) {
           // Draw suggestions on screen
           ctx.font = "30px Monaco";
           ctx.fillStyle = "grey";
@@ -1921,6 +1911,22 @@ const initialDistances = [100, 200]; // Initial distances from the center
       <div
         style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
+        <button
+          onClick={() => {
+              dwellClickMode.current = !dwellClickMode.current;
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Dwell Click: {dwellClickMode.current ? "On" : "Off"}
+        </button>
 
         <button
           onClick={() => {
@@ -1975,6 +1981,23 @@ const initialDistances = [100, 200]; // Initial distances from the center
           step="50"
           value={dwellDurationMs.current}
           onChange={(e) => (dwellDurationMs.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+        <input
+          id="dwell-click-threshold"
+          type="number"
+          min={0}
+          max={300}
+          step="25"
+          value={dwellClickThreshold.current}
+          onChange={(e) => (dwellClickThreshold.current = parseFloat(e.target.value))}
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles

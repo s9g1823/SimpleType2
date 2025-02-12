@@ -82,10 +82,10 @@ export function getRankedMatches(
 
   if (!context.length) {
     console.log("High ranked choices are: ", possibleWords.slice(0, 5));
-    return possibleWords.slice(0, 10); // Return top 5 immediately if no context
+    return orderByMostFrequent(possibleWords.slice(0, 10), freq); // Return top 5 immediately if no context
   }
 
-  console.log("Context is" + context.slice(-2));
+  console.log("Context is: " + context.slice(-2));
   // Take last 2 context words to use from the back since this is a trigram.
   const contextString = context.slice(-2).map(word => word.toLowerCase()).join(" ") + " ";
 
@@ -107,8 +107,7 @@ export function getRankedMatches(
     context.length === 1 ? matches.map((word) => word.split(" ")[0]) : matches;
 
   const possibleWordsSet = new Set(possibleWords);
-  // console.log("possibleWordsSet is: ", possibleWordsSet);
-  // console.log("nextWordsSet is: ", nextWords);
+
   let choices = nextWords
     .filter((word) => possibleWordsSet.has(word))
     .slice(0, 5);
