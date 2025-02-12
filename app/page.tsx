@@ -44,6 +44,7 @@ enum DwellZoneRendering {
 }
 
 import "@fontsource/poppins"; // Defaults to weight 400
+import "@fontsource/press-start-2p";
 
 const PointerLockWrapper: React.FC = () => {
   return (
@@ -79,7 +80,7 @@ const PointerLockDemo: React.FC = () => {
   const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Visible);
 
   const radiusOct = 350;
-  const dwellZoneRadius = useRef<number>(radiusOct / 1.618);
+  const dwellZoneRadius = useRef<number>(radiusOct);
 
   useEffect(() => {
     zmqService.current.start();
@@ -697,9 +698,6 @@ useEffect(() => {
 
   const accuracy = useRef<number>();
   const ccpm = useRef<number>();
-
-
-
 
 //PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
  const inPractice = useRef<boolean>(false);
@@ -1618,8 +1616,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
       ctx.font = "69px Poppins";
       ctx.fillStyle = "lightgreen"; // Set the text color
       ctx.textAlign = "center"; // Align the text to the left
+      ccpm.current = ((((goodHits.current ?? 0) - 1) / (timeLength.current ?? 1)) * 60000);
       ctx.fillText(
-        `${((((goodHits.current ?? 0) - 1) / (timeLength.current ?? 1)) * 60000).toFixed(2)} CCPM`,
+        `${ccpm.current.toFixed(2)} CCPM`,
         centerX,
         centerY + 200,
       );
@@ -1628,7 +1627,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
       const totalHits = (goodHits.current ?? 0) + (badHits.current ?? 0);
       const accuracy =
         totalHits > 0 ? ((goodHits.current ?? 0) / totalHits) * 100 : 0;
-
       // Format timerLength.current as MM:SS
       const timeInSeconds = Math.floor((timeLength.current ?? 0) / 1000);
       const timerSeconds = timeInSeconds % 60;
@@ -1647,6 +1645,13 @@ const initialDistances = [100, 200]; // Initial distances from the center
       );
 
       ctx.font = "11px Poppins"; // Smaller font size
+
+
+      const exists = leederboredVals.current.some(entry => entry.ccpm === ccpm.current)
+      if (!exists) {
+        leederboredVals.current.push({player: "borg", ccpm: ccpm.current ?? 0})
+      }
+
       inGameMode.current = false;
     }
 
@@ -1674,6 +1679,23 @@ const initialDistances = [100, 200]; // Initial distances from the center
     sideLabels,
     code
   ]);
+
+  //Leaderboard jawns
+
+  interface LeaderboardEntry {
+    player: string;
+    ccpm: number;
+  }
+  const leederboredVals = useRef<LeaderboardEntry[]>([
+    {player: "easy E", ccpm: 42.30},
+    {player: "little B", ccpm: 55.69},
+    {player: "natty C", ccpm: 66.22}
+  ]);
+
+  const sortedLeaderboard = leederboredVals.current
+    .slice() // Create a shallow copy to avoid mutating the original
+    .sort((a, b) => b.ccpm - a.ccpm); // Sort in descending order based on CCPM
+
 
   // Animate
   useEffect(() => {
@@ -1762,6 +1784,35 @@ const initialDistances = [100, 200]; // Initial distances from the center
         />
 
       </div>
+          {/* Leaderboard Section */}
+    <div
+      style={{
+        position: "fixed",
+        bottom: "127px", // Adjust the distance from the bottom as needed
+        left: "44px",
+        backgroundColor: "rgba(0, 42, 0, 0.7)",
+        padding: "20px",
+        color: "white",
+        zIndex: 999,
+      }}
+    >
+      <h3 style={{ margin: 0, fontSize: 56 }}>Leaderboard</h3>
+      <div style={{ display: "flex", gap: "40px" }}>
+        <div>
+        {sortedLeaderboard.map((_, index) => (
+              <div key={index} style={{ fontSize: '35px' }}>#{index + 1}</div>
+            ))}        </div>
+        <div>
+          {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: '35px' }}>{entry.player}</div>
+            ))}
+        </div>
+        <div>
+        {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: '35px' }}>{Math.round(entry.ccpm) + " CPM"}</div>
+            ))}        </div>
+      </div>
+    </div>
       <div
         style={{
           position: "fixed",

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fontsource/poppins": "^5.1.1",
+    "@fontsource/press-start-2p": "^5.1.1",
     "@msgpack/msgpack": "^3.0.0-beta2",
     "axios": "^1.7.7",
     "dotenv": "^16.4.7",
