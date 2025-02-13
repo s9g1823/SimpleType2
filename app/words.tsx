@@ -120,12 +120,13 @@ export function getRankedMatches(
 
   // Additional words that match code length but aren't in choices
   const additionalWords = possibleWords.filter(
-    (word) => word.length === code.length && !choices.includes(word),
+    (word) => word.length === code.length,
   );
 
   // console.log("High ranked choices are: ", choices);
   // console.log("Other words are: ", additionalWords);
-  return [...new Set([...choices, ...additionalWords])];
+  return choices.length === 0 ? [...new Set(additionalWords)]
+      : [choices[0], ...new Set([...additionalWords, ...choices.slice(1)])];
 }
 
 export async function pickWordViaGPT(candidatesFiltered: string[], daWords: string[]): Promise<string> {

@@ -972,7 +972,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
-    
+
     let touchingVelocity = false;
 
     ctx.beginPath();
