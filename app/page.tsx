@@ -163,7 +163,7 @@ const PointerLockDemo: React.FC = () => {
   // A) CANVAS + POINTER LOCK STATE
   // ─────────────────────────────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const position = useRef({ x: 800, y: 480 });
+  const position = useRef({ x: 800, y: 600 });
 
   const maxTrail = 50;
   const cursorTrail = useRef(new Array(maxTrail).fill(null));
@@ -601,7 +601,7 @@ useEffect(() => {
   //Closin button will make it go 2% closer each hit
 
   // const gravityDefault = 0.27 * radiusOct;
-  const gravityDefault = 0 * radiusOct;
+  const gravityDefault = 0.27 * radiusOct;
   const gravity = useRef<number>(gravityDefault);
 
   const finalizeCurrentWord = useCallback(async () => {
@@ -873,7 +873,7 @@ useEffect(() => {
   );
 
   const isDotTouchingSide = useCallback(
-    (dotX: number, dotY: number, side: OctagonSide, cutoff = 0) => {
+    (dotX: number, dotY: number, side: OctagonSide, cutoff = 0.11 * radiusOct) => {
       if (inDiagnostics.current) {
         return;
       }
@@ -1751,7 +1751,12 @@ const initialDistances = [100, 200]; // Initial distances from the center
         ctx.fill();
         ctx.globalAlpha = 1;
       }
-      if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) {
+      if ((Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) && 
+          position.current.x < centerX - 20 ||
+          position.current.x > centerX + 20 ||
+          position.current.y < centerY - 20 ||
+          position.current.y > centerY + 20
+        ) {
         if (velocityBelowThresholdStartTime.current === 0) {
           // Start timing if it's the first time below threshold
           velocityBelowThresholdStartTime.current = Date.now();
