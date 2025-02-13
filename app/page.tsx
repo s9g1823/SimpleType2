@@ -733,6 +733,8 @@ useEffect(() => {
    "i sell propane and propane accessories",
    "despite all my rage i am still just a rat in a cage",
    "cowboy hat from gucci wrangler on my booty",
+   "wanna be a gun slinger dont be a rock singer",
+   "i program my home computer beam myself into the future",
  ];
 
 
