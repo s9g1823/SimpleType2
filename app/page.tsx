@@ -1752,10 +1752,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
         ctx.globalAlpha = 1;
       }
       if ((Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) && 
-          position.current.x < centerX - 20 ||
-          position.current.x > centerX + 20 ||
-          position.current.y < centerY - 20 ||
-          position.current.y > centerY + 20
+          (position.current.x < centerX - 120 ||
+          position.current.x > centerX + 120 ||
+          position.current.y < centerY - 120 ||
+          position.current.y > centerY + 120)
         ) {
         if (velocityBelowThresholdStartTime.current === 0) {
           // Start timing if it's the first time below threshold
