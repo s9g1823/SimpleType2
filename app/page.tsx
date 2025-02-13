@@ -55,6 +55,8 @@ const PointerLockWrapper: React.FC = () => {
   );
 };
 
+const nSides = 8;
+
 const PointerLockDemo: React.FC = () => {
   // System cursor configuration: by default do not use it, but override if the
   // environment variable or url parameter is set.
@@ -68,7 +70,7 @@ const PointerLockDemo: React.FC = () => {
   //ZMQ setup for Link
   const zmqService = useRef(VelocityZmqListener.factory());
   const velocities = useRef<DecodePacket | null>(null);
-  const sideLikelihoods = useRef<number[]>(Array(8).fill(0));
+  const sideLikelihoods = useRef<number[]>(Array(nSides).fill(0));
 
   const directionalMode = useRef<boolean>(false);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
@@ -79,6 +81,8 @@ const PointerLockDemo: React.FC = () => {
   const dwellDurationMs = useRef<number>(500);
 
   const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Visible);
+
+  const renderCursorTrail = useRef<boolean>(true);
 
   const radiusOct = 350;
   const dwellZoneRadius = useRef<number>(radiusOct);
@@ -159,7 +163,10 @@ const PointerLockDemo: React.FC = () => {
   // A) CANVAS + POINTER LOCK STATE
   // ─────────────────────────────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const position = useRef({ x: 800, y: 600 });
+  const position = useRef({ x: 800, y: 480 });
+
+  const maxTrail = 50;
+  const cursorTrail = useRef(new Array(maxTrail).fill(null));
 
   // Track collision so we don’t spam the same side
   const lastHitSide = useRef<number | null>();
@@ -200,13 +207,13 @@ const PointerLockDemo: React.FC = () => {
   const dirtyWords = useRef<string[]>([]);
 
   // Track if each side is in the dwell state
-  const isInDwell = useRef<boolean[]>(Array(8).fill(false));
-  const handleDwellEnd = useRef<boolean[]>(Array(8).fill(false));
+  const isInDwell = useRef<boolean[]>(Array(nSides).fill(false));
+  const handleDwellEnd = useRef<boolean[]>(Array(nSides).fill(false));
 
   // Dwell click
-  const dwellClickMode = useRef<boolean>(false);
-  const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
-  const dwellClickThreshold = useRef<number>(150);
+  const dwellClickMode = useRef<boolean>(true);
+  const dwellClicked = useRef<boolean[]>(Array(nSides).fill(false));
+  const dwellClickThreshold = useRef<number>(100);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -426,8 +433,8 @@ const PointerLockDemo: React.FC = () => {
       indexRefCode.current = 0;
       indexSentence.current = 0;
 
-      let rng2 = 23;
-      // let rng2 = Math.floor(Math.random() * sentences.length);
+      // let rng2 = 24;
+      let rng2 = Math.floor(Math.random() * sentences.length);
 
       randomyt.current = yts[rng2];
 
@@ -707,30 +714,36 @@ useEffect(() => {
  const wordSubstringer = useRef<number>(0);
 
  const sentences = [
-   "all you got to do is meet me at the apt apt apt apt",
-   "i want your ugly I want your disease i want your everything as long as its free",
-   "heartbreakers gonna break fakers gonna fake im just gonna shake",
-   "in this world concrete flowers grow heartache she only doing what she know",
-   "for some reason i cant explain i know saint peter wont call my name",
+   // "all you got to do is meet me at the apt apt apt apt",
+   // "i want your ugly I want your disease i want your everything as long as its free",
+   // "heartbreakers gonna break fakers gonna fake im just gonna shake",
+   // "in this world concrete flowers grow heartache she only doing what she know",
+   // "for some reason i cant explain i know saint peter wont call my name",
    "its time to focus on life fah fah fah",
    "can you speak to the part you are not all good with",
-   "we have been investing in infrastructure to scale things",
+   // "we have been investing in infrastructure to scale things",
    "and I asked him do I look like I would know",
    "mama just killed a man put a gun onto his head",
-   "remember to let her into your heart and then you can start",
+   // "remember to let her into your heart and then you can start",
    "somewhere over the rainbow bluebirds fly",
    "your skin oh yeah your skin and bones",
    "i have gotten older now I know how to take care",
    "how come when I returned you were gone away",
-   "i was losing my mind because the love the love the love wasted on a nice face",
+   // "i was losing my mind because the love the love the love wasted on a nice face",
    "no way it was the last night that we break up",
-   "the sound of gunfire off in the distance Im getting used to it now",
+   // "the sound of gunfire off in the distance Im getting used to it now",
    "this time the lazy dog jumps over the quick brown fox",
    "lets party arabic style",
    "the democrats will lose the election",
    "was an arizona ranger wouldnt be too long in town",
-   "i am cold can you hear I will fly with no hope no fear",
-   "shall we play a game"
+   // "i am cold can you hear I will fly with no hope no fear",
+   "shall we play a game",
+   "see you later space cowboy",
+   "i sell propane and propane accessories",
+   "despite all my rage i am still just a rat in a cage",
+   "cowboy hat from gucci wrangler on my booty",
+   "wanna be a gun slinger dont be a rock singer",
+   "i program my home computer beam myself into the future",
  ];
 
 
@@ -992,7 +1005,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     const radius = radiusOct;
     const innerRadius = dwellZoneRadius.current;
 
-    const sides = 8;
+    const sides = nSides;
     const angleStep = (2 * Math.PI) / sides;
     const rotation = Math.PI / 8;
 
@@ -1000,7 +1013,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     const suggestionsY = centerY + canvas.height / 2 / 5;
 
     const newSides: OctagonSide[] = [];
-    
+
     let touchingVelocity = false;
 
     ctx.beginPath();
@@ -1373,6 +1386,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
         setTimeout(() => {
           activeSide.current = null;
         }, 50);
+        cursorTrail.current.fill(null);
 
       // No collision
       } else if (
@@ -1520,8 +1534,26 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
     // const cursorSize = directionalMode.current ? 0 : 11;
     const cursorSize = showCursor.current ? 0 : 11;
-    ctx.arc(lockCursor.current ? centerX : position.current.x, lockCursor.current ? centerY : position.current.y, cursorSize, 0, 2 * Math.PI);
+
+    const curX = lockCursor.current ? centerX : position.current.x;
+    const curY = lockCursor.current ? centerY : position.current.y;
+
+    ctx.arc(curX, curY, cursorSize, 0, 2 * Math.PI);
     ctx.fill();
+
+    if (renderCursorTrail.current) {
+      cursorTrail.current.forEach((pos, i) => {
+        if (!pos) return;
+        let alpha = (i + 1) / maxTrail;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, cursorSize, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(211, 211, 211, ${alpha})`;
+        ctx.fill();
+      });
+
+      cursorTrail.current.push({x: curX, y: curY});
+      if (cursorTrail.current.length > maxTrail) cursorTrail.current.shift();
+    }
 
     // Using monospace font because it is easier to render– sorry Sehej BRUH
     ctx.font = "80px Monaco";
@@ -1885,7 +1917,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
     "ZqW_5Ka0n7g",
     "YOJsKatW-Ts",
     "-NuX79Ud8zI",
-    "CHXfuGXM1Gg"
+    "CHXfuGXM1Gg",
+    "eyI635o2pmk",
   ]
   const randomyt = useRef<string>();
 
@@ -2075,6 +2108,23 @@ const initialDistances = [100, 200]; // Initial distances from the center
       <div
         style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
+        <button
+          onClick={() => {
+              renderCursorTrail.current = !renderCursorTrail.current;
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Cursor Trail: {renderCursorTrail.current ? "On" : "Off"}
+        </button>
+
         <button
           onClick={() => {
               dwellClickMode.current = !dwellClickMode.current;
