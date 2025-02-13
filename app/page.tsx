@@ -424,8 +424,8 @@ const PointerLockDemo: React.FC = () => {
       indexRefCode.current = 0;
       indexSentence.current = 0;
 
-      let rng2 = 23;
-      // let rng2 = Math.floor(Math.random() * sentences.length);
+      // let rng2 = 24;
+      let rng2 = Math.floor(Math.random() * sentences.length);
 
       randomyt.current = yts[rng2];
 
@@ -705,30 +705,34 @@ useEffect(() => {
  const wordSubstringer = useRef<number>(0);
 
  const sentences = [
-   "all you got to do is meet me at the apt apt apt apt",
-   "i want your ugly I want your disease i want your everything as long as its free",
-   "heartbreakers gonna break fakers gonna fake im just gonna shake",
-   "in this world concrete flowers grow heartache she only doing what she know",
-   "for some reason i cant explain i know saint peter wont call my name",
+   // "all you got to do is meet me at the apt apt apt apt",
+   // "i want your ugly I want your disease i want your everything as long as its free",
+   // "heartbreakers gonna break fakers gonna fake im just gonna shake",
+   // "in this world concrete flowers grow heartache she only doing what she know",
+   // "for some reason i cant explain i know saint peter wont call my name",
    "its time to focus on life fah fah fah",
    "can you speak to the part you are not all good with",
-   "we have been investing in infrastructure to scale things",
+   // "we have been investing in infrastructure to scale things",
    "and I asked him do I look like I would know",
    "mama just killed a man put a gun onto his head",
-   "remember to let her into your heart and then you can start",
+   // "remember to let her into your heart and then you can start",
    "somewhere over the rainbow bluebirds fly",
    "your skin oh yeah your skin and bones",
    "i have gotten older now I know how to take care",
    "how come when I returned you were gone away",
-   "i was losing my mind because the love the love the love wasted on a nice face",
+   // "i was losing my mind because the love the love the love wasted on a nice face",
    "no way it was the last night that we break up",
-   "the sound of gunfire off in the distance Im getting used to it now",
+   // "the sound of gunfire off in the distance Im getting used to it now",
    "this time the lazy dog jumps over the quick brown fox",
    "lets party arabic style",
    "the democrats will lose the election",
    "was an arizona ranger wouldnt be too long in town",
-   "i am cold can you hear I will fly with no hope no fear",
-   "shall we play a game"
+   // "i am cold can you hear I will fly with no hope no fear",
+   "shall we play a game",
+   "see you later space cowboy",
+   "i sell propane and propane accessories",
+   "despite all my rage i am still just a rat in a cage",
+   "cowboy hat from gucci wrangler on my booty",
  ];
 
 
@@ -1745,7 +1749,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
     "ZqW_5Ka0n7g",
     "YOJsKatW-Ts",
     "-NuX79Ud8zI",
-    "CHXfuGXM1Gg"
+    "CHXfuGXM1Gg",
+    "eyI635o2pmk",
   ]
   const randomyt = useRef<string>();
 
