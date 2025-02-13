@@ -45,6 +45,7 @@ enum DwellZoneRendering {
 
 import "@fontsource/poppins"; // Defaults to weight 400
 import "@fontsource/press-start-2p";
+import { dot } from "node:test/reporters";
 
 const PointerLockWrapper: React.FC = () => {
   return (
@@ -124,6 +125,14 @@ const PointerLockDemo: React.FC = () => {
 
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
+          if (
+            position.current.x < 0 ||
+            position.current.x > centerX*2 ||
+            position.current.y < 0 ||
+            position.current.y > centerY * 2
+        ) {
+          position.current = { x: centerX, y: centerY };
+        }
         }
       } else {
         setTimeout(() => {
@@ -150,7 +159,7 @@ const PointerLockDemo: React.FC = () => {
   // A) CANVAS + POINTER LOCK STATE
   // ─────────────────────────────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const position = useRef({ x: 800, y: 480 });
+  const position = useRef({ x: 800, y: 600 });
 
   // Track collision so we don’t spam the same side
   const lastHitSide = useRef<number | null>();
@@ -197,7 +206,7 @@ const PointerLockDemo: React.FC = () => {
   // Dwell click
   const dwellClickMode = useRef<boolean>(false);
   const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
-  const dwellClickThreshold = useRef<number>(100);
+  const dwellClickThreshold = useRef<number>(150);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -907,7 +916,7 @@ useEffect(() => {
   }, []);
 
 const centerX = 800;
-const centerY = 480;
+const centerY = 600;
 
 const directions = 8; // Total directions
 const angleStep = (2 * Math.PI) / directions; // Angle between each direction
@@ -941,6 +950,25 @@ const initialDistances = [100, 200]; // Initial distances from the center
   ];
   const targetIndex = useRef<number>(-1);
 
+  const velocityBelowThresholdStartTime = useRef<number>(0); // Track when velocity first goes below threshold
+  const dwellTimeRequired = useRef<number>(60); // Time in milliseconds (1 second)
+  const fast = useRef<boolean>(false);``
+  const fastThreshold = useRef<number>(300);
+
+  const dotGameMode = useRef<boolean>(false);
+  const gameDotSequence = [5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4, 0, 2, 0, 5, 7]
+  const indexGameDot = useRef<number>(0);
+
+  const goodDotHits = useRef<number>(0);
+  const badDotHits = useRef<number>(0);
+
+  const timerDotStart = useRef<number>(); //timer
+  const timerDotEnd = useRef<number>();
+  const timeDotLength = useRef<number>();
+
+  const dotCcpm = useRef<number>();
+  const snapBackMode = useRef<boolean>(false);
+
 
   const drawScene = useCallback(() => {
 
@@ -959,7 +987,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
    //
 
     const centerX = 800;
-    const centerY = 480;
+    const centerY = 600;
 
     const radius = radiusOct;
     const innerRadius = dwellZoneRadius.current;
@@ -1340,7 +1368,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           //lastHitSide.current= sideIndex;
         }
         refractory.current = true;
-        position.current = { x: 800, y: 480 };
+        position.current = { x: 800, y: 600 };
         activeSide.current = sideIndex;
         setTimeout(() => {
           activeSide.current = null;
@@ -1658,6 +1686,144 @@ const initialDistances = [100, 200]; // Initial distances from the center
     }
 
     setOctagonSides(newSides);
+
+    if (inDiagnostics.current) {
+      let coordinatesTargets = [
+        {x: 3/10, y: 1/2 - 4/15},
+        {x: 1/2, y: 1/2 - 4/15},
+        {x: 7/10, y: 1/2 - 4/15},
+        {x: 3/10, y: 1/2},
+        {x: 7/10, y: 1/2},
+        {x: 3/10, y: 1/2 + 4/15},
+        {x: 1/2, y: 1/2 + 4/15},
+        {x: 7/10, y: 1/2 + 4/15},
+       ];
+  
+       let scaledCoordinates = coordinatesTargets.map(coord => {
+        return {
+          x: coord.x * canvas.width,
+          y: coord.y * canvas.height
+        };
+      });
+
+      for (let i = 0; i < coordinatesTargets.length; i++) {
+        ctx.beginPath();
+        if (dotGameMode.current && i === gameDotSequence[indexGameDot.current]) {
+          ctx.fillStyle = "yellow";
+        } else {
+          ctx.fillStyle = "#812dfa";
+        }
+        
+        ctx.globalAlpha = 0.56;
+        ctx.arc(scaledCoordinates[i].x, scaledCoordinates[i].y, 22, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) {
+        if (velocityBelowThresholdStartTime.current === 0) {
+          // Start timing if it's the first time below threshold
+          velocityBelowThresholdStartTime.current = Date.now();
+        } else {
+          // Check if it has been below threshold for the required dwell time
+          const timeBelowThreshold = Date.now() - velocityBelowThresholdStartTime.current;
+          if (timeBelowThreshold >= dwellTimeRequired.current  && fast.current) {
+            console.log("We reached low velocities");
+            
+            fast.current = false;
+            let hitCircleIndex = findClosestCircle();
+            
+            if (!dotGameMode.current) {
+              new Audio("click.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
+                
+                if (snapBackMode.current) {
+                  position.current = {x: centerX, y: centerY};
+                }
+            
+            } else if (dotGameMode.current) {
+              if (hitCircleIndex === gameDotSequence[indexGameDot.current]) {
+                goodDotHits.current++;
+                
+                if (timerDotStart.current === undefined) { //start timer
+                  timerDotStart.current = performance.now();
+                } else if (indexGameDot.current === gameDotSequence.length-1) { //terminate game and display metrics
+                  timeDotLength.current = performance.now() - timerDotStart.current;
+                  dotCcpm.current = (goodDotHits.current)/(timeDotLength.current) * 60000;
+                  accuracy.current = (goodDotHits.current)/(goodDotHits.current + badDotHits.current) * 100;
+
+                }
+                
+                new Audio("coin2.mp3")
+                  .play()
+                  .catch((error) => console.error("Error playing audio:", error));
+                indexGameDot.current++;
+
+                //terminate the game
+                if (indexGameDot.current === gameDotSequence.length) {
+
+                }
+              } else {
+                badDotHits.current++;
+                new Audio("erro.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
+              }
+              if (snapBackMode.current) {
+                position.current = {x: centerX, y: centerY};
+              }
+            }
+            ctx.beginPath();
+            ctx.arc(coordinatesTargets[hitCircleIndex].x * canvas.width, coordinatesTargets[hitCircleIndex].y * canvas.height, 99, 0, 2 * Math.PI);
+            ctx.fill();
+            // Reset the start time
+            velocityBelowThresholdStartTime.current = 0;
+
+          }
+        }
+  } else {
+    // Reset if velocity goes above threshold
+    if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) > fastThreshold.current) {
+      fast.current = true;
+    }
+    velocityBelowThresholdStartTime.current = 0;
+  }
+  if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
+    ctx.font = "69px Poppins"; // Smaller font size
+    ctx.fillStyle = "lightgreen"; // Text color
+    ctx.fillText(
+      `${dotCcpm.current.toFixed(2)} DPM`,
+      centerX,
+      centerY,
+    );
+    ctx.font = "32px Poppins"; // Smaller font size
+    ctx.fillStyle = "white"; // Text color
+    ctx.fillText(
+      `${accuracy.current.toFixed(2)}%`,
+      centerX,
+      centerY + 200,
+    );
+  }
+  
+      
+      function findClosestCircle() {
+        // Initialize variables within the function's scope
+        let closestIndex = -1;
+        let smallestDistance = Infinity;
+      
+        for (let i = 0; i < coordinatesTargets.length; i++) {
+          let target = scaledCoordinates[i];
+          let distance = Math.sqrt(Math.pow(target.x - position.current.x, 2) + Math.pow(target.y - position.current.y, 2));
+      
+          if (distance < smallestDistance) {
+            smallestDistance = distance;
+            closestIndex = i;
+          }
+        }
+      
+        return closestIndex;
+      }
+    }
   }, [
     position,
     sideLikelihoods,
@@ -1675,7 +1841,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     ccpm: number;
   }
   const leederboredVals = useRef<LeaderboardEntry[]>([
-    {player: "easy E", ccpm: 42.30},
+    {player: "easy E", ccpm: 52.02},
     {player: "little B", ccpm: 55.69},
     {player: "nata C", ccpm: 66.22}
   ]);
@@ -2005,6 +2171,41 @@ const initialDistances = [100, 200]; // Initial distances from the center
           }}
         />
 
+      
+      <input
+          id="dwell-click-threshold"
+          type="number"
+          min={0}
+          max={300}
+          step="15"
+          value={dwellTimeRequired.current}
+          onChange={(e) => (dwellTimeRequired.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+      <input
+          id="dwell-click-threshold"
+          type="number"
+          min={0}
+          max={20000}
+          step="200"
+          value={fastThreshold.current}
+          onChange={(e) => (fastThreshold.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
       </div>
 
       {/* Speed Slider */}
@@ -2163,9 +2364,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
       <canvas
         ref={canvasRef}
         width={1600}
-        height={960}
+        height={1200}
         style={{
-          border: "1px dotted black",
+          border: "1px dotted purple",
           marginTop: "100px", // Adjust this value as needed
           position: "relative",  // Add this
           // zIndex: 2000,         // Higher than video overlay
@@ -2204,7 +2405,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
             gap: "10px", // Space between buttons
           }}
         >
-          {[...Array(4)].map((_, index) => (
+          {[...Array(5)].map((_, index) => (
             <button
               key={index}
               style={{
@@ -2238,8 +2439,27 @@ const initialDistances = [100, 200]; // Initial distances from the center
                     break;
                   case 3:
                     // Action for the fourth button
-                    dwellClickMode.current = !dwellClickMode.current;
+                    inDiagnostics.current = true;
+                    dotGameMode.current = true;
+                    indexGameDot.current = 0;
+
+                    goodDotHits.current = 0;
+                    badDotHits.current = 0;
+                    accuracy.current = undefined;
+
+                    timerDotStart.current = undefined;
+                    timerDotStart.current = undefined;
+                    timeDotLength.current = undefined;
+
+                    dotCcpm.current = undefined;
+
                     break;
+
+                    case 4:
+                      // Action for the fourth button
+                      snapBackMode.current = !snapBackMode.current;
+  
+                      break;
                   default:
                     break;
                 }
