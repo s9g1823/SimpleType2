@@ -34,6 +34,18 @@ interface OctagonSide {
   endY: number;
 }
 
+interface KeyTarget {
+    labels: string[];
+    x: number;
+    y: number;
+}
+
+interface KeySelector {
+    label: string;
+    x: number;
+    y: number;
+}
+
 enum OctagonPage {
   Keyboard = "keyboard",
   Home = "home",
@@ -165,7 +177,6 @@ const PointerLockDemo: React.FC = () => {
     return () => {
       zmqService.current.events.off(ZmqClient.EVENT_MESSAGE, handleDecodeData);
     };
-  // }, [velocities.current]);
   }, []);
 
   //
@@ -746,6 +757,7 @@ useEffect(() => {
     "cowboy hat from gucci wrangler on my booty",
     "wanna be a gun slinger dont be a rock singer",
     "i program my home computer beam myself into the future",
+    "it was an experiment in psychogeography",
   ];
 
   const sentenceToCodes = (sentence: string, type: string): number[] => {
@@ -814,11 +826,19 @@ useEffect(() => {
       if (!refractory.current) {
 
         velocities.current = {
+          raw_velocity_x: 0,
+          raw_velocity_y: 0,
+          velocity_smoothed_x: 0,
+          velocity_smoothed_y: 0,
           final_velocity_x: e.movementX,
           final_velocity_y: e.movementY,
+          left_click_probability_smoothed: 0,
+          raw_right_click_probability: 0,
+          right_click_probability_smoothed: 0,
+          raw_middle_click_probability: 0,
+          middle_click_probability_smoothed: 0,
+          raw_left_click_probability: 0,
         };
-
-        console.log("Speed " + e.movementX + " " + e.movementY);
 
         const newX =
           position.current.x +
@@ -971,7 +991,8 @@ useEffect(() => {
   const dwellTimeRequired = useRef<number>(60); // Time in milliseconds (1 second)
   const fast = useRef<boolean>(false);
   ``;
-  const fastThreshold = useRef<number>(300);
+  // const fastThreshold = useRef<number>(300);
+  const fastThreshold = useRef<number>(30);
 
   const dotGameMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -989,6 +1010,11 @@ useEffect(() => {
 
   const dotCcpm = useRef<number>();
   const snapBackMode = useRef<boolean>(false);
+
+  // Magic keys
+  const activeKeyIdx = useRef<number | null>(null);
+  const activeKeySelectors = useRef<KeySelector[] | null>(null);
+  const magicText = useRef<string>("▌");
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1783,46 +1809,111 @@ useEffect(() => {
     // =====================================================================
     //
     if (inDiagnostics.current) {
-      let coordinatesTargets = [
-        { x: 3 / 10, y: 1 / 2 - 4 / 15 },
-        { x: 1 / 2, y: 1 / 2 - 4 / 15 },
-        { x: 7 / 10, y: 1 / 2 - 4 / 15 },
-        { x: 3 / 10, y: 1 / 2 },
-        { x: 7 / 10, y: 1 / 2 },
-        { x: 3 / 10, y: 1 / 2 + 4 / 15 },
-        { x: 1 / 2, y: 1 / 2 + 4 / 15 },
-        { x: 7 / 10, y: 1 / 2 + 4 / 15 },
-      ];
+      let keys: KeyTarget[] = [
+        { labels: ["A", "B", "C", "D"], x: 3 / 10, y: 1 / 2 - 4 / 15 },
+        { labels: ["E", "F", "G", "H"], x: 1 / 2, y: 1 / 2 - 4 / 15 },
+        { labels: ["I", "J", "K", "L"], x: 7 / 10, y: 1 / 2 - 4 / 15 },
+        { labels: ["M", "N", "O", "P"], x: 3 / 10, y: 1 / 2 },
+        { labels: ["Q", "R", "S", "T"], x: 7 / 10, y: 1 / 2 },
+        { labels: ["U", "V", "W", "X"], x: 3 / 10, y: 1 / 2 + 4 / 15 },
+        { labels: ["Y", "Z"], x: 1 / 2, y: 1 / 2 + 4 / 15 },
+        { labels: ["␣", "⌫"], x: 7 / 10, y: 1 / 2 + 4 / 15 },
+      ]
 
-      let scaledCoordinates = coordinatesTargets.map((coord) => {
-        return {
-          x: coord.x * canvas.width,
-          y: coord.y * canvas.height,
-        };
+      keys.forEach((key) => {
+        key.x *= canvas.width;
+        key.y *= canvas.height;
       });
 
-      for (let i = 0; i < coordinatesTargets.length; i++) {
-        ctx.beginPath();
-        if (
-          dotGameMode.current &&
-          i === gameDotSequence[indexGameDot.current]
-        ) {
-          ctx.fillStyle = "yellow";
-        } else {
-          ctx.fillStyle = "#812dfa";
+      for (let i = 0; i < keys.length; i++) {
+
+        /*
+         *  Render Text
+         *
+         */
+        let nEntries = keys[i].labels.length;
+        for (let selector = 0 ; selector < nEntries; selector++) {
+            const row = Math.floor(selector / 2);
+            const col = selector % 2;
+
+            let sep = 20;
+            if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
+              sep = 75;
+              ctx.fillStyle = "lightgray";
+            } else if (activeKeyIdx.current !== null) {
+              ctx.fillStyle = "rgb(200, 200, 200)";
+            } else {
+              ctx.fillStyle = "lightgray";
+            }
+
+            ctx.fillText(
+              keys[i].labels[selector],
+              keys[i].x - sep + (2 * col * sep),
+              keys[i].y - sep + (2 * row * sep),
+            );
         }
 
-        ctx.globalAlpha = 0.56;
-        ctx.arc(
-          scaledCoordinates[i].x,
-          scaledCoordinates[i].y,
-          22,
-          0,
-          2 * Math.PI,
-        );
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        /*
+         *  Render Key(s)
+         *
+         */
+        ctx.beginPath();
+        if (dotGameMode.current) {
+          if (i === gameDotSequence[indexGameDot.current]) {
+            ctx.fillStyle = "yellow";
+          } else {
+            ctx.fillStyle = "#812dfa";
+          }
+        // Default magic coloring
+        } else {
+
+          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
+            ctx.fillStyle = "black"; // Hideen
+
+          // Fade out the non-active keys
+          } else if (activeKeyIdx.current !== null) {
+            ctx.fillStyle = "rgb(80, 80, 80)";
+
+          // Standard selector color
+          } else {
+            ctx.fillStyle = "lightgreen";
+          }
+
+        }
+
+        if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
+          ctx.globalAlpha = 0.56;
+          ctx.arc(
+            keys[i].x,
+            keys[i].y,
+            22,
+            0,
+            2 * Math.PI,
+          );
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
       }
+
+      // If a key is selected, render the second layer
+      if (activeKeyIdx.current !== null) {
+        let nEntries = keys[activeKeyIdx.current].labels.length;
+        for (let selector = 0 ; selector < nEntries; selector++) {
+            ctx.beginPath();
+            ctx.fillStyle = "lightgreen";
+            ctx.globalAlpha = 0.56;
+            ctx.arc(
+              activeKeySelectors.current?.[selector]?.x ?? 0,
+              activeKeySelectors.current?.[selector]?.y ?? 0,
+              22,
+              0,
+              2 * Math.PI,
+            );
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+      }
+
       if (
         Math.abs(velocities.current?.final_velocity_x ?? 0) +
           Math.abs(velocities.current?.final_velocity_y ?? 0) <
@@ -1835,24 +1926,95 @@ useEffect(() => {
         if (velocityBelowThresholdStartTime.current === 0) {
           // Start timing if it's the first time below threshold
           velocityBelowThresholdStartTime.current = Date.now();
+
         } else {
           // Check if it has been below threshold for the required dwell time
+
           const timeBelowThreshold =
             Date.now() - velocityBelowThresholdStartTime.current;
+
           if (timeBelowThreshold >= dwellTimeRequired.current && fast.current) {
             console.log("We reached low velocities");
 
             fast.current = false;
-            let hitCircleIndex = findClosestCircle();
+            let hitCircleIndex = findClosestCircle(keys);
 
             if (!dotGameMode.current) {
+
+              if (activeKeyIdx.current !== null &&
+                (
+                  position.current.x < keys[activeKeyIdx.current].x - 50 ||
+                  position.current.x > keys[activeKeyIdx.current].x + 50 ||
+                  position.current.y < keys[activeKeyIdx.current].y - 50 ||
+                  position.current.y > keys[activeKeyIdx.current].y + 50
+                )
+              ) {
+
+                // With an active selector, the closest key search includes the
+                // unselected keys. If we are closest to one of those, then we
+                // exit our selection mode.
+                const unselected = keys.filter((_, index) => index !== activeKeyIdx.current);
+                const search = [...unselected, ...activeKeySelectors.current ?? []]
+                let hitCircleIndex = findClosestCircle(search);
+
+                if (hitCircleIndex < unselected.length) {
+                  // We hit outside the region, diselect from here
+                  activeKeyIdx.current = null;
+                } else {
+                  // We selected a letter– it is at the end of list provided to
+                  // findClosestCircle.
+                  const selected = activeKeySelectors.current?.[hitCircleIndex - unselected.length];
+
+                  if (selected) {
+                    magicText.current = magicText.current.slice(0, -1);
+                    // Space
+                    if (selected.label == "␣") {
+                      magicText.current += " ";
+                    } else if (selected.label == "⌫") {
+                      magicText.current = magicText.current.slice(0, -1);
+                    } else {
+                      magicText.current += selected.label;
+                    }
+                    magicText.current += "▌";
+
+                    // Reset
+                    activeKeyIdx.current = null;
+                    if (snapBackMode.current) {
+                      position.current = { x: centerX, y: centerY };
+                    }
+                  }
+
+                }
+
+
+              } else {
+                activeKeyIdx.current = hitCircleIndex;
+
+                // Generate targets for the active selector
+                let nEntries = keys[activeKeyIdx.current].labels.length;
+                let selectorKeys: KeySelector[] = [];
+                for (let selector = 0 ; selector < nEntries; selector++) {
+                    const row = Math.floor(selector / 2);
+                    const col = selector % 2;
+                    let sep = 75;
+
+                    selectorKeys.push({
+                      label: keys[activeKeyIdx.current].labels[selector],
+                      x: keys[activeKeyIdx.current].x - sep + (2 * col * sep),
+                      y: keys[activeKeyIdx.current].y - sep + (2 * row * sep),
+                    });
+                }
+                activeKeySelectors.current = selectorKeys;
+
+                // Snap to the selector key center
+                position.current = { x: keys[hitCircleIndex].x, y: keys[hitCircleIndex].y };
+                cursorTrail.current.fill(null);
+              }
+
               new Audio("click.mp3")
                 .play()
                 .catch((error) => console.error("Error playing audio:", error));
 
-              if (snapBackMode.current) {
-                position.current = { x: centerX, y: centerY };
-              }
             } else if (dotGameMode.current) {
               if (hitCircleIndex === gameDotSequence[indexGameDot.current]) {
                 goodDotHits.current++;
@@ -1899,8 +2061,8 @@ useEffect(() => {
             }
             ctx.beginPath();
             ctx.arc(
-              coordinatesTargets[hitCircleIndex].x * canvas.width,
-              coordinatesTargets[hitCircleIndex].y * canvas.height,
+              keys[hitCircleIndex].x,
+              keys[hitCircleIndex].y,
               99,
               0,
               2 * Math.PI,
@@ -1930,13 +2092,16 @@ useEffect(() => {
         ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 200);
       }
 
-      function findClosestCircle() {
+      ctx.fillText(magicText.current, centerX, centerY);
+
+      function findClosestCircle(items: (KeyTarget | KeySelector)[]) {
         // Initialize variables within the function's scope
         let closestIndex = -1;
         let smallestDistance = Infinity;
 
-        for (let i = 0; i < coordinatesTargets.length; i++) {
-          let target = scaledCoordinates[i];
+        for (let i = 0; i < items.length; i++) {
+          let target = items[i];
+          console.log(target);
           let distance = Math.sqrt(
             Math.pow(target.x - position.current.x, 2) +
               Math.pow(target.y - position.current.y, 2),
@@ -2290,6 +2455,7 @@ useEffect(() => {
           }}
         />
 
+        <label htmlFor="dwell-duration">dwell dur ms </label>
         <input
           id="dwell-duration"
           type="number"
@@ -2309,6 +2475,7 @@ useEffect(() => {
           }}
         />
 
+        <label htmlFor="dwell-click-threshold">dwell click ms </label>
         <input
           id="dwell-click-threshold"
           type="number"
@@ -2328,8 +2495,9 @@ useEffect(() => {
           }}
         />
 
+        <label htmlFor="dwell-time">dwell time </label>
         <input
-          id="dwell-click-threshold"
+          id="dwell-time"
           type="number"
           min={0}
           max={300}
@@ -2347,8 +2515,9 @@ useEffect(() => {
           }}
         />
 
+        <label htmlFor="fast-threshold">fast </label>
         <input
-          id="dwell-click-threshold"
+          id="fast-threshold"
           type="number"
           min={0}
           max={20000}
@@ -2363,6 +2532,7 @@ useEffect(() => {
             outline: "none", // Removes outline on focus
           }}
         />
+
       </div>
 
       {/* Speed Slider */}
@@ -2562,7 +2732,7 @@ useEffect(() => {
           gap: "10px", // Space between buttons
         }}
       >
-        {[...Array(5)].map((_, index) => (
+        {[...Array(6)].map((_, index) => (
           <button
             key={index}
             style={{
@@ -2618,13 +2788,25 @@ useEffect(() => {
                 case 4:
                   // Action for the fourth button
                   snapBackMode.current = !snapBackMode.current;
+                  break;
 
+                case 5:
+                  magicText.current = "▌";
                   break;
                 default:
                   break;
               }
             }}
-          ></button>
+          >
+          {(() => {
+            switch (index) {
+              case 4:
+                return snapBackMode.current ? "snap: on" : "snap: off"
+              case 5:
+                return "clear";
+            }
+          })()}
+          </button>
         ))}
       </div>
     </div>
