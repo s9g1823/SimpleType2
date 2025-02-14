@@ -1457,11 +1457,23 @@ useEffect(() => {
           //lastHitSide.current= sideIndex;
         }
         refractory.current = true;
-        position.current = { x: 800, y: 600 };
+
+        let refractoryTimeout = 50;
+        if (snapBackMode.current) {
+          position.current = { x: 800, y: 600 };
+        } else {
+          const snapX = (position.current.x + 800) / 2;
+          const snapY = (position.current.y + 600) / 2;
+
+          position.current = { x: snapX, y: snapY };
+          refractoryTimeout = 200;
+        }
+
         activeSide.current = sideIndex;
         setTimeout(() => {
           activeSide.current = null;
-        }, 50);
+        }, refractoryTimeout);
+
         cursorTrail.current.fill(null);
 
         // No collision
