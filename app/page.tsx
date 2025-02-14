@@ -12,7 +12,16 @@ import { useSearchParams } from "next/navigation";
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqClient from "./ZmqClient";
 
-import { Tree, allWords, allWordsForCode, WordFrequency, getSubtree, getRankedMatches, orderByMostFrequent, pickWordViaGPT } from "./words";
+import {
+  Tree,
+  allWords,
+  allWordsForCode,
+  WordFrequency,
+  getSubtree,
+  getRankedMatches,
+  orderByMostFrequent,
+  pickWordViaGPT,
+} from "./words";
 
 interface Dictionary {
   [t9Code: string]: string[];
@@ -80,7 +89,9 @@ const PointerLockDemo: React.FC = () => {
 
   const dwellDurationMs = useRef<number>(500);
 
-  const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Visible);
+  const dwellZoneRendering = useRef<DwellZoneRendering>(
+    DwellZoneRendering.Visible,
+  );
 
   const renderCursorTrail = useRef<boolean>(true);
 
@@ -121,22 +132,22 @@ const PointerLockDemo: React.FC = () => {
         const newX =
           position.current.x +
           velocities.current.final_velocity_x * speed.current * 0.015;
-          // velocities.current.final_velocity_x * speed.current * 0.01;
+        // velocities.current.final_velocity_x * speed.current * 0.01;
         const newY =
           position.current.y +
           velocities.current.final_velocity_y * speed.current * 0.015;
-          // velocities.current.final_velocity_y * speed.current * 0.01;
+        // velocities.current.final_velocity_y * speed.current * 0.01;
 
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
           if (
             position.current.x < 0 ||
-            position.current.x > centerX*2 ||
+            position.current.x > centerX * 2 ||
             position.current.y < 0 ||
             position.current.y > centerY * 2
-        ) {
-          position.current = { x: centerX, y: centerY };
-        }
+          ) {
+            position.current = { x: centerX, y: centerY };
+          }
         }
       } else {
         setTimeout(() => {
@@ -145,16 +156,10 @@ const PointerLockDemo: React.FC = () => {
       }
     }
 
-    zmqService.current.events.on(
-      ZmqClient.EVENT_MESSAGE,
-      handleDecodeData,
-    );
+    zmqService.current.events.on(ZmqClient.EVENT_MESSAGE, handleDecodeData);
 
     return () => {
-      zmqService.current.events.off(
-        ZmqClient.EVENT_MESSAGE,
-        handleDecodeData,
-      );
+      zmqService.current.events.off(ZmqClient.EVENT_MESSAGE, handleDecodeData);
     };
   }, [velocities.current]);
 
@@ -241,7 +246,7 @@ const PointerLockDemo: React.FC = () => {
     6: "Exit",
     7: "📝 Practice",
     8: "🕹️Game",
-  }
+  };
 
   const settingsLabels: Record<number, string> = {
     1: "Threshold on",
@@ -252,7 +257,7 @@ const PointerLockDemo: React.FC = () => {
     6: "",
     7: "",
     8: "",
-  }
+  };
 
   // If you want bold labels around the octagon:
   const getSideLabels = (type: string): Record<number, string> => {
@@ -301,7 +306,7 @@ const PointerLockDemo: React.FC = () => {
           7: "T Y U G H",
           8: "I O P K L",
         };
-       case "opt" :
+      case "opt":
         return {
           1: "␣",
           2: "F I K L W Y Z",
@@ -310,9 +315,9 @@ const PointerLockDemo: React.FC = () => {
           5: "⌫",
           6: "E B S U V",
           7: "T O M",
-          8: "H C D Q R"
+          8: "H C D Q R",
         };
-      default :
+      default:
         return {
           1: "␣",
           2: "W X Y Z",
@@ -353,11 +358,11 @@ const PointerLockDemo: React.FC = () => {
       //   return "/code_tree_abc4.json";
       case "opt":
         return "/code_tree_opt.json";
-      default :
+      default:
         console.error("Unsupported!");
         return "/code_tree_opt.json";
     }
-  }
+  };
 
   const getPreComputedJson = (type: string): string => {
     switch (type) {
@@ -369,11 +374,11 @@ const PointerLockDemo: React.FC = () => {
       //   return "/precomputed_abc4.json";
       case "opt":
         return "/precomputed_opt.json";
-      default :
+      default:
         console.error("Unsupported!");
         return "/precomputed_opt.json";
     }
-  }
+  };
 
   const speakWords = (): void => {
     const text = theWords.current.join(" ");
@@ -384,8 +389,7 @@ const PointerLockDemo: React.FC = () => {
 
     const voices = speechSynthesis.getVoices();
     utterance.voice =
-      voices.find((v) => v.name.includes("Eddy (English (US))")) ||
-      null;
+      voices.find((v) => v.name.includes("Eddy (English (US))")) || null;
 
     speechSynthesis.speak(utterance);
   };
@@ -411,59 +415,54 @@ const PointerLockDemo: React.FC = () => {
     badHits.current = 0;
 
     timerStart.current = performance.now();
-
-  }
+  };
 
   const startPracticeMode = (): void => {
+    theWords.current = [];
+    theCodes.current = [];
+    dirtyWords.current = [];
+    code.current = "";
 
-      theWords.current = [];
-      theCodes.current = [];
-      dirtyWords.current = [];
-      code.current = "";
+    isPlaying.current = true;
+    setVideoOpacity(0);
 
-      isPlaying.current = true;
-      setVideoOpacity(0);
+    console.log("runs");
+    theCodes.current = [];
+    theWords.current = [];
+    code.current = "";
 
-      console.log("runs");
-      theCodes.current = [];
-      theWords.current = [];
-      code.current = "";
+    inPractice.current = true;
+    indexRefCode.current = 0;
+    indexSentence.current = 0;
 
-      inPractice.current = true;
-      indexRefCode.current = 0;
-      indexSentence.current = 0;
+    // let rng2 = 24;
+    let rng2 = Math.floor(Math.random() * sentences.length);
 
-      // let rng2 = 24;
-      let rng2 = Math.floor(Math.random() * sentences.length);
+    randomyt.current = yts[rng2];
 
-      randomyt.current = yts[rng2];
+    refCode.current = sentenceToCodes(sentences[rng2], dictionaryType);
+    sentence.current = sentences[rng2].split(" ");
 
-      refCode.current = sentenceToCodes(sentences[rng2], dictionaryType);
-      sentence.current = sentences[rng2].split(" ");
+    //calculations
+    goodHits.current = 0;
+    badHits.current = 0;
 
-      //calculations
-      goodHits.current = 0;
-      badHits.current = 0;
-
-      timerStart.current = performance.now();
-  }
+    timerStart.current = performance.now();
+  };
 
   const stopPracticeMode = (): void => {
+    inLights.current = false;
+    inPractice.current = false;
+    isPlaying.current = false;
+    setVideoOpacity(0);
+    refCode.current = undefined;
+    indexRefCode.current = undefined;
+    sentence.current = undefined;
+    indexSentence.current = undefined;
 
-      inLights.current = false;
-      inPractice.current = false;
-      isPlaying.current = false;
-      setVideoOpacity(0);
-      refCode.current = undefined;
-      indexRefCode.current = undefined;
-      sentence.current = undefined;
-      indexSentence.current = undefined;
-
-      textWidth.current = undefined;
-      wordSubstringer.current = 0;
-  }
-
-
+    textWidth.current = undefined;
+    wordSubstringer.current = 0;
+  };
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -526,7 +525,6 @@ const PointerLockDemo: React.FC = () => {
     }
 
     Promise.resolve().then(async () => {
-
       // ====== All possible, sorted by probability
       // const possibleWords =
       //   code.length === 1
@@ -535,7 +533,6 @@ const PointerLockDemo: React.FC = () => {
 
       // ====== GPT
       // possibleWords.current = await pickWordViaGPT(possibleWords, theWords.current);
-
 
       // ===== Exact matches
       // if (code.current.length < 5) {
@@ -550,17 +547,17 @@ const PointerLockDemo: React.FC = () => {
       //     false,
       //   );
       // } else {
-        // After the 5th letter, begin to suggest autocompletions with the tree
-        // + ngram ordering.
-        possibleWords.current = getRankedMatches(
-          theWords.current,
-          code.current,
-          codeTree.current,
-          trigrams.current,
-          wordFreq.current,
-          precomputedTrees.current,
-          true,
-        );
+      // After the 5th letter, begin to suggest autocompletions with the tree
+      // + ngram ordering.
+      possibleWords.current = getRankedMatches(
+        theWords.current,
+        code.current,
+        codeTree.current,
+        trigrams.current,
+        wordFreq.current,
+        precomputedTrees.current,
+        true,
+      );
       // }
 
       console.log("Ranked: ", possibleWords.current);
@@ -623,7 +620,7 @@ useEffect(() => {
       console.log("Chose candidate");
       chosenWord = candidates[0];
       if (chosenWord === "i") {
-          chosenWord = "I";
+        chosenWord = "I";
       }
 
       // 3) Append the chosen word and code
@@ -637,7 +634,7 @@ useEffect(() => {
         theCodes.current = [...theCodes.current, code.current];
         console.log("codes: " + theCodes.current);
 
-      // 4) Clear current code and add word to dirty word list
+        // 4) Clear current code and add word to dirty word list
         code.current = "";
         console.log("code: " + code.current);
 
@@ -707,45 +704,44 @@ useEffect(() => {
   const accuracy = useRef<number>();
   const ccpm = useRef<number>();
 
-//PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
- const inPractice = useRef<boolean>(false);
- const inGameMode = useRef<boolean>(false); // Hack: just used for tracking display
- const textWidth = useRef<number>();
- const wordSubstringer = useRef<number>(0);
+  //PRACTICE MODE: Next steps... (1) Make sentences interesting (2) Metrics to optimize for (3) more gamified jawns
+  const inPractice = useRef<boolean>(false);
+  const inGameMode = useRef<boolean>(false); // Hack: just used for tracking display
+  const textWidth = useRef<number>();
+  const wordSubstringer = useRef<number>(0);
 
- const sentences = [
-   // "all you got to do is meet me at the apt apt apt apt",
-   // "i want your ugly I want your disease i want your everything as long as its free",
-   // "heartbreakers gonna break fakers gonna fake im just gonna shake",
-   // "in this world concrete flowers grow heartache she only doing what she know",
-   // "for some reason i cant explain i know saint peter wont call my name",
-   "its time to focus on life fah fah fah",
-   "can you speak to the part you are not all good with",
-   // "we have been investing in infrastructure to scale things",
-   "and I asked him do I look like I would know",
-   "mama just killed a man put a gun onto his head",
-   // "remember to let her into your heart and then you can start",
-   "somewhere over the rainbow bluebirds fly",
-   "your skin oh yeah your skin and bones",
-   "i have gotten older now I know how to take care",
-   "how come when I returned you were gone away",
-   // "i was losing my mind because the love the love the love wasted on a nice face",
-   "no way it was the last night that we break up",
-   // "the sound of gunfire off in the distance Im getting used to it now",
-   "this time the lazy dog jumps over the quick brown fox",
-   "lets party arabic style",
-   "the democrats will lose the election",
-   "was an arizona ranger wouldnt be too long in town",
-   // "i am cold can you hear I will fly with no hope no fear",
-   "shall we play a game",
-   "see you later space cowboy",
-   "i sell propane and propane accessories",
-   "despite all my rage i am still just a rat in a cage",
-   "cowboy hat from gucci wrangler on my booty",
-   "wanna be a gun slinger dont be a rock singer",
-   "i program my home computer beam myself into the future",
- ];
-
+  const sentences = [
+    // "all you got to do is meet me at the apt apt apt apt",
+    // "i want your ugly I want your disease i want your everything as long as its free",
+    // "heartbreakers gonna break fakers gonna fake im just gonna shake",
+    // "in this world concrete flowers grow heartache she only doing what she know",
+    // "for some reason i cant explain i know saint peter wont call my name",
+    "its time to focus on life fah fah fah",
+    "can you speak to the part you are not all good with",
+    // "we have been investing in infrastructure to scale things",
+    "and I asked him do I look like I would know",
+    "mama just killed a man put a gun onto his head",
+    // "remember to let her into your heart and then you can start",
+    "somewhere over the rainbow bluebirds fly",
+    "your skin oh yeah your skin and bones",
+    "i have gotten older now I know how to take care",
+    "how come when I returned you were gone away",
+    // "i was losing my mind because the love the love the love wasted on a nice face",
+    "no way it was the last night that we break up",
+    // "the sound of gunfire off in the distance Im getting used to it now",
+    "this time the lazy dog jumps over the quick brown fox",
+    "lets party arabic style",
+    "the democrats will lose the election",
+    "was an arizona ranger wouldnt be too long in town",
+    // "i am cold can you hear I will fly with no hope no fear",
+    "shall we play a game",
+    "see you later space cowboy",
+    "i sell propane and propane accessories",
+    "despite all my rage i am still just a rat in a cage",
+    "cowboy hat from gucci wrangler on my booty",
+    "wanna be a gun slinger dont be a rock singer",
+    "i program my home computer beam myself into the future",
+  ];
 
   const sentenceToCodes = (sentence: string, type: string): number[] => {
     const reverseMapping = createReverseMapping(type);
@@ -753,7 +749,7 @@ useEffect(() => {
     const codes = sentence
       .toUpperCase()
       .split("")
-      .map(char => reverseMapping[char] ?? 0);
+      .map((char) => reverseMapping[char] ?? 0);
 
     // Hazard: assumes space is 1
     if (codes.length === 0 || codes[codes.length - 1] !== 1) {
@@ -762,7 +758,6 @@ useEffect(() => {
 
     return codes;
   };
-
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -873,7 +868,12 @@ useEffect(() => {
   );
 
   const isDotTouchingSide = useCallback(
-    (dotX: number, dotY: number, side: OctagonSide, cutoff = 0.11 * radiusOct) => {
+    (
+      dotX: number,
+      dotY: number,
+      side: OctagonSide,
+      cutoff = 0.11 * radiusOct,
+    ) => {
       if (inDiagnostics.current) {
         return;
       }
@@ -899,42 +899,40 @@ useEffect(() => {
     [],
   );
 
-  type Point = {x: number, y: number};
+  type Point = { x: number; y: number };
 
-  const isPointInPolygon = useCallback(
-    (point: Point, polygon: Point[]) => {
-      if (inDiagnostics.current) {
-        return;
-      }
+  const isPointInPolygon = useCallback((point: Point, polygon: Point[]) => {
+    if (inDiagnostics.current) {
+      return;
+    }
     const x = point.x;
     const y = point.y;
     let inside = false;
 
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x;
-        const yi = polygon[i].y;
-        const xj = polygon[j].x;
-        const yj = polygon[j].y;
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
 
-        if ((yi > y) !== (yj > y)) {
-            const intersectX = (xj - xi) * (y - yi) / (yj - yi) + xi;
-            if (x < intersectX) {
-                inside = !inside;
-            }
+      if (yi > y !== yj > y) {
+        const intersectX = ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+        if (x < intersectX) {
+          inside = !inside;
         }
+      }
     }
 
     return inside;
-
   }, []);
 
-const centerX = 800;
-const centerY = 600;
+  const centerX = 800;
+  const centerY = 600;
 
-const directions = 8; // Total directions
-const angleStep = (2 * Math.PI) / directions; // Angle between each direction
+  const directions = 8; // Total directions
+  const angleStep = (2 * Math.PI) / directions; // Angle between each direction
 
-const initialDistances = [100, 200]; // Initial distances from the center
+  const initialDistances = [100, 200]; // Initial distances from the center
 
   const predictedWord = useRef<String>();
 
@@ -949,14 +947,14 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
   const showTargets = useRef<boolean>(false);
   const lineStartPoints = [
-    { startX: 500, startY: 280 },  // Distance 100, Angle 0 degrees (East)
+    { startX: 500, startY: 280 }, // Distance 100, Angle 0 degrees (East)
     { startX: 500, startY: 180 }, // Distance 200, Angle 0 degrees (East)
     { startX: 1000, startY: 180 }, // Distance 100, Angle 45 degrees (NE)
     { startX: 1100, startY: 180 }, // Distance 200, Angle 45 degrees (NE)
   ];
 
   const lineEndPoints = [
-    { startX: 1100, startY: 280 },  // Distance 100, Angle 0 degrees (East)
+    { startX: 1100, startY: 280 }, // Distance 100, Angle 0 degrees (East)
     { startX: 1100, startY: 180 }, // Distance 200, Angle 0 degrees (East)
     { startX: 1000, startY: 780 }, // Distance 100, Angle 45 degrees (NE)
     { startX: 1100, startY: 780 }, // Distance 200, Angle 45 degrees (NE)
@@ -965,11 +963,15 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
   const velocityBelowThresholdStartTime = useRef<number>(0); // Track when velocity first goes below threshold
   const dwellTimeRequired = useRef<number>(60); // Time in milliseconds (1 second)
-  const fast = useRef<boolean>(false);``
+  const fast = useRef<boolean>(false);
+  ``;
   const fastThreshold = useRef<number>(300);
 
   const dotGameMode = useRef<boolean>(false);
-  const gameDotSequence = [5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4, 0, 2, 0, 5, 7]
+  const gameDotSequence = [
+    5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4,
+    0, 2, 0, 5, 7,
+  ];
   const indexGameDot = useRef<number>(0);
 
   const goodDotHits = useRef<number>(0);
@@ -982,9 +984,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
   const dotCcpm = useRef<number>();
   const snapBackMode = useRef<boolean>(false);
 
-
   const drawScene = useCallback(() => {
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -994,10 +994,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-
     //
-   // (1) DRAW THE OCTAGON AND SIDES
-   //
+    // (1) DRAW THE OCTAGON AND SIDES
+    //
 
     const centerX = 800;
     const centerY = 600;
@@ -1084,55 +1083,73 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
           let style: CanvasGradient | string | undefined;
 
-          const coordinates: Point [] = [
-            {x: startOffsetX, y: startOffsetY},
-            {x: endOffsetX, y: endOffsetY},
-            {x: innerOffsetEndX, y: innerOffsetEndY},
-            {x: innerOffsetStartX, y: innerOffsetStartY},
+          const coordinates: Point[] = [
+            { x: startOffsetX, y: startOffsetY },
+            { x: endOffsetX, y: endOffsetY },
+            { x: innerOffsetEndX, y: innerOffsetEndY },
+            { x: innerOffsetStartX, y: innerOffsetStartY },
           ];
 
-          if ((dwellClickMode.current) && Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < 100) {
-            touchingVelocity = isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates) || false;
+          if (
+            dwellClickMode.current &&
+            Math.abs(velocities.current?.final_velocity_x ?? 0) +
+              Math.abs(velocities.current?.final_velocity_y ?? 0) <
+              100
+          ) {
+            touchingVelocity =
+              isPointInPolygon(
+                { x: position.current.x, y: position.current.y },
+                coordinates,
+              ) || false;
           }
 
           let idx = i - 1;
-          if (isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates)) {
+          if (
+            isPointInPolygon(
+              { x: position.current.x, y: position.current.y },
+              coordinates,
+            )
+          ) {
+            if (dwellZoneRendering.current == DwellZoneRendering.Never) {
+              style = `rgba(0, 0, 0)`;
+            } else {
+              style = `rgba(0, 100, 0)`;
+            }
 
-              if (dwellZoneRendering.current == DwellZoneRendering.Never) {
-                style = `rgba(0, 0, 0)`;
-              } else {
-                style = `rgba(0, 100, 0)`;
-              }
-
-              if (!isInDwell.current[idx]) {
-                isInDwell.current[idx] = true;
-                setTimeout(() => {
-
-                  // HACK: set this bit & let the isTouching logic handle it.
-                  if (isInDwell.current[idx]) {
-                    handleDwellEnd.current[idx] = true;
-                  }
-                  isInDwell.current[idx] = false;
-                }, dwellDurationMs.current);
-              }
+            if (!isInDwell.current[idx]) {
+              isInDwell.current[idx] = true;
+              setTimeout(() => {
+                // HACK: set this bit & let the isTouching logic handle it.
+                if (isInDwell.current[idx]) {
+                  handleDwellEnd.current[idx] = true;
+                }
+                isInDwell.current[idx] = false;
+              }, dwellDurationMs.current);
+            }
           } else {
             isInDwell.current[idx] = false;
 
-            if (dwellZoneRendering.current == DwellZoneRendering.Visible && !inDiagnostics.current) {
+            if (
+              dwellZoneRendering.current == DwellZoneRendering.Visible &&
+              !inDiagnostics.current
+            ) {
               style = `rgba(0, 25, 0)`;
             } else {
               style = `rgba(0, 0, 0)`;
             }
-
           }
 
           if (
-            (dwellClickMode.current)
-            && (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current)) {
-            let touchingVelocity = isPointInPolygon(
-              {x: position.current.x, y: position.current.y},
-              coordinates
-            ) || false;
+            dwellClickMode.current &&
+            Math.abs(velocities.current?.final_velocity_x ?? 0) +
+              Math.abs(velocities.current?.final_velocity_y ?? 0) <
+              dwellClickThreshold.current
+          ) {
+            let touchingVelocity =
+              isPointInPolygon(
+                { x: position.current.x, y: position.current.y },
+                coordinates,
+              ) || false;
             if (touchingVelocity) {
               dwellClicked.current[idx] = true;
             }
@@ -1159,24 +1176,38 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
     ctx.fillStyle = "white";
 
-    if (inPractice.current && sentence.current !== undefined && indexSentence.current !== undefined) { //If in practice mode...
+    if (
+      inPractice.current &&
+      sentence.current !== undefined &&
+      indexSentence.current !== undefined
+    ) {
+      //If in practice mode...
       //display the current word being built
-      ctx.font = "69px Poppins"
+      ctx.font = "69px Poppins";
       ctx.fillStyle = "gray";
-      textWidth.current = ctx.measureText(sentence.current[indexSentence.current]).width;
+      textWidth.current = ctx.measureText(
+        sentence.current[indexSentence.current],
+      ).width;
       ctx.fillText(sentence.current[indexSentence.current], centerX, centerY);
 
       //display what has been typed so far
       ctx.textAlign = "left";
       ctx.fillStyle = "yellow";
-      ctx.fillText(sentence.current[indexSentence.current].substring(0,wordSubstringer.current), centerX - textWidth.current/2, centerY);
+      ctx.fillText(
+        sentence.current[indexSentence.current].substring(
+          0,
+          wordSubstringer.current,
+        ),
+        centerX - textWidth.current / 2,
+        centerY,
+      );
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
     }
 
-   //
-   // (2) CHECK COLLISIONS
-   //
+    //
+    // (2) CHECK COLLISIONS
+    //
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
@@ -1184,7 +1215,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
         isDotTouchingSide(position.current.x, position.current.y, side) ||
         isDotOutsideSide(position.current.x, position.current.y, side);
 
-      if (!dwellClickMode.current && handleDwellEnd.current[index] && isInDwell.current[index]) {
+      if (
+        !dwellClickMode.current &&
+        handleDwellEnd.current[index] &&
+        isInDwell.current[index]
+      ) {
         touching = true;
         handleDwellEnd.current[index] = false;
       }
@@ -1211,15 +1246,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
         // =========== Handle page-dependent interactions with buttons
         let startingPage = activePage.current;
         if (activePage.current === OctagonPage.Keyboard) {
-
           // Transistion keyboard -> home menu
           if (sideIndex == 3) {
             activePage.current = OctagonPage.Home;
           }
-
         } else if (activePage.current === OctagonPage.Home) {
-
-
           switch (sideIndex) {
             // Transistion home -> keyboard
             case 5:
@@ -1272,9 +1303,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
               }
               break;
           }
-
         } else if (activePage.current === OctagonPage.Settings) {
-
           switch (sideIndex) {
             // Transistion settings -> home
             case 3:
@@ -1303,7 +1332,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
         const pageChange = activePage.current != startingPage;
         console.log("PAGE CHANGE: " + pageChange);
 
-        if ( //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
+        if (
+          //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
           refCode.current &&
           indexRefCode.current !== undefined &&
           sideIndex !== refCode.current[indexRefCode.current]
@@ -1317,18 +1347,21 @@ const initialDistances = [100, 200]; // Initial distances from the center
             .play()
             .catch((error) => console.error("Error playing audio:", error));
           goodHits.current = (goodHits.current ?? 0) + 1;
-          if (inPractice.current && wordSubstringer.current !== undefined) { //If you are in practice mode, append the next character
+          if (inPractice.current && wordSubstringer.current !== undefined) {
+            //If you are in practice mode, append the next character
             wordSubstringer.current += 1;
+          }
         }
-      }
 
-        if ( //If not in Game/Practice mode OR (They are in Game/Practice mode AND hit the right side)
+        if (
+          //If not in Game/Practice mode OR (They are in Game/Practice mode AND hit the right side)
           indexRefCode.current === undefined ||
           (refCode.current &&
             indexRefCode.current !== undefined &&
             sideIndex === refCode.current[indexRefCode.current])
         ) {
-          if (indexRefCode.current !== undefined) { //if in Game/Practice mode, increase the Ref
+          if (indexRefCode.current !== undefined) {
+            //if in Game/Practice mode, increase the Ref
             indexRefCode.current += 1;
           }
           const codeChar = sideMappings[sideIndex];
@@ -1339,7 +1372,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
               sentence.current !== undefined &&
               indexSentence.current !== undefined
             ) {
-
               if (sentence.current[indexSentence.current]) {
                 theWords.current = [
                   ...theWords.current,
@@ -1358,12 +1390,19 @@ const initialDistances = [100, 200]; // Initial distances from the center
                   timerEnd.current - (timerStart.current ?? 0);
                 stopPracticeMode();
               }
-            } else if (!inLights.current && activePage.current == OctagonPage.Keyboard) {
+            } else if (
+              !inLights.current &&
+              activePage.current == OctagonPage.Keyboard
+            ) {
               finalizeCurrentWord();
             }
 
-          // Backspace: Only allow in keyboard mode
-          } else if (codeChar === "⌫" && activePage.current === OctagonPage.Keyboard && !pageChange) {
+            // Backspace: Only allow in keyboard mode
+          } else if (
+            codeChar === "⌫" &&
+            activePage.current === OctagonPage.Keyboard &&
+            !pageChange
+          ) {
             if (code.current) {
               console.log("trying to remove just the last letter");
               code.current = code.current.substring(0, code.current.length - 1);
@@ -1372,8 +1411,13 @@ const initialDistances = [100, 200]; // Initial distances from the center
               theCodes.current.pop();
             }
 
-          // Standard typing case: append code character
-          } else if (codeChar && !inLights.current && activePage.current == OctagonPage.Keyboard && !pageChange) {
+            // Standard typing case: append code character
+          } else if (
+            codeChar &&
+            !inLights.current &&
+            activePage.current == OctagonPage.Keyboard &&
+            !pageChange
+          ) {
             // Add digit to typedCodes
             code.current = code.current + codeChar;
             console.log(code.current);
@@ -1388,7 +1432,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
         }, 50);
         cursorTrail.current.fill(null);
 
-      // No collision
+        // No collision
       } else if (
         !inPractice.current &&
         refCode.current &&
@@ -1397,36 +1441,34 @@ const initialDistances = [100, 200]; // Initial distances from the center
       ) {
         //when not touching and in Game mode
         ctx.fillStyle = "yellow";
-        ctx.font = '127px Arial'
+        ctx.font = "127px Arial";
         switch (refCode.current[indexRefCode.current]) {
-          case 1 :
+          case 1:
             ctx.fillText("→", centerX, centerY);
             break;
-          case 2 :
+          case 2:
             ctx.fillText("↘", centerX, centerY);
             break;
-          case 3 :
+          case 3:
             ctx.fillText("↓", centerX, centerY);
             break;
-          case 4 :
+          case 4:
             ctx.fillText("↙", centerX, centerY);
             break;
-          case 5 :
+          case 5:
             ctx.fillText("←", centerX, centerY);
             break;
-          case 6 :
+          case 6:
             ctx.fillText("↖", centerX, centerY);
             break;
-          case 7 :
+          case 7:
             ctx.fillText("↑", centerX, centerY);
             break;
-          case 8 :
+          case 8:
             ctx.fillText("↗", centerX, centerY);
             break;
         }
         ctx.fillStyle = "white";
-
-
       } else {
         if (activeSide.current === sideIndex) {
           ctx.strokeStyle = "white";
@@ -1436,7 +1478,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
           } else {
             ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
           }
-
         }
       }
       ctx.lineWidth = 14;
@@ -1455,11 +1496,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
     if (inDiagnostics.current) {
       ctx.fillStyle = "black";
-
     } else {
       ctx.fillStyle = "white";
     }
-
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
@@ -1484,12 +1523,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
           ? "bold 69px Poppins, sans-serif"
           : "bold 50px Poppins, sans-serif";
 
-    if (inDiagnostics.current) {
-      ctx.fillStyle = "black";
-
-    } else {
-      ctx.fillStyle = "white";
-    }
+      if (inDiagnostics.current) {
+        ctx.fillStyle = "black";
+      } else {
+        ctx.fillStyle = "white";
+      }
 
       if (
         !inPractice.current &&
@@ -1522,9 +1560,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
       }
     });
 
-   //
-   // 4) Draw Dot
-   //
+    //
+    // 4) Draw Dot
+    //
     if (!dataReady.current) {
       ctx.fillStyle = "orange";
     } else {
@@ -1551,7 +1589,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
         ctx.fill();
       });
 
-      cursorTrail.current.push({x: curX, y: curY});
+      cursorTrail.current.push({ x: curX, y: curY });
       if (cursorTrail.current.length > maxTrail) cursorTrail.current.shift();
     }
 
@@ -1584,7 +1622,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
         );
         let n_suggest = 0;
         let i = 0;
-        while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+        while (
+          n_suggest < Math.min(suggestions.length, 3) &&
+          i < suggestions.length
+        ) {
           if (suggestions[i] === lastWord) {
             i += 1;
             continue;
@@ -1596,9 +1637,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
         }
       }
 
-    // } else if (code.current.length === 1 && !inPractice.current) {
-    //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
-
+      // } else if (code.current.length === 1 && !inPractice.current) {
+      //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
     } else {
       if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
@@ -1612,7 +1652,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           // Color the known part of the word with standard styling
           if (i < place) {
             ctx.fillStyle = "white";
-          // Use a gray styling for anything that remains.
+            // Use a gray styling for anything that remains.
           } else {
             ctx.fillStyle = "gray";
           }
@@ -1639,7 +1679,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
           );
           let n_suggest = 0;
           let i = 0;
-          while (n_suggest < Math.min(suggestions.length, 3) && i < suggestions.length) {
+          while (
+            n_suggest < Math.min(suggestions.length, 3) &&
+            i < suggestions.length
+          ) {
             if (suggestions[i] === bestWord) {
               i += 1;
               continue;
@@ -1664,12 +1707,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
       ctx.font = "69px Poppins";
       ctx.fillStyle = "lightgreen"; // Set the text color
       ctx.textAlign = "center"; // Align the text to the left
-      ccpm.current = ((((goodHits.current ?? 0) - 1) / (timeLength.current ?? 1)) * 60000);
-      ctx.fillText(
-        `${ccpm.current.toFixed(2)} CCPM`,
-        centerX,
-        centerY + 200,
-      );
+      ccpm.current =
+        (((goodHits.current ?? 0) - 1) / (timeLength.current ?? 1)) * 60000;
+      ctx.fillText(`${ccpm.current.toFixed(2)} CCPM`, centerX, centerY + 200);
 
       // Calculate accuracy percentage
       const totalHits = (goodHits.current ?? 0) + (badHits.current ?? 0);
@@ -1694,10 +1734,14 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
       ctx.font = "11px Poppins"; // Smaller font size
 
-
-      const exists = leederboredVals.current.some(entry => entry.ccpm === ccpm.current)
+      const exists = leederboredVals.current.some(
+        (entry) => entry.ccpm === ccpm.current,
+      );
       if (!exists) {
-        leederboredVals.current.push({player: "borg", ccpm: ccpm.current ?? 0})
+        leederboredVals.current.push({
+          player: "borg",
+          ccpm: ccpm.current ?? 0,
+        });
       }
 
       inGameMode.current = false;
@@ -1710,9 +1754,15 @@ const initialDistances = [100, 200]; // Initial distances from the center
     if (showTargets.current) {
       //show the target
       ctx.beginPath();
-      ctx.moveTo(lineEndPoints[targetIndex.current].startX, lineEndPoints[targetIndex.current].startY); // Starting from the center
-      ctx.lineTo(lineStartPoints[targetIndex.current].startX, lineStartPoints[targetIndex.current].startY); // Line to the zeroth index
-      ctx.strokeStyle = 'blue'; // Set the line color to blue
+      ctx.moveTo(
+        lineEndPoints[targetIndex.current].startX,
+        lineEndPoints[targetIndex.current].startY,
+      ); // Starting from the center
+      ctx.lineTo(
+        lineStartPoints[targetIndex.current].startX,
+        lineStartPoints[targetIndex.current].startY,
+      ); // Line to the zeroth index
+      ctx.strokeStyle = "blue"; // Set the line color to blue
       ctx.lineWidth = 14; // Set the line width to be thin
       ctx.stroke(); // Actually draw the line on the canvas
     }
@@ -1721,143 +1771,170 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
     if (inDiagnostics.current) {
       let coordinatesTargets = [
-        {x: 3/10, y: 1/2 - 4/15},
-        {x: 1/2, y: 1/2 - 4/15},
-        {x: 7/10, y: 1/2 - 4/15},
-        {x: 3/10, y: 1/2},
-        {x: 7/10, y: 1/2},
-        {x: 3/10, y: 1/2 + 4/15},
-        {x: 1/2, y: 1/2 + 4/15},
-        {x: 7/10, y: 1/2 + 4/15},
-       ];
-  
-       let scaledCoordinates = coordinatesTargets.map(coord => {
+        { x: 3 / 10, y: 1 / 2 - 4 / 15 },
+        { x: 1 / 2, y: 1 / 2 - 4 / 15 },
+        { x: 7 / 10, y: 1 / 2 - 4 / 15 },
+        { x: 3 / 10, y: 1 / 2 },
+        { x: 7 / 10, y: 1 / 2 },
+        { x: 3 / 10, y: 1 / 2 + 4 / 15 },
+        { x: 1 / 2, y: 1 / 2 + 4 / 15 },
+        { x: 7 / 10, y: 1 / 2 + 4 / 15 },
+      ];
+
+      let scaledCoordinates = coordinatesTargets.map((coord) => {
         return {
           x: coord.x * canvas.width,
-          y: coord.y * canvas.height
+          y: coord.y * canvas.height,
         };
       });
 
       for (let i = 0; i < coordinatesTargets.length; i++) {
         ctx.beginPath();
-        if (dotGameMode.current && i === gameDotSequence[indexGameDot.current]) {
+        if (
+          dotGameMode.current &&
+          i === gameDotSequence[indexGameDot.current]
+        ) {
           ctx.fillStyle = "yellow";
         } else {
           ctx.fillStyle = "#812dfa";
         }
-        
+
         ctx.globalAlpha = 0.56;
-        ctx.arc(scaledCoordinates[i].x, scaledCoordinates[i].y, 22, 0, 2 * Math.PI);
+        ctx.arc(
+          scaledCoordinates[i].x,
+          scaledCoordinates[i].y,
+          22,
+          0,
+          2 * Math.PI,
+        );
         ctx.fill();
         ctx.globalAlpha = 1;
       }
-      if ((Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) && 
-          (position.current.x < centerX - 120 ||
+      if (
+        Math.abs(velocities.current?.final_velocity_x ?? 0) +
+          Math.abs(velocities.current?.final_velocity_y ?? 0) <
+          dwellClickThreshold.current &&
+        (position.current.x < centerX - 120 ||
           position.current.x > centerX + 120 ||
           position.current.y < centerY - 120 ||
           position.current.y > centerY + 120)
-        ) {
+      ) {
         if (velocityBelowThresholdStartTime.current === 0) {
           // Start timing if it's the first time below threshold
           velocityBelowThresholdStartTime.current = Date.now();
         } else {
           // Check if it has been below threshold for the required dwell time
-          const timeBelowThreshold = Date.now() - velocityBelowThresholdStartTime.current;
-          if (timeBelowThreshold >= dwellTimeRequired.current  && fast.current) {
+          const timeBelowThreshold =
+            Date.now() - velocityBelowThresholdStartTime.current;
+          if (timeBelowThreshold >= dwellTimeRequired.current && fast.current) {
             console.log("We reached low velocities");
-            
+
             fast.current = false;
             let hitCircleIndex = findClosestCircle();
-            
+
             if (!dotGameMode.current) {
               new Audio("click.mp3")
                 .play()
                 .catch((error) => console.error("Error playing audio:", error));
-                
-                if (snapBackMode.current) {
-                  position.current = {x: centerX, y: centerY};
-                }
-            
+
+              if (snapBackMode.current) {
+                position.current = { x: centerX, y: centerY };
+              }
             } else if (dotGameMode.current) {
               if (hitCircleIndex === gameDotSequence[indexGameDot.current]) {
                 goodDotHits.current++;
-                
-                if (timerDotStart.current === undefined) { //start timer
-                  timerDotStart.current = performance.now();
-                } else if (indexGameDot.current === gameDotSequence.length-1) { //terminate game and display metrics
-                  timeDotLength.current = performance.now() - timerDotStart.current;
-                  dotCcpm.current = (goodDotHits.current)/(timeDotLength.current) * 60000;
-                  accuracy.current = (goodDotHits.current)/(goodDotHits.current + badDotHits.current) * 100;
 
+                if (timerDotStart.current === undefined) {
+                  //start timer
+                  timerDotStart.current = performance.now();
+                } else if (
+                  indexGameDot.current ===
+                  gameDotSequence.length - 1
+                ) {
+                  //terminate game and display metrics
+                  timeDotLength.current =
+                    performance.now() - timerDotStart.current;
+                  dotCcpm.current =
+                    (goodDotHits.current / timeDotLength.current) * 60000;
+                  accuracy.current =
+                    (goodDotHits.current /
+                      (goodDotHits.current + badDotHits.current)) *
+                    100;
                 }
-                
+
                 new Audio("coin2.mp3")
                   .play()
-                  .catch((error) => console.error("Error playing audio:", error));
+                  .catch((error) =>
+                    console.error("Error playing audio:", error),
+                  );
                 indexGameDot.current++;
 
                 //terminate the game
                 if (indexGameDot.current === gameDotSequence.length) {
-
                 }
               } else {
                 badDotHits.current++;
                 new Audio("erro.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
+                  .play()
+                  .catch((error) =>
+                    console.error("Error playing audio:", error),
+                  );
               }
               if (snapBackMode.current) {
-                position.current = {x: centerX, y: centerY};
+                position.current = { x: centerX, y: centerY };
               }
             }
             ctx.beginPath();
-            ctx.arc(coordinatesTargets[hitCircleIndex].x * canvas.width, coordinatesTargets[hitCircleIndex].y * canvas.height, 99, 0, 2 * Math.PI);
+            ctx.arc(
+              coordinatesTargets[hitCircleIndex].x * canvas.width,
+              coordinatesTargets[hitCircleIndex].y * canvas.height,
+              99,
+              0,
+              2 * Math.PI,
+            );
             ctx.fill();
             // Reset the start time
             velocityBelowThresholdStartTime.current = 0;
-
           }
         }
-  } else {
-    // Reset if velocity goes above threshold
-    if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) > fastThreshold.current) {
-      fast.current = true;
-    }
-    velocityBelowThresholdStartTime.current = 0;
-  }
-  if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
-    ctx.font = "69px Poppins"; // Smaller font size
-    ctx.fillStyle = "lightgreen"; // Text color
-    ctx.fillText(
-      `${dotCcpm.current.toFixed(2)} DPM`,
-      centerX,
-      centerY,
-    );
-    ctx.font = "32px Poppins"; // Smaller font size
-    ctx.fillStyle = "white"; // Text color
-    ctx.fillText(
-      `${accuracy.current.toFixed(2)}%`,
-      centerX,
-      centerY + 200,
-    );
-  }
-  
-      
+      } else {
+        // Reset if velocity goes above threshold
+        if (
+          Math.abs(velocities.current?.final_velocity_x ?? 0) +
+            Math.abs(velocities.current?.final_velocity_y ?? 0) >
+          fastThreshold.current
+        ) {
+          fast.current = true;
+        }
+        velocityBelowThresholdStartTime.current = 0;
+      }
+      if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
+        ctx.font = "69px Poppins"; // Smaller font size
+        ctx.fillStyle = "lightgreen"; // Text color
+        ctx.fillText(`${dotCcpm.current.toFixed(2)} DPM`, centerX, centerY);
+        ctx.font = "32px Poppins"; // Smaller font size
+        ctx.fillStyle = "white"; // Text color
+        ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 200);
+      }
+
       function findClosestCircle() {
         // Initialize variables within the function's scope
         let closestIndex = -1;
         let smallestDistance = Infinity;
-      
+
         for (let i = 0; i < coordinatesTargets.length; i++) {
           let target = scaledCoordinates[i];
-          let distance = Math.sqrt(Math.pow(target.x - position.current.x, 2) + Math.pow(target.y - position.current.y, 2));
-      
+          let distance = Math.sqrt(
+            Math.pow(target.x - position.current.x, 2) +
+              Math.pow(target.y - position.current.y, 2),
+          );
+
           if (distance < smallestDistance) {
             smallestDistance = distance;
             closestIndex = i;
           }
         }
-      
+
         return closestIndex;
       }
     }
@@ -1868,7 +1945,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     finalizeCurrentWord,
     sideMappings,
     sideLabels,
-    code
+    code,
   ]);
 
   //Leaderboard jawns
@@ -1878,15 +1955,14 @@ const initialDistances = [100, 200]; // Initial distances from the center
     ccpm: number;
   }
   const leederboredVals = useRef<LeaderboardEntry[]>([
-    {player: "easy E", ccpm: 52.02},
-    {player: "little B", ccpm: 55.69},
-    {player: "nata C", ccpm: 66.22}
+    { player: "easy E", ccpm: 52.02 },
+    { player: "little B", ccpm: 55.69 },
+    { player: "nata C", ccpm: 66.22 },
   ]);
 
   const sortedLeaderboard = leederboredVals.current
     .slice() // Create a shallow copy to avoid mutating the original
     .sort((a, b) => b.ccpm - a.ccpm); // Sort in descending order based on CCPM
-
 
   // Animate
   useEffect(() => {
@@ -1924,7 +2000,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     "-NuX79Ud8zI",
     "CHXfuGXM1Gg",
     "eyI635o2pmk",
-  ]
+  ];
   const randomyt = useRef<string>();
 
   //
@@ -1974,37 +2050,44 @@ const initialDistances = [100, 200]; // Initial distances from the center
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-
       </div>
-          {/* Leaderboard Section */}
-    <div
-      style={{
-        position: "fixed",
-        bottom: "100px", // Adjust the distance from the bottom as needed
-        left: "20px",
-        backgroundColor: "rgba(0, 42, 0, 0.7)",
-        padding: "20px",
-        color: "white",
-        zIndex: 999,
-      }}
-    >
-      <h3 style={{ margin: 0, fontSize: 44 }}>Leaderboard</h3>
-      <div style={{ display: "flex", gap: "23px" }}>
-        <div>
-        {sortedLeaderboard.map((_, index) => (
-              <div key={index} style={{ fontSize: '23px' }}>#{index + 1}</div>
-            ))}        </div>
-        <div>
-          {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: '23px' }}>{entry.player}</div>
+      {/* Leaderboard Section */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: "100px", // Adjust the distance from the bottom as needed
+          left: "20px",
+          backgroundColor: "rgba(0, 42, 0, 0.7)",
+          padding: "20px",
+          color: "white",
+          zIndex: 999,
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: 44 }}>Leaderboard</h3>
+        <div style={{ display: "flex", gap: "23px" }}>
+          <div>
+            {sortedLeaderboard.map((_, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                #{index + 1}
+              </div>
+            ))}{" "}
+          </div>
+          <div>
+            {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                {entry.player}
+              </div>
             ))}
+          </div>
+          <div>
+            {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                {Math.round(entry.ccpm) + " CPM"}
+              </div>
+            ))}{" "}
+          </div>
         </div>
-        <div>
-        {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: '23px' }}>{Math.round(entry.ccpm) + " CPM"}</div>
-            ))}        </div>
       </div>
-    </div>
       <div
         style={{
           position: "fixed",
@@ -2115,7 +2198,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
       >
         <button
           onClick={() => {
-              renderCursorTrail.current = !renderCursorTrail.current;
+            renderCursorTrail.current = !renderCursorTrail.current;
           }}
           style={{
             backgroundColor: "#555555", // Off-black button background
@@ -2132,7 +2215,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
         <button
           onClick={() => {
-              dwellClickMode.current = !dwellClickMode.current;
+            dwellClickMode.current = !dwellClickMode.current;
           }}
           style={{
             backgroundColor: "#555555", // Off-black button background
@@ -2181,7 +2264,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
           max={radiusOct}
           step="5"
           value={dwellZoneRadius.current}
-          onChange={(e) => (dwellZoneRadius.current = parseFloat(e.target.value))}
+          onChange={(e) =>
+            (dwellZoneRadius.current = parseFloat(e.target.value))
+          }
           style={{
             width: "150px",
             appearance: "none", // Removes default slider styles
@@ -2199,7 +2284,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
           max={5000}
           step="50"
           value={dwellDurationMs.current}
-          onChange={(e) => (dwellDurationMs.current = parseFloat(e.target.value))}
+          onChange={(e) =>
+            (dwellDurationMs.current = parseFloat(e.target.value))
+          }
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles
@@ -2216,7 +2303,9 @@ const initialDistances = [100, 200]; // Initial distances from the center
           max={300}
           step="25"
           value={dwellClickThreshold.current}
-          onChange={(e) => (dwellClickThreshold.current = parseFloat(e.target.value))}
+          onChange={(e) =>
+            (dwellClickThreshold.current = parseFloat(e.target.value))
+          }
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles
@@ -2226,15 +2315,16 @@ const initialDistances = [100, 200]; // Initial distances from the center
           }}
         />
 
-      
-      <input
+        <input
           id="dwell-click-threshold"
           type="number"
           min={0}
           max={300}
           step="15"
           value={dwellTimeRequired.current}
-          onChange={(e) => (dwellTimeRequired.current = parseFloat(e.target.value))}
+          onChange={(e) =>
+            (dwellTimeRequired.current = parseFloat(e.target.value))
+          }
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles
@@ -2244,7 +2334,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           }}
         />
 
-      <input
+        <input
           id="dwell-click-threshold"
           type="number"
           min={0}
@@ -2260,7 +2350,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
             outline: "none", // Removes outline on focus
           }}
         />
-
       </div>
 
       {/* Speed Slider */}
@@ -2292,17 +2381,17 @@ const initialDistances = [100, 200]; // Initial distances from the center
           onChange={(e) => (speed.current = parseFloat(e.target.value))}
           style={{ width: "150px" }}
         />
-      {/* Display Velocity Values */}
-      <div
-        style={{
-          fontSize: "12px",
-          color: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for discreet display
-          marginBottom: "5px",
-        }}
-      >
-                Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)},
-                Vy: {(velocities.current?.final_velocity_y ?? 0).toFixed(2)}
-      </div>
+        {/* Display Velocity Values */}
+        <div
+          style={{
+            fontSize: "12px",
+            color: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for discreet display
+            marginBottom: "5px",
+          }}
+        >
+          Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)}, Vy:{" "}
+          {(velocities.current?.final_velocity_y ?? 0).toFixed(2)}
+        </div>
         {/* Discrete tally below speed slider */}
         <div
           style={{
@@ -2351,20 +2440,20 @@ const initialDistances = [100, 200]; // Initial distances from the center
               Diagnostics
             </button>
             <button
-             onClick={() => {
-              inDiagnostics.current = !inDiagnostics.current;
-            }}
-             style={{
-               backgroundColor: "#555555", // Off-black button background
-               color: "white", // White text
-               border: "none",
-               borderRadius: "5px",
-               padding: "5px 10px",
-               cursor: "pointer",
-             }}
-           >
-             D
-           </button>
+              onClick={() => {
+                inDiagnostics.current = !inDiagnostics.current;
+              }}
+              style={{
+                backgroundColor: "#555555", // Off-black button background
+                color: "white", // White text
+                border: "none",
+                borderRadius: "5px",
+                padding: "5px 10px",
+                cursor: "pointer",
+              }}
+            >
+              D
+            </button>
           </div>
 
           <style>
@@ -2423,10 +2512,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
         style={{
           border: "1px dotted purple",
           marginTop: "100px", // Adjust this value as needed
-          position: "relative",  // Add this
+          position: "relative", // Add this
           // zIndex: 2000,         // Higher than video overlay
-          opacity: 1,            // Ensure canvas is fully opaque
-          pointerEvents: systemCursorEnabled ? "auto": "none",
+          opacity: 1, // Ensure canvas is fully opaque
+          pointerEvents: systemCursorEnabled ? "auto" : "none",
           zIndex: 0,
         }}
       />
@@ -2452,77 +2541,80 @@ const initialDistances = [100, 200]; // Initial distances from the center
         {isLocked ? "🔒" : "🔓"}
       </div>
 
-{/* New Buttons Row */}
-<div
-          style={{
-            display: "flex",
-            flexDirection: "row", // Align buttons horizontally
-            gap: "10px", // Space between buttons
-          }}
-        >
-          {[...Array(5)].map((_, index) => (
-            <button
-              key={index}
-              style={{
-                width: "50px",
-                height: "50px",
-                backgroundColor: "black", // Black background
-                border: "2px solid white",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                switch (index) {
-                  case 0:
-                    // Action for the first button
-                    showCursor.current = !showCursor.current;
-                    console.log(`Cursor is now ${showCursor.current ? 'On' : 'Off'}`);
-                    break;
-                  case 1:
-                    // Action for the second button
-                    lockCursor.current = true;
-                    console.log("clicked second button");
-                    break;
-                  case 2:
-                    showTargets.current = true;
-                    lockCursor.current = false;
+      {/* New Buttons Row */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row", // Align buttons horizontally
+          gap: "10px", // Space between buttons
+        }}
+      >
+        {[...Array(5)].map((_, index) => (
+          <button
+            key={index}
+            style={{
+              width: "50px",
+              height: "50px",
+              backgroundColor: "black", // Black background
+              border: "2px solid white",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              switch (index) {
+                case 0:
+                  // Action for the first button
+                  showCursor.current = !showCursor.current;
+                  console.log(
+                    `Cursor is now ${showCursor.current ? "On" : "Off"}`,
+                  );
+                  break;
+                case 1:
+                  // Action for the second button
+                  lockCursor.current = true;
+                  console.log("clicked second button");
+                  break;
+                case 2:
+                  showTargets.current = true;
+                  lockCursor.current = false;
 
-                    // Increment the target index and wrap around if needed
-                    targetIndex.current++;
-                    targetIndex.current = (targetIndex.current) % lineStartPoints.length;
+                  // Increment the target index and wrap around if needed
+                  targetIndex.current++;
+                  targetIndex.current =
+                    targetIndex.current % lineStartPoints.length;
 
-                    break;
-                  case 3:
-                    // Action for the fourth button
-                    inDiagnostics.current = true;
-                    dotGameMode.current = true;
-                    indexGameDot.current = 0;
+                  break;
+                case 3:
+                  // Action for the fourth button
+                  inDiagnostics.current = true;
+                  dotGameMode.current = true;
+                  indexGameDot.current = 0;
 
-                    goodDotHits.current = 0;
-                    badDotHits.current = 0;
-                    accuracy.current = undefined;
+                  goodDotHits.current = 0;
+                  badDotHits.current = 0;
+                  accuracy.current = undefined;
 
-                    timerDotStart.current = undefined;
-                    timerDotStart.current = undefined;
-                    timeDotLength.current = undefined;
+                  timerDotStart.current = undefined;
+                  timerDotStart.current = undefined;
+                  timeDotLength.current = undefined;
 
-                    dotCcpm.current = undefined;
+                  dotCcpm.current = undefined;
 
-                    break;
+                  break;
 
-                    case 4:
-                      // Action for the fourth button
-                      snapBackMode.current = !snapBackMode.current;
-  
-                      break;
-                  default:
-                    break;
-                }
-              }}
-            ></button>
-          ))}
-        </div>
-        </div>
+                case 4:
+                  // Action for the fourth button
+                  snapBackMode.current = !snapBackMode.current;
+
+                  break;
+                default:
+                  break;
+              }
+            }}
+          ></button>
+        ))}
+      </div>
+    </div>
   );
 };
 

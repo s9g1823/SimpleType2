@@ -108,7 +108,6 @@ export default class ZmqClient {
     if (this.requester !== null) {
       this.requester.close();
     }
-
   }
 
   #subscribe(): void {

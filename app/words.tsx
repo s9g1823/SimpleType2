@@ -69,7 +69,6 @@ export function getRankedMatches(
   precomputed: Record<string, string[]>,
   useTree: boolean,
 ): string[] {
-
   let possibleWords = [];
   if (useTree) {
     possibleWords =
@@ -77,7 +76,7 @@ export function getRankedMatches(
         ? precomputed[code]
         : orderByMostFrequent(allWords(getSubtree(code, tree), ""), freq);
   } else {
-      possibleWords = orderByMostFrequent(allWordsForCode(tree, code), freq);
+    possibleWords = orderByMostFrequent(allWordsForCode(tree, code), freq);
   }
 
   if (!context.length) {
@@ -87,7 +86,11 @@ export function getRankedMatches(
 
   console.log("Context is: " + context.slice(-2));
   // Take last 2 context words to use from the back since this is a trigram.
-  const contextString = context.slice(-2).map(word => word.toLowerCase()).join(" ") + " ";
+  const contextString =
+    context
+      .slice(-2)
+      .map((word) => word.toLowerCase())
+      .join(" ") + " ";
 
   const matchingTrigrams: Array<[string, number]> = [];
   for (const key in ngrams) {
@@ -125,17 +128,21 @@ export function getRankedMatches(
 
   // console.log("High ranked choices are: ", choices);
   // console.log("Other words are: ", additionalWords);
-  return choices.length === 0 ? [...new Set(additionalWords)]
-      : [choices[0], ...new Set([...additionalWords, ...choices.slice(1)])];
+  return choices.length === 0
+    ? [...new Set(additionalWords)]
+    : [choices[0], ...new Set([...additionalWords, ...choices.slice(1)])];
 }
 
-export async function pickWordViaGPT(candidatesFiltered: string[], daWords: string[]): Promise<string> {
-    console.log("GPT is running with candidates: " + candidatesFiltered);
-    console.log("GPT is running with the words: " + daWords);
-    if (!candidatesFiltered || candidatesFiltered.length === 0) {
-      return "";
-    }
-    const prompt = `
+export async function pickWordViaGPT(
+  candidatesFiltered: string[],
+  daWords: string[],
+): Promise<string> {
+  console.log("GPT is running with candidates: " + candidatesFiltered);
+  console.log("GPT is running with the words: " + daWords);
+  if (!candidatesFiltered || candidatesFiltered.length === 0) {
+    return "";
+  }
+  const prompt = `
      Someone is typing a sentence very slowly. You want to guess the next word.
 
      Here are the words in the sentence so far:
@@ -149,34 +156,33 @@ export async function pickWordViaGPT(candidatesFiltered: string[], daWords: stri
      Only write the top 5 words, one on each line.
     `.trim();
 
-    console.log(prompt);
-    try {
-      const response = await axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: "gpt-3.5-turbo",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 30,
-          temperature: 0.3,
+  console.log(prompt);
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 30,
+        temperature: 0.3,
+      },
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+          "Content-Type": "application/json",
         },
-        {
-          headers: {
-            Authorization: "Bearer " + process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      console.log(
-        "GPT picked word: " + response.data.choices[0].message.content.trim(),
-      );
-      // return response.data.choices[0].message.content.trim();
-      const outputText = response.data.choices[0].message.content.trim();
-      const top5Predictions = outputText.split("\n").slice(0, 5);
+      },
+    );
+    console.log(
+      "GPT picked word: " + response.data.choices[0].message.content.trim(),
+    );
+    // return response.data.choices[0].message.content.trim();
+    const outputText = response.data.choices[0].message.content.trim();
+    const top5Predictions = outputText.split("\n").slice(0, 5);
 
-      return top5Predictions;
-
-    } catch (error) {
-      console.log("GPT didn't work for some random reason" + error);
-      return candidatesFiltered[0];
-    }
+    return top5Predictions;
+  } catch (error) {
+    console.log("GPT didn't work for some random reason" + error);
+    return candidatesFiltered[0];
+  }
 }
