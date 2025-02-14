@@ -108,6 +108,10 @@ const PointerLockDemo: React.FC = () => {
 
   useEffect(() => {
     function handleDecodeData(data: DecodePacket) {
+      if (systemCursorEnabled) {
+        return;
+      }
+
       velocities.current = data;
       //console.log('Received velocity data:', data);
 
@@ -161,7 +165,8 @@ const PointerLockDemo: React.FC = () => {
     return () => {
       zmqService.current.events.off(ZmqClient.EVENT_MESSAGE, handleDecodeData);
     };
-  }, [velocities.current]);
+  // }, [velocities.current]);
+  }, []);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -807,21 +812,22 @@ useEffect(() => {
     // console.log("running handleMouseMove()");
     if (systemCursorEnabled) {
       if (!refractory.current) {
-        if (!velocities.current) {
-          // console.log("good");
-          const newX = position.current.x + e.movementX * speed.current;
-          const newY = position.current.y + e.movementY * speed.current;
-          // console.log(newX);
-          position.current = { x: newX, y: newY };
-        } else {
-          const newX =
-            position.current.x +
-            velocities.current.final_velocity_x * speed.current * 0.01;
-          const newY =
-            position.current.y +
-            velocities.current.final_velocity_y * speed.current * 0.01;
-          return { x: newX, y: newY };
-        }
+
+        velocities.current = {
+          final_velocity_x: e.movementX,
+          final_velocity_y: e.movementY,
+        };
+
+        console.log("Speed " + e.movementX + " " + e.movementY);
+
+        const newX =
+          position.current.x +
+          velocities.current.final_velocity_x * speed.current;
+        const newY =
+          position.current.y +
+          velocities.current.final_velocity_y * speed.current;
+
+        position.current = { x: newX, y: newY };
       } else {
         setTimeout(() => {
           refractory.current = false;
@@ -1769,6 +1775,13 @@ useEffect(() => {
 
     setOctagonSides(newSides);
 
+    //
+    // =====================================================================
+    //
+    //        ~ * ` * ~ Magic keys ~ * ` * ~
+    //
+    // =====================================================================
+    //
     if (inDiagnostics.current) {
       let coordinatesTargets = [
         { x: 3 / 10, y: 1 / 2 - 4 / 15 },
