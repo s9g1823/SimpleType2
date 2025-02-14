@@ -439,7 +439,8 @@ const PointerLockDemo: React.FC = () => {
     dirtyWords.current = [];
     code.current = "";
 
-    isPlaying.current = true;
+    // isPlaying.current = true;
+    isPlaying.current = false;
     setVideoOpacity(0);
 
     console.log("runs");
@@ -2164,7 +2165,7 @@ useEffect(() => {
   const [videoOpacity, setVideoOpacity] = useState(0);
   //useless edit
 
-  const isPlaying = useRef<boolean>(true);
+  const isPlaying = useRef<boolean>(false);
   const yts = [
     "ekr2nIex040",
     "VCTOpdlZJ8U",
