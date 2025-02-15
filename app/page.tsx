@@ -1627,7 +1627,7 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 11;
+    const cursorSize = showCursor.current ? 0 : 35;
 
     const curX = lockCursor.current ? centerX : position.current.x;
     const curY = lockCursor.current ? centerY : position.current.y;
