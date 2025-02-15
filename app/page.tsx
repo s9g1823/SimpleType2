@@ -423,8 +423,8 @@ const PointerLockDemo: React.FC = () => {
 
     let rng = Math.floor(Math.random() * sentences.length);
 
-    refCode.current = sentenceToCodes(sentences[rng], dictionaryType);
-    sentence.current = sentences[rng].split(" ");
+    refCode.current = [2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1, 3, 3, 8, 1, 1, 5]
+    sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
     //calculations
     goodHits.current = 0;
@@ -439,13 +439,10 @@ const PointerLockDemo: React.FC = () => {
     dirtyWords.current = [];
     code.current = "";
 
-    isPlaying.current = true;
+    isPlaying.current = false;
     setVideoOpacity(0);
 
     console.log("runs");
-    theCodes.current = [];
-    theWords.current = [];
-    code.current = "";
 
     inPractice.current = true;
     indexRefCode.current = 0;
@@ -456,14 +453,18 @@ const PointerLockDemo: React.FC = () => {
 
     randomyt.current = yts[rng2];
 
-    refCode.current = sentenceToCodes(sentences[rng2], dictionaryType);
-    sentence.current = sentences[rng2].split(" ");
+    refCode.current = [2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1, 3, 3, 8, 1, 1, 5]
+    sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
     //calculations
     goodHits.current = 0;
     badHits.current = 0;
 
     timerStart.current = performance.now();
+
+    //debug
+    console.log("index ref code: " + indexRefCode.current);
+    console.log("ref code: " + refCode.current);
   };
 
   const stopPracticeMode = (): void => {
@@ -992,7 +993,7 @@ useEffect(() => {
   const fast = useRef<boolean>(false);
   ``;
   // const fastThreshold = useRef<number>(300);
-  const fastThreshold = useRef<number>(30);
+  const fastThreshold = useRef<number>(3);
 
   const dotGameMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -1015,6 +1016,8 @@ useEffect(() => {
   const activeKeyIdx = useRef<number | null>(null);
   const activeKeySelectors = useRef<KeySelector[] | null>(null);
   const magicText = useRef<string>("▌");
+
+  const inDotPractice = useRef<boolean>(false);
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1225,6 +1228,12 @@ useEffect(() => {
       //display what has been typed so far
       ctx.textAlign = "left";
       ctx.fillStyle = "yellow";
+
+      if (
+        sentence.current !== undefined &&
+        indexSentence.current !== undefined &&
+        wordSubstringer.current !== 0
+      )
       ctx.fillText(
         sentence.current[indexSentence.current].substring(
           0,
@@ -1808,7 +1817,7 @@ useEffect(() => {
     //
     // =====================================================================
     //
-    if (inDiagnostics.current) {
+    if (inDiagnostics.current && !inDotPractice.current) {
       let keys: KeyTarget[] = [
         { labels: ["A", "B", "C", "D"], x: 3 / 10, y: 1 / 2 - 4 / 15 },
         { labels: ["E", "F", "G", "H"], x: 1 / 2, y: 1 / 2 - 4 / 15 },
@@ -2115,7 +2124,206 @@ useEffect(() => {
 
         return closestIndex;
       }
+    } else if (inDiagnostics.current && inDotPractice.current) { //PRACTICE MODE by little B
+      let keys: KeyTarget[] = [
+        { labels: ["A", "B", "C", "D", "E", "F"], x: 3 / 10, y: 1 / 2 - 4 / 15 },
+        { labels: ["G", "H", "I", "J", "K"], x: 1 / 2, y: 1 / 2 - 4 / 15 },
+        { labels: ["L", "M", "N", "O", "P"], x: 7 / 10, y: 1 / 2 - 4 / 15 },
+        { labels: ["⌫"], x: 3 / 10, y: 1 / 2 },
+        { labels: ["␣"], x: 7 / 10, y: 1 / 2 },
+        { labels: ["Q", "R", "S", "T", "U"], x: 3 / 10, y: 1 / 2 + 4 / 15 },
+        { labels: [" "], x: 1 / 2, y: 1 / 2 + 4 / 15 },
+        { labels: ["V", "W", "X", "Y", "Z"], x: 7 / 10, y: 1 / 2 + 4 / 15 },
+      ]
+
+      keys.forEach((key) => {
+        key.x *= canvas.width;
+        key.y *= canvas.height;
+      });
+
+      for (let i = 0; i < keys.length; i++) {
+
+        /*
+         *  Render Text
+         *
+         */
+        let nEntries = keys[i].labels.length;
+        for (let selector = 0 ; selector < nEntries; selector++) {
+            const row = Math.floor(selector / 3);
+            const col = selector % 3;
+
+            let sep = 30;
+            ctx.font = "56px Poppins"
+            if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
+              sep = 75;
+              ctx.fillStyle = "lightgray";
+            } else if (activeKeyIdx.current !== null) {
+              ctx.fillStyle = "rgb(200, 200, 200)";
+            } else {
+              ctx.fillStyle = "lightgray";
+            }
+
+            ctx.fillText(
+              keys[i].labels[selector],
+              keys[i].x - sep + (2 * col * sep),
+              keys[i].y - sep + (2 * row * sep),
+            );
+        }
+
+        ctx.beginPath();
+        if (dotGameMode.current) {
+          if (i === gameDotSequence[indexGameDot.current]) {
+            ctx.fillStyle = "yellow";
+          } else {
+            ctx.fillStyle = "#812dfa";
+          }
+        // Default magic coloring
+        } else {
+  
+          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
+            ctx.fillStyle = "black"; // Hideen
+  
+          // Fade out the non-active keys
+          } else if (activeKeyIdx.current !== null) {
+            ctx.fillStyle = "rgb(80, 80, 80)";
+  
+          // Standard selector color
+          } else {
+            ctx.fillStyle = "lightgreen";
+          }
+  
+        }
+        if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
+          ctx.globalAlpha = 0.23;
+          ctx.arc(
+            keys[i].x,
+            keys[i].y,
+            22,
+            0,
+            2 * Math.PI,
+          );
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } 
+      }
+
+      if ((Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) && 
+          (position.current.x < centerX - 120 ||
+          position.current.x > centerX + 120 ||
+          position.current.y < centerY - 120 ||
+          position.current.y > centerY + 120)
+        ) {
+        if (velocityBelowThresholdStartTime.current === 0) {
+          // Start timing if it's the first time below threshold
+          velocityBelowThresholdStartTime.current = Date.now();
+        } else {
+          // Check if it has been below threshold for the required dwell time
+          const timeBelowThreshold = Date.now() - velocityBelowThresholdStartTime.current;
+          if (timeBelowThreshold >= dwellTimeRequired.current  && fast.current) {
+            console.log("We reached low velocities in Practisch");
+            
+            fast.current = false;
+            let hitCircleIndex = findClosestCircle();
+
+            console.log("hitCircleIndex " + hitCircleIndex);
+            
+
+            if (refCode.current !== undefined && indexRefCode.current !== undefined) {
+              console.log("refCode.current[indexRefCode.current] " + refCode.current[indexRefCode.current]);
+              if (hitCircleIndex+1 === refCode.current[indexRefCode.current]) { //if you hit the rite jawn
+                goodDotHits.current++;
+                new Audio("coin2.mp3")
+                  .play()
+                  .catch((error) => console.error("Error playing audio:", error));
+              
+                if (timerDotStart.current === undefined) {
+                  //start timer
+                  timerDotStart.current = performance.now();
+                }
+              
+                if (wordSubstringer.current !== undefined) {
+                  //If you are in practice mode, append the next character
+                  wordSubstringer.current += 1;
+                }
+                if (hitCircleIndex === 4 
+                  && indexSentence.current !== undefined 
+                  && sentence.current !== undefined) { 
+                  wordSubstringer.current = 0;
+                  indexSentence.current++;
+                  if (indexSentence.current === sentence.current.length) { //if last character
+                    timeDotLength.current = performance.now() - timerDotStart.current;
+                    dotCcpm.current = (goodDotHits.current / timeDotLength.current) * 60000;
+                    accuracy.current = (goodDotHits.current /
+                      (goodDotHits.current + badDotHits.current)) * 100;
+                  }
+                }
+                indexRefCode.current++;
+              } else {
+                badDotHits.current++;
+                new Audio("erro.mp3")
+                  .play()
+                  .catch((error) =>
+                    console.error("Error playing audio:", error),
+                  );
+              }
+            if (snapBackMode.current) {
+              position.current = { x: centerX, y: centerY };
+            }
+          }
+
+          ctx.beginPath();
+          ctx.arc(keys[hitCircleIndex].x * canvas.width, keys[hitCircleIndex].y * canvas.height, 99, 0, 2 * Math.PI);
+          ctx.fill();
+          // Reset the start time
+          velocityBelowThresholdStartTime.current = 0;
+          }
+        }
+        } else {
+          // Reset if velocity goes above threshold
+          if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) > fastThreshold.current) {
+            fast.current = true;
+          }
+          velocityBelowThresholdStartTime.current = 0;
+        }
+        if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
+          ctx.font = "69px Poppins"; // Smaller font size
+          ctx.fillStyle = "lightgreen"; // Text color
+          ctx.fillText(
+            `${dotCcpm.current.toFixed(2)} DPM`,
+            centerX,
+            centerY,
+          );
+          ctx.font = "32px Poppins"; // Smaller font size
+          ctx.fillStyle = "white"; // Text color
+          ctx.fillText(
+            `${accuracy.current.toFixed(2)}%`,
+            centerX,
+            centerY + 200,
+          );
+        }
+        
+      
+      function findClosestCircle() {
+        // Initialize variables within the function's scope
+        let closestIndex = -1;
+        let smallestDistance = Infinity;
+      
+        for (let i = 0; i < keys.length; i++) {
+          let target = keys[i];
+          let distance = Math.sqrt(Math.pow(target.x - position.current.x, 2) + Math.pow(target.y - position.current.y, 2));
+      
+          if (distance < smallestDistance) {
+            smallestDistance = distance;
+            closestIndex = i;
+          }
+        }
+      
+        return closestIndex;
+      }
+
     }
+
+
   }, [
     position,
     sideLikelihoods,
@@ -2732,7 +2940,7 @@ useEffect(() => {
           gap: "10px", // Space between buttons
         }}
       >
-        {[...Array(6)].map((_, index) => (
+        {[...Array(7)].map((_, index) => (
           <button
             key={index}
             style={{
@@ -2778,7 +2986,6 @@ useEffect(() => {
                   accuracy.current = undefined;
 
                   timerDotStart.current = undefined;
-                  timerDotStart.current = undefined;
                   timeDotLength.current = undefined;
 
                   dotCcpm.current = undefined;
@@ -2793,6 +3000,25 @@ useEffect(() => {
                 case 5:
                   magicText.current = "▌";
                   break;
+
+                case 6:
+                  inDotPractice.current = true;
+                  // Action for the fourth button
+                  inDiagnostics.current = true;
+
+                  goodDotHits.current = 0;
+                  badDotHits.current = 0;
+                  accuracy.current = undefined;
+
+                  timerDotStart.current = undefined;
+                  timeDotLength.current = undefined;
+
+                  dotCcpm.current = undefined;
+                  
+                  startPracticeMode();
+
+                  break;
+
                 default:
                   break;
               }
