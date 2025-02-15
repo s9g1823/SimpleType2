@@ -969,7 +969,7 @@ useEffect(() => {
   function predictTheWord() {
     code.current;
   }
-  const inDiagnostics = useRef<boolean>(false);
+  const inDiagnostics = useRef<boolean>(true);
 
   const showCursor = useRef<boolean>(false);
 
@@ -996,7 +996,7 @@ useEffect(() => {
   const fast = useRef<boolean>(false);
   ``;
   // const fastThreshold = useRef<number>(300);
-  const fastThreshold = useRef<number>(3);
+  const fastThreshold = useRef<number>(300);
 
   const dotGameMode = useRef<boolean>(false);
   const gameDotSequence = [
