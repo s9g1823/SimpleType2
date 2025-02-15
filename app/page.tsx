@@ -439,6 +439,7 @@ const PointerLockDemo: React.FC = () => {
     dirtyWords.current = [];
     code.current = "";
 
+    // isPlaying.current = true;
     isPlaying.current = false;
     setVideoOpacity(0);
 
@@ -1466,11 +1467,23 @@ useEffect(() => {
           //lastHitSide.current= sideIndex;
         }
         refractory.current = true;
-        position.current = { x: 800, y: 600 };
+
+        let refractoryTimeout = 50;
+        if (snapBackMode.current) {
+          position.current = { x: 800, y: 600 };
+        } else {
+          const snapX = (position.current.x + 800) / 2;
+          const snapY = (position.current.y + 600) / 2;
+
+          position.current = { x: snapX, y: snapY };
+          refractoryTimeout = 200;
+        }
+
         activeSide.current = sideIndex;
         setTimeout(() => {
           activeSide.current = null;
-        }, 50);
+        }, refractoryTimeout);
+
         cursorTrail.current.fill(null);
 
         // No collision
@@ -2360,7 +2373,7 @@ useEffect(() => {
   const [videoOpacity, setVideoOpacity] = useState(0);
   //useless edit
 
-  const isPlaying = useRef<boolean>(true);
+  const isPlaying = useRef<boolean>(false);
   const yts = [
     "ekr2nIex040",
     "VCTOpdlZJ8U",
