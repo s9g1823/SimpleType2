@@ -927,6 +927,8 @@ useEffect(() => {
     [],
   );
 
+  const multiplier = useRef<number>(0.7);
+
   type Point = { x: number; y: number };
 
   const isPointInPolygon = useCallback((point: Point, polygon: Point[]) => {
@@ -2139,14 +2141,14 @@ useEffect(() => {
       }
     } else if (inDiagnostics.current && inDotPractice.current) { //PRACTICE MODE by little B
       let keys: KeyTarget[] = [
-        { labels: ["A", "B", "C", "D", "E", "F"], x: 3 / 10, y: 1 / 2 - 4 / 15 },
-        { labels: ["G", "H", "I", "J", "K"], x: 1 / 2, y: 1 / 2 - 4 / 15 },
-        { labels: ["L", "M", "N", "O", "P"], x: 7 / 10, y: 1 / 2 - 4 / 15 },
-        { labels: ["⌫"], x: 3 / 10, y: 1 / 2 },
-        { labels: ["␣"], x: 7 / 10, y: 1 / 2 },
-        { labels: ["Q", "R", "S", "T", "U"], x: 3 / 10, y: 1 / 2 + 4 / 15 },
-        { labels: [" "], x: 1 / 2, y: 1 / 2 + 4 / 15 },
-        { labels: ["V", "W", "X", "Y", "Z"], x: 7 / 10, y: 1 / 2 + 4 / 15 },
+        { labels: ["A", "B", "C", "D", "E", "F"], x: 1/2 - (1/5 * multiplier.current), y: 1 / 2 - (4 / 15 * multiplier.current) },
+        { labels: ["G", "H", "I", "J", "K"], x: 1 / 2, y: 1 / 2 - (4 / 15 * multiplier.current) },
+        { labels: ["L", "M", "N", "O", "P"], x:  1/2 + (1/5 * multiplier.current), y: 1 / 2 - (4 / 15 * multiplier.current) },
+        { labels: ["⌫"], x:  1/2 - (1/5 * multiplier.current), y: 1 / 2 },
+        { labels: ["␣"], x: 1/2 + (1/5 * multiplier.current), y: 1 / 2 },
+        { labels: ["Q", "R", "S", "T", "U"], x:  1/2 - (1/5 * multiplier.current), y: 1 / 2 + (4 / 15 * multiplier.current) },
+        { labels: [" "], x: 1 / 2, y: 1 / 2 + (4 / 15 * multiplier.current) },
+        { labels: ["V", "W", "X", "Y", "Z"], x: 1/2 + (1/5 * multiplier.current), y: 1 / 2 + (4 / 15 * multiplier.current) },
       ]
 
       keys.forEach((key) => {
@@ -2166,9 +2168,10 @@ useEffect(() => {
             const col = selector % 3;
 
             let sep = 30;
-            ctx.font = "56px Poppins"
+            let fsize = multiplier.current * 56;
+            ctx.font = `${fsize}px Poppins`;
             if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-              sep = 75;
+              sep = 50;
               ctx.fillStyle = "lightgray";
             } else if (activeKeyIdx.current !== null) {
               ctx.fillStyle = "rgb(200, 200, 200)";
@@ -2178,8 +2181,8 @@ useEffect(() => {
 
             ctx.fillText(
               keys[i].labels[selector],
-              keys[i].x - sep + (2 * col * sep),
-              keys[i].y - sep + (2 * row * sep),
+              keys[i].x - sep + (1.5 * col * sep),
+              keys[i].y - sep + (1.5 * row * sep),
             );
         }
 
@@ -2754,9 +2757,32 @@ useEffect(() => {
           }}
         />
 
+      <label htmlFor="Multiplier">Multiplier </label>
+        <input
+          id="multiplier"
+          type="number"
+          min={0.1}
+          max={4}
+          step="0.1"
+          value={multiplier.current}
+          onChange={(e) =>
+            (multiplier.current = parseFloat(e.target.value))
+          }
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
       </div>
 
+
+
       {/* Speed Slider */}
+      
       <div
         style={{
           position: "fixed", // Fixes the position relative to the viewport
