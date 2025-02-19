@@ -79,6 +79,10 @@ export function getRankedMatches(
     possibleWords = orderByMostFrequent(allWordsForCode(tree, code), freq);
   }
 
+  if (possibleWords === undefined) {
+    return [];
+  }
+
   if (!context.length) {
     console.log("High ranked choices are: ", possibleWords.slice(0, 5));
     return orderByMostFrequent(possibleWords.slice(0, 10), freq); // Return top 5 immediately if no context

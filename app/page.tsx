@@ -948,6 +948,7 @@ useEffect(() => {
   const fastThreshold = useRef<number>(300);
 
   const dotGameMode = useRef<boolean>(false);
+  const dotArrowMode = useRef<boolean>(false);
   const gameDotSequence = [
     5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4,
     0, 2, 0, 5, 7,
@@ -1161,6 +1162,7 @@ useEffect(() => {
 
     if (
       inPractice.current &&
+      !dotArrowMode.current &&
       sentence.current !== undefined &&
       indexSentence.current !== undefined
     ) {
@@ -1547,12 +1549,12 @@ useEffect(() => {
     ctx.font = inDiagnostics.current ? "27px Poppins" : "32px Poppins";
     ctx.fillStyle = "#CACACA"; // Faded white color
     const buffer = inDiagnostics.current ? 90 : 0;
-    if (!inLights.current) {
+    if (!inLights.current && !dotArrowMode.current) {
       ctx.fillText(theWords.current.join(" "), centerX, centerY - 200 + buffer); // Adjust Y-coordinate to place it above
     }
 
     //Draw calculations for Game Mode
-    if (timerEnd.current !== undefined) {
+    if (timerEnd.current) {
       ctx.font = "69px Poppins";
       ctx.fillStyle = "lightgreen"; // Set the text color
       ctx.textAlign = "center"; // Align the text to the left
@@ -1698,26 +1700,61 @@ useEffect(() => {
         }
 
         ctx.beginPath();
-        if (dotGameMode.current) {
-          if (i === gameDotSequence[indexGameDot.current]) {
+        // if (dotGameMode.current) {
+        //   if (i === gameDotSequence[indexGameDot.current]) {
+        if (refCode.current && indexRefCode.current && dotGameMode.current) {
+          if (i+1 === refCode.current[indexRefCode.current]) {
             ctx.fillStyle = "yellow";
           } else {
-            ctx.fillStyle = "#812dfa";
+            // ctx.fillStyle = "#812dfa";
+            ctx.fillStyle = "purple";
           }
           // Default magic coloring
-        } else {
-          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-            ctx.fillStyle = "black"; // Hideen
+        } else if (
+          dotArrowMode.current &&
+          refCode.current &&
+          indexRefCode.current !== undefined
+        ) {
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '127px Poppins'; // You can adjust the font size and style as needed
 
-            // Fade out the non-active keys
-          } else if (activeKeyIdx.current !== null) {
-            ctx.fillStyle = "rgb(80, 80, 80)";
-
-            // Standard selector color
-          } else {
-            ctx.fillStyle = "lightgreen";
+          let arrow = "";
+          // switch (refCode.current[indexRefCode.current] - 1) {
+          switch (refCode.current[indexRefCode.current] - 1) {
+              case 0: // top left
+                  arrow = '↖';
+                  break;
+              case 1: // upwards
+                  arrow = '↑';
+                  break;
+              case 2: // top right
+                  arrow = '↗';
+                  break;
+              case 3: // left
+                  arrow = '←';
+                  break;
+              case 4: // right
+                  arrow = '→';
+                  break;
+              case 5: // bottom left
+                  arrow = '↙';
+                  break;
+              case 6: // bottom
+                  arrow = '↓';
+                  break;
+              case 7: // bottom right
+                  arrow = '↘';
+                  break;
+              default:
+                  // Done
+                  break;
           }
+          ctx.fillText(arrow, centerX, centerY);
+        } else {
+          ctx.fillStyle = "lightgreen";
         }
+
         if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
           ctx.globalAlpha = 0.23;
 
@@ -1865,6 +1902,7 @@ useEffect(() => {
         ctx.font = "32px Poppins"; // Smaller font size
         ctx.fillStyle = "white"; // Text color
         ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 175);
+
       }
 
       function findClosestCircle() {
@@ -2649,7 +2687,7 @@ useEffect(() => {
           gap: "10px", // Space between buttons
         }}
       >
-        {[...Array(8)].map((_, index) => (
+        {[...Array(9)].map((_, index) => (
           <button
             key={index}
             style={{
@@ -2681,7 +2719,7 @@ useEffect(() => {
                   break;
 
                 case 3:
-                  // Action for the fourth button
+                  inDotPractice.current = true;
                   inDiagnostics.current = true;
                   dotGameMode.current = true;
                   indexGameDot.current = 0;
@@ -2695,6 +2733,7 @@ useEffect(() => {
 
                   dotCcpm.current = undefined;
 
+                  startPracticeMode();
                   break;
 
                 case 4:
@@ -2729,6 +2768,24 @@ useEffect(() => {
                   accuracy.current = undefined;
                   break;
 
+                case 8:
+                  inDotPractice.current = true;
+                  inDiagnostics.current = true;
+                  dotArrowMode.current = true;
+
+                  goodDotHits.current = 0;
+                  badDotHits.current = 0;
+                  accuracy.current = undefined;
+
+                  timerDotStart.current = undefined;
+                  timeDotLength.current = undefined;
+
+                  dotCcpm.current = undefined;
+
+                  startPracticeMode();
+
+                  break;
+
                 default:
                   break;
               }
@@ -2740,12 +2797,16 @@ useEffect(() => {
                   return "🗣️";
                 case 2:
                   return "🗑️";
+                case 3:
+                  return "Game";
                 case 4:
                   return snapBackMode.current ? "snap: on" : "snap: off";
                 case 6:
                   return "train";
                 case 7:
                   return "type";
+                case 8:
+                  return "arrow";
               }
             })()}
           </button>
