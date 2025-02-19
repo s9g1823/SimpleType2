@@ -1824,6 +1824,10 @@ useEffect(() => {
               }
             } else {
               handleTypingInteraction(keys[hitCircleIndex].idx, false);
+              new Audio("click.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
+
             }
 
             ctx.beginPath();
