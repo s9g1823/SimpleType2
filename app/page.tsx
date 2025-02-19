@@ -122,9 +122,9 @@ const PointerLockDemo: React.FC = () => {
 
   useEffect(() => {
     function handleDecodeData(data: DecodePacket) {
-      if (systemCursorEnabled) {
-        return;
-      }
+      // if (systemCursorEnabled) {
+      //   return;
+      // }
 
       velocities.current = data;
     }
@@ -744,7 +744,7 @@ useEffect(() => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (systemCursorEnabled) {
+    // if (systemCursorEnabled) {
       const handleClick = () => {
         // if (document.pointerLockElement === canvas) {
         //   document.exitPointerLock(); // Exit pointer lock if already active
@@ -775,7 +775,7 @@ useEffect(() => {
         canvas.removeEventListener("click", handleClick);
         // document.removeEventListener("pointerlockchange", lockChangeAlert);
       };
-    }
+    // }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -788,23 +788,8 @@ useEffect(() => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // console.log("running handleMouseMove()");
-    if (systemCursorEnabled) {
+    // if (systemCursorEnabled) {
       if (!refractory.current) {
-        velocities.current = {
-          raw_velocity_x: 0,
-          raw_velocity_y: 0,
-          velocity_smoothed_x: 0,
-          velocity_smoothed_y: 0,
-          final_velocity_x: e.movementX,
-          final_velocity_y: e.movementY,
-          left_click_probability_smoothed: 0,
-          raw_right_click_probability: 0,
-          right_click_probability_smoothed: 0,
-          raw_middle_click_probability: 0,
-          middle_click_probability_smoothed: 0,
-          raw_left_click_probability: 0,
-        };
-
         if (canvasRef.current === null) {
           return;
         }
@@ -819,7 +804,7 @@ useEffect(() => {
           refractory.current = false;
         }, 0);
       }
-    }
+    // }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
