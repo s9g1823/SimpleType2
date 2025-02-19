@@ -1328,23 +1328,21 @@ useEffect(() => {
             break;
         }
         ctx.fillStyle = "white";
-      } else {
-
-        if (!inDiagnostics.current) {
-          if (activeSide.current === sideIndex) {
-            ctx.strokeStyle = "white";
-          } else {
-            ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
-          }
-
-          ctx.lineWidth = 14;
-          ctx.beginPath();
-          ctx.moveTo(side.startX, side.startY);
-          ctx.lineTo(side.endX, side.endY);
-          ctx.stroke();
-        }
-
       }
+
+      if (!inDiagnostics.current) {
+        if (activeSide.current === sideIndex) {
+          ctx.strokeStyle = "white";
+        } else {
+          ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
+        }
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.moveTo(side.startX, side.startY);
+        ctx.lineTo(side.endX, side.endY);
+        ctx.stroke();
+      }
+
     });
 
     //
