@@ -35,15 +35,15 @@ interface OctagonSide {
 }
 
 interface KeyTarget {
-    labels: string[];
-    x: number;
-    y: number;
+  labels: string[];
+  x: number;
+  y: number;
+  idx: number; // Index of side mappings this should correspond to.
 }
 
-interface KeySelector {
-    label: string;
-    x: number;
-    y: number;
+enum KeyboardType {
+  Octagon = "octagon",
+  Dots = "dots",
 }
 
 enum OctagonPage {
@@ -78,6 +78,9 @@ const PointerLockWrapper: React.FC = () => {
 
 const nSides = 8;
 
+// Cursed: without this, firefox will complain that Symbol.dispose is not found.
+// Symbol.dispose ??= Symbol.for("Symbol.dispose");
+
 const PointerLockDemo: React.FC = () => {
   // System cursor configuration: by default do not use it, but override if the
   // environment variable or url parameter is set.
@@ -91,7 +94,6 @@ const PointerLockDemo: React.FC = () => {
   //ZMQ setup for Link
   const zmqService = useRef(VelocityZmqListener.factory());
   const velocities = useRef<DecodePacket | null>(null);
-  const sideLikelihoods = useRef<number[]>(Array(nSides).fill(0));
 
   const directionalMode = useRef<boolean>(false);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
@@ -108,7 +110,7 @@ const PointerLockDemo: React.FC = () => {
   const renderCursorTrail = useRef<boolean>(true);
 
   const radiusOct = 350;
-  const dwellZoneRadius = useRef<number>(radiusOct);
+  const dwellZoneRadius = useRef<number>(radiusOct - 50);
 
   useEffect(() => {
     zmqService.current.start();
@@ -125,51 +127,6 @@ const PointerLockDemo: React.FC = () => {
       }
 
       velocities.current = data;
-      //console.log('Received velocity data:', data);
-
-      // Map hacked click values to the corresponding sides
-      // Numbering goes clockwise starting from space
-      sideLikelihoods.current[0] =
-        velocities.current.left_click_probability_smoothed;
-      sideLikelihoods.current[1] = velocities.current.velocity_smoothed_x;
-      sideLikelihoods.current[2] =
-        velocities.current.raw_left_click_probability;
-      sideLikelihoods.current[3] = velocities.current.velocity_smoothed_y;
-      sideLikelihoods.current[4] =
-        velocities.current.middle_click_probability_smoothed;
-      sideLikelihoods.current[5] =
-        velocities.current.raw_middle_click_probability;
-      sideLikelihoods.current[6] =
-        velocities.current.right_click_probability_smoothed;
-      sideLikelihoods.current[7] =
-        velocities.current.raw_right_click_probability;
-
-      if (!refractory.current) {
-        const newX =
-          position.current.x +
-          velocities.current.final_velocity_x * speed.current * 0.015;
-        // velocities.current.final_velocity_x * speed.current * 0.01;
-        const newY =
-          position.current.y +
-          velocities.current.final_velocity_y * speed.current * 0.015;
-        // velocities.current.final_velocity_y * speed.current * 0.01;
-
-        if (!directionalMode.current) {
-          position.current = { x: newX, y: newY };
-          if (
-            position.current.x < 0 ||
-            position.current.x > centerX * 2 ||
-            position.current.y < 0 ||
-            position.current.y > centerY * 2
-          ) {
-            position.current = { x: centerX, y: centerY };
-          }
-        }
-      } else {
-        setTimeout(() => {
-          refractory.current = false;
-        }, 5);
-      }
     }
 
     zmqService.current.events.on(ZmqClient.EVENT_MESSAGE, handleDecodeData);
@@ -268,8 +225,8 @@ const PointerLockDemo: React.FC = () => {
     1: "Threshold on",
     2: "Threshold off",
     3: "▢",
-    4: "Speed-",
-    5: "Speed+",
+    4: "",
+    5: "",
     6: "",
     7: "",
     8: "",
@@ -423,7 +380,10 @@ const PointerLockDemo: React.FC = () => {
 
     let rng = Math.floor(Math.random() * sentences.length);
 
-    refCode.current = [2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1, 3, 3, 8, 1, 1, 5]
+    refCode.current = [
+      2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1,
+      3, 3, 8, 1, 1, 5,
+    ];
     sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
     //calculations
@@ -454,7 +414,10 @@ const PointerLockDemo: React.FC = () => {
 
     randomyt.current = yts[rng2];
 
-    refCode.current = [2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1, 3, 3, 8, 1, 1, 5]
+    refCode.current = [
+      2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1,
+      3, 3, 8, 1, 1, 5,
+    ];
     sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
     //calculations
@@ -783,33 +746,34 @@ useEffect(() => {
     if (!canvas) return;
     if (systemCursorEnabled) {
       const handleClick = () => {
-        if (document.pointerLockElement === canvas) {
-          document.exitPointerLock(); // Exit pointer lock if already active
-        } else {
-          canvas.requestPointerLock(); // Enter pointer lock if not active
-        }
+        // if (document.pointerLockElement === canvas) {
+        //   document.exitPointerLock(); // Exit pointer lock if already active
+        // } else {
+        //   canvas.requestPointerLock(); // Enter pointer lock if not active
+        // }
       };
 
-      const lockChangeAlert = () => {
-        if (document.pointerLockElement === canvas) {
-          console.log("Pointer lock activated.");
-          document.addEventListener("mousemove", handleMouseMove);
-        } else {
-          console.log("Pointer lock deactivated.");
-          document.removeEventListener("mousemove", handleMouseMove);
-        }
-      };
+      // const lockChangeAlert = () => {
+      //   if (document.pointerLockElement === canvas) {
+      //     console.log("Pointer lock activated.");
+      //     document.addEventListener("mousemove", handleMouseMove);
+      //   } else {
+      //     console.log("Pointer lock deactivated.");
+      //     document.removeEventListener("mousemve", handleMouseMove);
+      //   }
+      // };
 
-      if (!velocities) {
-        document.addEventListener("mousemove", handleMouseMove);
-      }
+      // if (!velocities) {
+      //   document.addEventListener("mousemove", handleMouseMove);
+      // }
+      document.addEventListener("mousemove", handleMouseMove);
 
       canvas.addEventListener("click", handleClick);
-      document.addEventListener("pointerlockchange", lockChangeAlert);
+      // document.addEventListener("pointerlockchange", lockChangeAlert);
 
       return () => {
         canvas.removeEventListener("click", handleClick);
-        document.removeEventListener("pointerlockchange", lockChangeAlert);
+        // document.removeEventListener("pointerlockchange", lockChangeAlert);
       };
     }
   }, []);
@@ -819,14 +783,13 @@ useEffect(() => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const refractory = useRef<boolean>(false);
-  const speed = useRef<number>(1);
   const activeSide = useRef<number | null>(null);
+  const selectionRefractory = useRef<boolean>(false);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // console.log("running handleMouseMove()");
     if (systemCursorEnabled) {
       if (!refractory.current) {
-
         velocities.current = {
           raw_velocity_x: 0,
           raw_velocity_y: 0,
@@ -842,12 +805,13 @@ useEffect(() => {
           raw_left_click_probability: 0,
         };
 
-        const newX =
-          position.current.x +
-          velocities.current.final_velocity_x * speed.current;
-        const newY =
-          position.current.y +
-          velocities.current.final_velocity_y * speed.current;
+        if (canvasRef.current === null) {
+          return;
+        }
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        const newX = e.clientX - rect.left;
+        const newY = e.clientY - rect.top;
 
         position.current = { x: newX, y: newY };
       } else {
@@ -1017,8 +981,6 @@ useEffect(() => {
 
   // Magic keys
   const activeKeyIdx = useRef<number | null>(null);
-  const activeKeySelectors = useRef<KeySelector[] | null>(null);
-  const magicText = useRef<string>("▌");
 
   const inDotPractice = useRef<boolean>(false);
 
@@ -1116,8 +1078,6 @@ useEffect(() => {
             (startOffsetX + endOffsetX) / 2,
             (startOffsetY + endOffsetY) / 2,
           );
-
-          const alpha = sideLikelihoods.current[i - 1] * 0.65;
 
           let style: CanvasGradient | string | undefined;
 
@@ -1237,14 +1197,14 @@ useEffect(() => {
         indexSentence.current !== undefined &&
         wordSubstringer.current !== 0
       )
-      ctx.fillText(
-        sentence.current[indexSentence.current].substring(
-          0,
-          wordSubstringer.current,
-        ),
-        centerX - textWidth.current / 2,
-        centerY,
-      );
+        ctx.fillText(
+          sentence.current[indexSentence.current].substring(
+            0,
+            wordSubstringer.current,
+          ),
+          centerX - textWidth.current / 2,
+          centerY,
+        );
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
     }
@@ -1255,9 +1215,10 @@ useEffect(() => {
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
-      let touching =
-        isDotTouchingSide(position.current.x, position.current.y, side) ||
-        isDotOutsideSide(position.current.x, position.current.y, side);
+
+      let touching = false;
+      // let touching = isDotOutsideSide(position.current.x, position.current.y, side)
+      // isDotTouchingSide(position.current.x, position.current.y, side) ||
 
       if (
         !dwellClickMode.current &&
@@ -1273,9 +1234,9 @@ useEffect(() => {
         dwellClicked.current[index] = false;
       }
 
-      // if (directionalMode.current && !refractory.current) {
-      //   touching = sideLikelihoods.current[index] === 1;
-      // }
+      if (selectionRefractory.current) {
+        touching = false;
+      }
 
       // If the dot is past the inner threshold, activate the dwell region.
       if (touching) {
@@ -1287,94 +1248,8 @@ useEffect(() => {
           badHits.current = undefined;
         }
 
-        // =========== Handle page-dependent interactions with buttons
-        let startingPage = activePage.current;
-        if (activePage.current === OctagonPage.Keyboard) {
-          // Transistion keyboard -> home menu
-          if (sideIndex == 3) {
-            activePage.current = OctagonPage.Home;
-          }
-        } else if (activePage.current === OctagonPage.Home) {
-          switch (sideIndex) {
-            // Transistion home -> keyboard
-            case 5:
-              activePage.current = OctagonPage.Keyboard; // Hack: just used for tracking display
-              break;
-            // Transistion home -> settings
-            case 2:
-              activePage.current = OctagonPage.Settings;
-              break;
-            // Speak
-            case 4:
-              speakWords();
-              break;
-            // Practice mode
-            case 7:
-              if (!inPractice.current && !inLights.current) {
-                startPracticeMode();
-                activePage.current = OctagonPage.Keyboard;
-              } else {
-                stopPracticeMode();
-              }
-              break;
-            // Game mode
-            case 8:
-              if (!inLights.current && !inPractice.current) {
-                // startPracticeMode();
-                inGameMode.current = true;
-                startGameMode();
-                activePage.current = OctagonPage.Keyboard;
-              } else {
-                inGameMode.current = false;
-                stopPracticeMode();
-              }
-              break;
-            // Clear all
-            case 1:
-              console.log("Clearing all text!");
-              theWords.current = [];
-              theCodes.current = [];
-              dirtyWords.current = [];
-              code.current = "";
-              break;
-
-            // Exit octagon: cursor on
-            case 6:
-              try {
-                zmqService.current.publish("cursor", "on");
-              } catch (err) {
-                console.error("Cannot turn off cursor" + err);
-              }
-              break;
-          }
-        } else if (activePage.current === OctagonPage.Settings) {
-          switch (sideIndex) {
-            // Transistion settings -> home
-            case 3:
-              activePage.current = OctagonPage.Home;
-              break;
-            // Speed -
-            case 4:
-              speed.current = speed.current - 0.1;
-              break;
-            // Speed +
-            case 5:
-              speed.current = speed.current + 0.1;
-              break;
-
-            // Radius on
-            case 1:
-              gravity.current = 0.4 * radiusOct;
-              break;
-
-            // Radius off
-            case 2:
-              gravity.current = gravityDefault;
-              break;
-          }
-        }
-        const pageChange = activePage.current != startingPage;
-        console.log("PAGE CHANGE: " + pageChange);
+        const pageChangeOccured = handlePageInteractions(sideIndex);
+        console.log("PAGE CHANGE: " + pageChangeOccured);
 
         if (
           //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
@@ -1404,80 +1279,18 @@ useEffect(() => {
             indexRefCode.current !== undefined &&
             sideIndex === refCode.current[indexRefCode.current])
         ) {
-          if (indexRefCode.current !== undefined) {
-            //if in Game/Practice mode, increase the Ref
-            indexRefCode.current += 1;
-          }
-          const codeChar = sideMappings[sideIndex];
-          // If side 3 => space => finalize
-          if (codeChar === " ") {
-            if (
-              refCode.current !== undefined &&
-              sentence.current !== undefined &&
-              indexSentence.current !== undefined
-            ) {
-              if (sentence.current[indexSentence.current]) {
-                theWords.current = [
-                  ...theWords.current,
-                  sentence.current[indexSentence.current],
-                ];
-              }
-
-              if (inPractice.current) {
-                wordSubstringer.current = 0;
-              }
-              indexSentence.current += 1;
-              code.current = "";
-              if (indexSentence.current === sentence.current.length) {
-                timerEnd.current = performance.now();
-                timeLength.current =
-                  timerEnd.current - (timerStart.current ?? 0);
-                stopPracticeMode();
-              }
-            } else if (
-              !inLights.current &&
-              activePage.current == OctagonPage.Keyboard
-            ) {
-              finalizeCurrentWord();
-            }
-
-            // Backspace: Only allow in keyboard mode
-          } else if (
-            codeChar === "⌫" &&
-            activePage.current === OctagonPage.Keyboard &&
-            !pageChange
-          ) {
-            if (code.current) {
-              console.log("trying to remove just the last letter");
-              code.current = code.current.substring(0, code.current.length - 1);
-            } else {
-              theWords.current.pop();
-              theCodes.current.pop();
-            }
-
-            // Standard typing case: append code character
-          } else if (
-            codeChar &&
-            !inLights.current &&
-            activePage.current == OctagonPage.Keyboard &&
-            !pageChange
-          ) {
-            // Add digit to typedCodes
-            code.current = code.current + codeChar;
-            console.log(code.current);
-          }
-          //lastHitSide.current= sideIndex;
+          handleTypingInteraction(sideIndex, pageChangeOccured);
         }
         refractory.current = true;
 
         let refractoryTimeout = 50;
         if (snapBackMode.current) {
-          position.current = { x: 800, y: 600 };
+          // position.current = { x: 800, y: 600 };
         } else {
           const snapX = (position.current.x + 800) / 2;
           const snapY = (position.current.y + 600) / 2;
 
-          position.current = { x: snapX, y: snapY };
+          // position.current = { x: snapX, y: snapY };
           refractoryTimeout = 200;
         }
 
@@ -1486,7 +1299,10 @@ useEffect(() => {
           activeSide.current = null;
         }, refractoryTimeout);
 
-        cursorTrail.current.fill(null);
+        selectionRefractory.current = true;
+        setTimeout(() => {
+          selectionRefractory.current = false;
+        }, 500);
 
         // No collision
       } else if (
@@ -1526,21 +1342,22 @@ useEffect(() => {
         }
         ctx.fillStyle = "white";
       } else {
-        if (activeSide.current === sideIndex) {
-          ctx.strokeStyle = "white";
-        } else {
-          if (inDiagnostics.current) {
-            ctx.strokeStyle = "black"; // Green
+
+        if (!inDiagnostics.current) {
+          if (activeSide.current === sideIndex) {
+            ctx.strokeStyle = "white";
           } else {
             ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
           }
+
+          ctx.lineWidth = 14;
+          ctx.beginPath();
+          ctx.moveTo(side.startX, side.startY);
+          ctx.lineTo(side.endX, side.endY);
+          ctx.stroke();
         }
+
       }
-      ctx.lineWidth = 14;
-      ctx.beginPath();
-      ctx.moveTo(side.startX, side.startY);
-      ctx.lineTo(side.endX, side.endY);
-      ctx.stroke();
     });
 
     //
@@ -1551,7 +1368,8 @@ useEffect(() => {
     ctx.textBaseline = "middle";
 
     if (inDiagnostics.current) {
-      ctx.fillStyle = "black";
+      // ctx.fillStyle = "black";
+      ctx.fillStyle = "white";
     } else {
       ctx.fillStyle = "white";
     }
@@ -1579,40 +1397,29 @@ useEffect(() => {
           ? "bold 69px Poppins, sans-serif"
           : "bold 50px Poppins, sans-serif";
 
-      if (inDiagnostics.current) {
-        ctx.fillStyle = "black";
-      } else {
+      // Only render labels inside octagon for now.
+      if (!inDiagnostics.current) {
         ctx.fillStyle = "white";
-      }
-
-      if (
-        !inPractice.current &&
-        refCode.current &&
-        indexRefCode.current !== undefined &&
-        refCode.current[indexRefCode.current] == sideIndex
-      ) {
-        // ctx.fillStyle = "yellow";
-      }
-
-      switch (activePage.current) {
-        case OctagonPage.Keyboard:
-          ctx.fillText(sideLabels[sideIndex], labelX, labelY);
-          break;
-        case OctagonPage.Home:
-          // Handle practice mode
-          if (inPractice.current && sideIndex == 7) {
-            ctx.font = "bold 30px Poppins, sans-serif";
-            ctx.fillText("❌ Quit Practice", labelX, labelY);
-          } else if (inGameMode.current && sideIndex == 8) {
-            ctx.font = "bold 30px Poppins, sans-serif";
-            ctx.fillText("❌ Quit Game", labelX, labelY);
-          } else {
-            ctx.fillText(homeLabels[sideIndex], labelX, labelY);
-          }
-          break;
-        case OctagonPage.Settings:
-          ctx.fillText(settingsLabels[sideIndex], labelX, labelY);
-          break;
+        switch (activePage.current) {
+          case OctagonPage.Keyboard:
+            ctx.fillText(sideLabels[sideIndex], labelX, labelY);
+            break;
+          case OctagonPage.Home:
+            // Handle practice mode
+            if (inPractice.current && sideIndex == 7) {
+              ctx.font = "bold 30px Poppins, sans-serif";
+              ctx.fillText("❌ Quit Practice", labelX, labelY);
+            } else if (inGameMode.current && sideIndex == 8) {
+              ctx.font = "bold 30px Poppins, sans-serif";
+              ctx.fillText("❌ Quit Game", labelX, labelY);
+            } else {
+              ctx.fillText(homeLabels[sideIndex], labelX, labelY);
+            }
+            break;
+          case OctagonPage.Settings:
+            ctx.fillText(settingsLabels[sideIndex], labelX, labelY);
+            break;
+        }
       }
     });
 
@@ -1627,7 +1434,7 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 35;
+    const cursorSize = showCursor.current ? 0 : 20;
 
     const curX = lockCursor.current ? centerX : position.current.x;
     const curY = lockCursor.current ? centerY : position.current.y;
@@ -1650,7 +1457,7 @@ useEffect(() => {
     }
 
     // Using monospace font because it is easier to render– sorry Sehej BRUH
-    ctx.font = "80px Monaco";
+    ctx.font = inDiagnostics.current ? "40px Monaco" : "80px Monaco";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -1664,7 +1471,7 @@ useEffect(() => {
       // Only display suggestions when we are also displaying a current word.
       if (lastWord !== "") {
         // Draw suggestions on screen
-        ctx.font = "30px Monaco";
+        ctx.font = inDiagnostics.current ? "25px Monaco" : "30px Monaco";
         ctx.fillStyle = "grey";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -1686,15 +1493,14 @@ useEffect(() => {
             i += 1;
             continue;
           }
-          ctx.fillText(suggestions[i], centerX, currentY);
+          const buffer = inDiagnostics.current ? 65 : 0;
+          ctx.fillText(suggestions[i], centerX, currentY - buffer);
           currentY += 35;
           n_suggest += 1;
           i += 1;
         }
       }
 
-      // } else if (code.current.length === 1 && !inPractice.current) {
-      //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
     } else {
       if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
@@ -1719,7 +1525,8 @@ useEffect(() => {
 
         if (code.current.length > 0) {
           // Draw suggestions on screen
-          ctx.font = "30px Monaco";
+          ctx.font = inDiagnostics.current ? "25px Monaco" : "30px Monaco";
+          const buffer = inDiagnostics.current ? 65 : 0;
           ctx.fillStyle = "grey";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -1743,7 +1550,7 @@ useEffect(() => {
               i += 1;
               continue;
             }
-            ctx.fillText(suggestions[i], centerX, currentY);
+            ctx.fillText(suggestions[i], centerX, currentY - buffer);
             currentY += 35;
             n_suggest += 1;
             i += 1;
@@ -1752,10 +1559,11 @@ useEffect(() => {
       }
     }
 
-    ctx.font = "32px Poppins"; // Smaller font size
+    ctx.font = inDiagnostics.current ? "27px Poppins" : "32px Poppins";
     ctx.fillStyle = "#CACACA"; // Faded white color
+    const buffer = inDiagnostics.current ? 90 : 0;
     if (!inLights.current) {
-      ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
+      ctx.fillText(theWords.current.join(" "), centerX, centerY - 200 + buffer); // Adjust Y-coordinate to place it above
     }
 
     //Draw calculations for Game Mode
@@ -1832,17 +1640,43 @@ useEffect(() => {
     //
     // =====================================================================
     //
-    if (inDiagnostics.current && !inDotPractice.current) {
+    if (inDiagnostics.current) {
+      //PRACTICE MODE by little B
       let keys: KeyTarget[] = [
-        { labels: ["A", "B", "C", "D"], x: 3 / 10, y: 1 / 2 - 4 / 15 },
-        { labels: ["E", "F", "G", "H"], x: 1 / 2, y: 1 / 2 - 4 / 15 },
-        { labels: ["I", "J", "K", "L"], x: 7 / 10, y: 1 / 2 - 4 / 15 },
-        { labels: ["M", "N", "O", "P"], x: 3 / 10, y: 1 / 2 },
-        { labels: ["Q", "R", "S", "T"], x: 7 / 10, y: 1 / 2 },
-        { labels: ["U", "V", "W", "X"], x: 3 / 10, y: 1 / 2 + 4 / 15 },
-        { labels: ["Y", "Z"], x: 1 / 2, y: 1 / 2 + 4 / 15 },
-        { labels: ["␣", "⌫"], x: 7 / 10, y: 1 / 2 + 4 / 15 },
-      ]
+        {
+          labels: ["A", "B", "C", "D", "E", "F"],
+          x: 1 / 2 - (1 / 5) * multiplier.current,
+          y: 1 / 2 - (4 / 15) * multiplier.current,
+          idx: 6,
+        },
+        {
+          labels: ["G", "H", "I", "J", "K"],
+          x: 1 / 2,
+          y: 1 / 2 - (4 / 15) * multiplier.current,
+          idx: 7,
+        },
+        {
+          labels: ["L", "M", "N", "O", "P"],
+          x: 1 / 2 + (1 / 5) * multiplier.current,
+          y: 1 / 2 - (4 / 15) * multiplier.current,
+          idx: 8,
+        },
+        { labels: ["⌫"], x: 1 / 2 - (1 / 5) * multiplier.current, y: 1 / 2, idx: 5 },
+        { labels: ["␣"], x: 1 / 2 + (1 / 5) * multiplier.current, y: 1 / 2, idx: 1 },
+        {
+          labels: ["Q", "R", "S", "T", "U"],
+          x: 1 / 2 - (1 / 5) * multiplier.current,
+          y: 1 / 2 + (4 / 15) * multiplier.current,
+          idx: 4,
+        },
+        { labels: [" "], x: 1 / 2, y: 1 / 2 + (4 / 15) * multiplier.current, idx: -1 },
+        {
+          labels: ["V", "W", "X", "Y", "Z"],
+          x: 1 / 2 + (1 / 5) * multiplier.current,
+          y: 1 / 2 + (4 / 15) * multiplier.current,
+          idx: 2,
+        },
+      ];
 
       keys.forEach((key) => {
         key.x *= canvas.width;
@@ -1850,37 +1684,34 @@ useEffect(() => {
       });
 
       for (let i = 0; i < keys.length; i++) {
-
         /*
          *  Render Text
          *
          */
         let nEntries = keys[i].labels.length;
-        for (let selector = 0 ; selector < nEntries; selector++) {
-            const row = Math.floor(selector / 2);
-            const col = selector % 2;
+        for (let selector = 0; selector < nEntries; selector++) {
+          const row = Math.floor(selector / 3);
+          const col = selector % 3;
 
-            let sep = 20;
-            if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-              sep = 75;
-              ctx.fillStyle = "lightgray";
-            } else if (activeKeyIdx.current !== null) {
-              ctx.fillStyle = "rgb(200, 200, 200)";
-            } else {
-              ctx.fillStyle = "lightgray";
-            }
+          let sep = 30;
+          let fsize = multiplier.current * 56;
+          ctx.font = `${fsize}px Poppins`;
+          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
+            sep = 50;
+            ctx.fillStyle = "lightgray";
+          } else if (activeKeyIdx.current !== null) {
+            ctx.fillStyle = "rgb(200, 200, 200)";
+          } else {
+            ctx.fillStyle = "lightgray";
+          }
 
-            ctx.fillText(
-              keys[i].labels[selector],
-              keys[i].x - sep + (2 * col * sep),
-              keys[i].y - sep + (2 * row * sep),
-            );
+          ctx.fillText(
+            keys[i].labels[selector],
+            keys[i].x - sep + 1.5 * col * sep,
+            keys[i].y - sep + 1.5 * row * sep,
+          );
         }
 
-        /*
-         *  Render Key(s)
-         *
-         */
         ctx.beginPath();
         if (dotGameMode.current) {
           if (i === gameDotSequence[indexGameDot.current]) {
@@ -1888,53 +1719,31 @@ useEffect(() => {
           } else {
             ctx.fillStyle = "#812dfa";
           }
-        // Default magic coloring
+          // Default magic coloring
         } else {
-
           if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
             ctx.fillStyle = "black"; // Hideen
 
-          // Fade out the non-active keys
+            // Fade out the non-active keys
           } else if (activeKeyIdx.current !== null) {
             ctx.fillStyle = "rgb(80, 80, 80)";
 
-          // Standard selector color
+            // Standard selector color
           } else {
             ctx.fillStyle = "lightgreen";
           }
-
         }
-
         if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
-          ctx.globalAlpha = 0.56;
-          ctx.arc(
-            keys[i].x,
-            keys[i].y,
-            22,
-            0,
-            2 * Math.PI,
-          );
+          ctx.globalAlpha = 0.23;
+
+          let size = 22;
+          if (activeSide.current !== null && activeSide.current === i) {
+            size = 100;
+          }
+          ctx.arc(keys[i].x, keys[i].y, size, 0, 2 * Math.PI);
+
           ctx.fill();
           ctx.globalAlpha = 1;
-        }
-      }
-
-      // If a key is selected, render the second layer
-      if (activeKeyIdx.current !== null) {
-        let nEntries = keys[activeKeyIdx.current].labels.length;
-        for (let selector = 0 ; selector < nEntries; selector++) {
-            ctx.beginPath();
-            ctx.fillStyle = "lightgreen";
-            ctx.globalAlpha = 0.56;
-            ctx.arc(
-              activeKeySelectors.current?.[selector]?.x ?? 0,
-              activeKeySelectors.current?.[selector]?.y ?? 0,
-              22,
-              0,
-              2 * Math.PI,
-            );
-            ctx.fill();
-            ctx.globalAlpha = 1;
         }
       }
 
@@ -1950,127 +1759,73 @@ useEffect(() => {
         if (velocityBelowThresholdStartTime.current === 0) {
           // Start timing if it's the first time below threshold
           velocityBelowThresholdStartTime.current = Date.now();
-
         } else {
           // Check if it has been below threshold for the required dwell time
-
           const timeBelowThreshold =
             Date.now() - velocityBelowThresholdStartTime.current;
-
           if (timeBelowThreshold >= dwellTimeRequired.current && fast.current) {
-            console.log("We reached low velocities");
+            console.log("We reached low velocities in Practisch");
 
             fast.current = false;
-            let hitCircleIndex = findClosestCircle(keys);
+            let hitCircleIndex = findClosestCircle();
 
-            if (!dotGameMode.current) {
+            console.log("hitCircleIndex " + hitCircleIndex);
 
-              if (activeKeyIdx.current !== null &&
-                (
-                  position.current.x < keys[activeKeyIdx.current].x - 50 ||
-                  position.current.x > keys[activeKeyIdx.current].x + 50 ||
-                  position.current.y < keys[activeKeyIdx.current].y - 50 ||
-                  position.current.y > keys[activeKeyIdx.current].y + 50
-                )
+            activeSide.current = hitCircleIndex;
+            setTimeout(() => {
+              activeSide.current = null;
+            }, 200);
+
+            // In game mode
+            if (
+              refCode.current !== undefined &&
+              indexRefCode.current !== undefined
+            ) {
+              console.log(
+                "refCode.current[indexRefCode.current] " +
+                  refCode.current[indexRefCode.current],
+              );
+              if (
+                hitCircleIndex + 1 ===
+                refCode.current[indexRefCode.current]
               ) {
-
-                // With an active selector, the closest key search includes the
-                // unselected keys. If we are closest to one of those, then we
-                // exit our selection mode.
-                const unselected = keys.filter((_, index) => index !== activeKeyIdx.current);
-                const search = [...unselected, ...activeKeySelectors.current ?? []]
-                let hitCircleIndex = findClosestCircle(search);
-
-                if (hitCircleIndex < unselected.length) {
-                  // We hit outside the region, diselect from here
-                  activeKeyIdx.current = null;
-                } else {
-                  // We selected a letter– it is at the end of list provided to
-                  // findClosestCircle.
-                  const selected = activeKeySelectors.current?.[hitCircleIndex - unselected.length];
-
-                  if (selected) {
-                    magicText.current = magicText.current.slice(0, -1);
-                    // Space
-                    if (selected.label == "␣") {
-                      magicText.current += " ";
-                    } else if (selected.label == "⌫") {
-                      magicText.current = magicText.current.slice(0, -1);
-                    } else {
-                      magicText.current += selected.label;
-                    }
-                    magicText.current += "▌";
-
-                    // Reset
-                    activeKeyIdx.current = null;
-                    if (snapBackMode.current) {
-                      position.current = { x: centerX, y: centerY };
-                    }
-                  }
-
-                }
-
-
-              } else {
-                activeKeyIdx.current = hitCircleIndex;
-
-                // Generate targets for the active selector
-                let nEntries = keys[activeKeyIdx.current].labels.length;
-                let selectorKeys: KeySelector[] = [];
-                for (let selector = 0 ; selector < nEntries; selector++) {
-                    const row = Math.floor(selector / 2);
-                    const col = selector % 2;
-                    let sep = 75;
-
-                    selectorKeys.push({
-                      label: keys[activeKeyIdx.current].labels[selector],
-                      x: keys[activeKeyIdx.current].x - sep + (2 * col * sep),
-                      y: keys[activeKeyIdx.current].y - sep + (2 * row * sep),
-                    });
-                }
-                activeKeySelectors.current = selectorKeys;
-
-                // Snap to the selector key center
-                position.current = { x: keys[hitCircleIndex].x, y: keys[hitCircleIndex].y };
-                cursorTrail.current.fill(null);
-              }
-
-              new Audio("click.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
-
-            } else if (dotGameMode.current) {
-              if (hitCircleIndex === gameDotSequence[indexGameDot.current]) {
+                //if you hit the rite jawn
                 goodDotHits.current++;
-
-                if (timerDotStart.current === undefined) {
-                  //start timer
-                  timerDotStart.current = performance.now();
-                } else if (
-                  indexGameDot.current ===
-                  gameDotSequence.length - 1
-                ) {
-                  //terminate game and display metrics
-                  timeDotLength.current =
-                    performance.now() - timerDotStart.current;
-                  dotCcpm.current =
-                    (goodDotHits.current / timeDotLength.current) * 60000;
-                  accuracy.current =
-                    (goodDotHits.current /
-                      (goodDotHits.current + badDotHits.current)) *
-                    100;
-                }
-
                 new Audio("coin2.mp3")
                   .play()
                   .catch((error) =>
                     console.error("Error playing audio:", error),
                   );
-                indexGameDot.current++;
 
-                //terminate the game
-                if (indexGameDot.current === gameDotSequence.length) {
+                if (timerDotStart.current === undefined) {
+                  //start timer
+                  timerDotStart.current = performance.now();
                 }
+
+                if (wordSubstringer.current !== undefined) {
+                  //If you are in practice mode, append the next character
+                  wordSubstringer.current += 1;
+                }
+                if (
+                  hitCircleIndex === 4 &&
+                  indexSentence.current !== undefined &&
+                  sentence.current !== undefined
+                ) {
+                  wordSubstringer.current = 0;
+                  indexSentence.current++;
+                  if (indexSentence.current === sentence.current.length) {
+                    //if last character
+                    timeDotLength.current =
+                      performance.now() - timerDotStart.current;
+                    dotCcpm.current =
+                      (goodDotHits.current / timeDotLength.current) * 60000;
+                    accuracy.current =
+                      (goodDotHits.current /
+                        (goodDotHits.current + badDotHits.current)) *
+                      100;
+                  }
+                }
+                indexRefCode.current++;
               } else {
                 badDotHits.current++;
                 new Audio("erro.mp3")
@@ -2080,13 +1835,16 @@ useEffect(() => {
                   );
               }
               if (snapBackMode.current) {
-                position.current = { x: centerX, y: centerY };
+                // position.current = { x: centerX, y: centerY };
               }
+            } else {
+              handleTypingInteraction(keys[hitCircleIndex].idx, false);
             }
+
             ctx.beginPath();
             ctx.arc(
-              keys[hitCircleIndex].x,
-              keys[hitCircleIndex].y,
+              keys[hitCircleIndex].x * canvas.width,
+              keys[hitCircleIndex].y * canvas.height,
               99,
               0,
               2 * Math.PI,
@@ -2110,22 +1868,23 @@ useEffect(() => {
       if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
         ctx.font = "69px Poppins"; // Smaller font size
         ctx.fillStyle = "lightgreen"; // Text color
-        ctx.fillText(`${dotCcpm.current.toFixed(2)} DPM`, centerX, centerY);
+        ctx.fillText(
+          `${dotCcpm.current.toFixed(2)} DPM`,
+          centerX,
+          centerY + 100,
+        );
         ctx.font = "32px Poppins"; // Smaller font size
         ctx.fillStyle = "white"; // Text color
-        ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 200);
+        ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 175);
       }
 
-      ctx.fillText(magicText.current, centerX, centerY);
-
-      function findClosestCircle(items: (KeyTarget | KeySelector)[]) {
+      function findClosestCircle() {
         // Initialize variables within the function's scope
         let closestIndex = -1;
         let smallestDistance = Infinity;
 
-        for (let i = 0; i < items.length; i++) {
-          let target = items[i];
-          console.log(target);
+        for (let i = 0; i < keys.length; i++) {
+          let target = keys[i];
           let distance = Math.sqrt(
             Math.pow(target.x - position.current.x, 2) +
               Math.pow(target.y - position.current.y, 2),
@@ -2139,216 +1898,175 @@ useEffect(() => {
 
         return closestIndex;
       }
-    } else if (inDiagnostics.current && inDotPractice.current) { //PRACTICE MODE by little B
-      let keys: KeyTarget[] = [
-        { labels: ["A", "B", "C", "D", "E", "F"], x: 1/2 - (1/5 * multiplier.current), y: 1 / 2 - (4 / 15 * multiplier.current) },
-        { labels: ["G", "H", "I", "J", "K"], x: 1 / 2, y: 1 / 2 - (4 / 15 * multiplier.current) },
-        { labels: ["L", "M", "N", "O", "P"], x:  1/2 + (1/5 * multiplier.current), y: 1 / 2 - (4 / 15 * multiplier.current) },
-        { labels: ["⌫"], x:  1/2 - (1/5 * multiplier.current), y: 1 / 2 },
-        { labels: ["␣"], x: 1/2 + (1/5 * multiplier.current), y: 1 / 2 },
-        { labels: ["Q", "R", "S", "T", "U"], x:  1/2 - (1/5 * multiplier.current), y: 1 / 2 + (4 / 15 * multiplier.current) },
-        { labels: [" "], x: 1 / 2, y: 1 / 2 + (4 / 15 * multiplier.current) },
-        { labels: ["V", "W", "X", "Y", "Z"], x: 1/2 + (1/5 * multiplier.current), y: 1 / 2 + (4 / 15 * multiplier.current) },
-      ]
-
-      keys.forEach((key) => {
-        key.x *= canvas.width;
-        key.y *= canvas.height;
-      });
-
-      for (let i = 0; i < keys.length; i++) {
-
-        /*
-         *  Render Text
-         *
-         */
-        let nEntries = keys[i].labels.length;
-        for (let selector = 0 ; selector < nEntries; selector++) {
-            const row = Math.floor(selector / 3);
-            const col = selector % 3;
-
-            let sep = 30;
-            let fsize = multiplier.current * 56;
-            ctx.font = `${fsize}px Poppins`;
-            if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-              sep = 50;
-              ctx.fillStyle = "lightgray";
-            } else if (activeKeyIdx.current !== null) {
-              ctx.fillStyle = "rgb(200, 200, 200)";
-            } else {
-              ctx.fillStyle = "lightgray";
-            }
-
-            ctx.fillText(
-              keys[i].labels[selector],
-              keys[i].x - sep + (1.5 * col * sep),
-              keys[i].y - sep + (1.5 * row * sep),
-            );
-        }
-
-        ctx.beginPath();
-        if (dotGameMode.current) {
-          if (i === gameDotSequence[indexGameDot.current]) {
-            ctx.fillStyle = "yellow";
-          } else {
-            ctx.fillStyle = "#812dfa";
-          }
-        // Default magic coloring
-        } else {
-  
-          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-            ctx.fillStyle = "black"; // Hideen
-  
-          // Fade out the non-active keys
-          } else if (activeKeyIdx.current !== null) {
-            ctx.fillStyle = "rgb(80, 80, 80)";
-  
-          // Standard selector color
-          } else {
-            ctx.fillStyle = "lightgreen";
-          }
-  
-        }
-        if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
-          ctx.globalAlpha = 0.23;
-          ctx.arc(
-            keys[i].x,
-            keys[i].y,
-            22,
-            0,
-            2 * Math.PI,
-          );
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        } 
-      }
-
-      if ((Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current) && 
-          (position.current.x < centerX - 120 ||
-          position.current.x > centerX + 120 ||
-          position.current.y < centerY - 120 ||
-          position.current.y > centerY + 120)
-        ) {
-        if (velocityBelowThresholdStartTime.current === 0) {
-          // Start timing if it's the first time below threshold
-          velocityBelowThresholdStartTime.current = Date.now();
-        } else {
-          // Check if it has been below threshold for the required dwell time
-          const timeBelowThreshold = Date.now() - velocityBelowThresholdStartTime.current;
-          if (timeBelowThreshold >= dwellTimeRequired.current  && fast.current) {
-            console.log("We reached low velocities in Practisch");
-            
-            fast.current = false;
-            let hitCircleIndex = findClosestCircle();
-
-            console.log("hitCircleIndex " + hitCircleIndex);
-            
-
-            if (refCode.current !== undefined && indexRefCode.current !== undefined) {
-              console.log("refCode.current[indexRefCode.current] " + refCode.current[indexRefCode.current]);
-              if (hitCircleIndex+1 === refCode.current[indexRefCode.current]) { //if you hit the rite jawn
-                goodDotHits.current++;
-                new Audio("coin2.mp3")
-                  .play()
-                  .catch((error) => console.error("Error playing audio:", error));
-              
-                if (timerDotStart.current === undefined) {
-                  //start timer
-                  timerDotStart.current = performance.now();
-                }
-              
-                if (wordSubstringer.current !== undefined) {
-                  //If you are in practice mode, append the next character
-                  wordSubstringer.current += 1;
-                }
-                if (hitCircleIndex === 4 
-                  && indexSentence.current !== undefined 
-                  && sentence.current !== undefined) { 
-                  wordSubstringer.current = 0;
-                  indexSentence.current++;
-                  if (indexSentence.current === sentence.current.length) { //if last character
-                    timeDotLength.current = performance.now() - timerDotStart.current;
-                    dotCcpm.current = (goodDotHits.current / timeDotLength.current) * 60000;
-                    accuracy.current = (goodDotHits.current /
-                      (goodDotHits.current + badDotHits.current)) * 100;
-                  }
-                }
-                indexRefCode.current++;
-              } else {
-                badDotHits.current++;
-                new Audio("erro.mp3")
-                  .play()
-                  .catch((error) =>
-                    console.error("Error playing audio:", error),
-                  );
-              }
-            if (snapBackMode.current) {
-              position.current = { x: centerX, y: centerY };
-            }
-          }
-
-          ctx.beginPath();
-          ctx.arc(keys[hitCircleIndex].x * canvas.width, keys[hitCircleIndex].y * canvas.height, 99, 0, 2 * Math.PI);
-          ctx.fill();
-          // Reset the start time
-          velocityBelowThresholdStartTime.current = 0;
-          }
-        }
-        } else {
-          // Reset if velocity goes above threshold
-          if (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) > fastThreshold.current) {
-            fast.current = true;
-          }
-          velocityBelowThresholdStartTime.current = 0;
-        }
-        if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
-          ctx.font = "69px Poppins"; // Smaller font size
-          ctx.fillStyle = "lightgreen"; // Text color
-          ctx.fillText(
-            `${dotCcpm.current.toFixed(2)} DPM`,
-            centerX,
-            centerY,
-          );
-          ctx.font = "32px Poppins"; // Smaller font size
-          ctx.fillStyle = "white"; // Text color
-          ctx.fillText(
-            `${accuracy.current.toFixed(2)}%`,
-            centerX,
-            centerY + 200,
-          );
-        }
-        
-      
-      function findClosestCircle() {
-        // Initialize variables within the function's scope
-        let closestIndex = -1;
-        let smallestDistance = Infinity;
-      
-        for (let i = 0; i < keys.length; i++) {
-          let target = keys[i];
-          let distance = Math.sqrt(Math.pow(target.x - position.current.x, 2) + Math.pow(target.y - position.current.y, 2));
-      
-          if (distance < smallestDistance) {
-            smallestDistance = distance;
-            closestIndex = i;
-          }
-        }
-      
-        return closestIndex;
-      }
-
     }
-
-
   }, [
     position,
-    sideLikelihoods,
     lastHitSide,
     finalizeCurrentWord,
     sideMappings,
     sideLabels,
     code,
   ]);
+
+  /*
+   * Handle navigation interactions based on the selection index.
+   *
+   * Returns whether or not the page changed as a result of this interaction.
+   */
+  function handlePageInteractions(selectorIndex: number): boolean {
+    // =========== Handle page-dependent interactions with buttons
+    let startingPage = activePage.current;
+    if (activePage.current === OctagonPage.Keyboard) {
+      // Transistion keyboard -> home menu
+      if (selectorIndex == 3) {
+        activePage.current = OctagonPage.Home;
+      }
+    } else if (activePage.current === OctagonPage.Home) {
+      switch (selectorIndex) {
+        // Transistion home -> keyboard
+        case 5:
+          activePage.current = OctagonPage.Keyboard; // Hack: just used for tracking display
+          break;
+        // Transistion home -> settings
+        case 2:
+          activePage.current = OctagonPage.Settings;
+          break;
+        // Speak
+        case 4:
+          speakWords();
+          break;
+        // Practice mode
+        case 7:
+          if (!inPractice.current && !inLights.current) {
+            startPracticeMode();
+            activePage.current = OctagonPage.Keyboard;
+          } else {
+            stopPracticeMode();
+          }
+          break;
+        // Game mode
+        case 8:
+          if (!inLights.current && !inPractice.current) {
+            // startPracticeMode();
+            inGameMode.current = true;
+            startGameMode();
+            activePage.current = OctagonPage.Keyboard;
+          } else {
+            inGameMode.current = false;
+            stopPracticeMode();
+          }
+          break;
+        // Clear all
+        case 1:
+          console.log("Clearing all text!");
+          theWords.current = [];
+          theCodes.current = [];
+          dirtyWords.current = [];
+          code.current = "";
+          break;
+      }
+    } else if (activePage.current === OctagonPage.Settings) {
+      switch (selectorIndex) {
+        // Transistion settings -> home
+        case 3:
+          activePage.current = OctagonPage.Home;
+          break;
+
+        // Radius on
+        case 1:
+          gravity.current = 0.4 * radiusOct;
+          break;
+
+        // Radius off
+        case 2:
+          gravity.current = gravityDefault;
+          break;
+      }
+    }
+
+    const pageChange = activePage.current != startingPage;
+    console.log("PAGE CHANGE: " + pageChange);
+
+    return pageChange;
+  }
+
+  /*
+   * Handle a typing interaction on the keyboard
+   *
+   */
+  function handleTypingInteraction(
+    selectorIndex: number,
+    pageChangeOccured: boolean,
+  ) {
+    if (indexRefCode.current !== undefined) {
+      //if in Game/Practice mode, increase the Ref
+      indexRefCode.current += 1;
+    }
+
+    const codeChar = sideMappings[selectorIndex];
+    // If side 3 => space => finalize
+    if (codeChar === " ") {
+      if (
+        refCode.current !== undefined &&
+        sentence.current !== undefined &&
+        indexSentence.current !== undefined
+      ) {
+        if (sentence.current[indexSentence.current]) {
+          theWords.current = [
+            ...theWords.current,
+            sentence.current[indexSentence.current],
+          ];
+        }
+
+        if (inPractice.current) {
+          wordSubstringer.current = 0;
+        }
+        indexSentence.current += 1;
+        code.current = "";
+        if (indexSentence.current === sentence.current.length) {
+          timerEnd.current = performance.now();
+          timeLength.current = timerEnd.current - (timerStart.current ?? 0);
+          stopPracticeMode();
+        }
+      } else if (
+        !inLights.current &&
+        activePage.current == OctagonPage.Keyboard
+      ) {
+        finalizeCurrentWord();
+      }
+
+      /* Backspace: Only allow in keyboard mode */
+    } else if (
+      codeChar === "⌫" &&
+      activePage.current === OctagonPage.Keyboard &&
+      !pageChangeOccured
+    ) {
+      if (code.current) {
+        console.log("trying to remove just the last letter");
+        code.current = code.current.substring(0, code.current.length - 1);
+      } else {
+        theWords.current.pop();
+        theCodes.current.pop();
+      }
+
+      /* Standard typing case: append code character */
+    } else if (
+      codeChar &&
+      !inLights.current &&
+      activePage.current == OctagonPage.Keyboard &&
+      !pageChangeOccured
+    ) {
+      // Add digit to typedCodes
+      code.current = code.current + codeChar;
+      console.log(code.current);
+    }
+  }
+
+  /*
+   * Render typing
+   *
+   */
+  function renderTyping() {}
 
   //Leaderboard jawns
 
@@ -2443,7 +2161,7 @@ useEffect(() => {
           alignItems: "center", // Center the video vertically
         }}
       >
-        <iframe
+        {/*<iframe
           width="560"
           height="315"
           src={`https://www.youtube.com/embed/${randomyt.current}?controls=0&loop=1&autoplay=${isPlaying.current ? 1 : 0}`}
@@ -2451,7 +2169,7 @@ useEffect(() => {
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-        />
+        />*/}
       </div>
       {/* Leaderboard Section */}
       <div
@@ -2497,6 +2215,7 @@ useEffect(() => {
           left: "10px",
         }}
       >
+
         {/* Top-left button */}
         <button
           style={{
@@ -2514,16 +2233,32 @@ useEffect(() => {
             zIndex: 1000000,
           }}
           onClick={(e) => {
-            const button = e.currentTarget as HTMLElement;
-            button.style.backgroundColor = "lightblue";
-            setTimeout(() => {
-              button.style.backgroundColor = "black";
-            }, 300);
-
-            zmqService.current.publish("cursor", "off");
+            inDiagnostics.current = false;
           }}
         >
-          Cursor Off
+          Octagon
+        </button>
+
+        <button
+          style={{
+            position: "relative",
+            // left: "100%",
+            // top: "120px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          }}
+          onClick={(e) => {
+            inDiagnostics.current = true;
+          }}
+        >
+          Magic Dots
         </button>
 
         {/* Copy to clipboard button */}
@@ -2757,7 +2492,7 @@ useEffect(() => {
           }}
         />
 
-      <label htmlFor="Multiplier">Multiplier </label>
+        <label htmlFor="Multiplier">Multiplier </label>
         <input
           id="multiplier"
           type="number"
@@ -2765,9 +2500,7 @@ useEffect(() => {
           max={4}
           step="0.1"
           value={multiplier.current}
-          onChange={(e) =>
-            (multiplier.current = parseFloat(e.target.value))
-          }
+          onChange={(e) => (multiplier.current = parseFloat(e.target.value))}
           style={{
             // width: "150px",
             appearance: "none", // Removes default slider styles
@@ -2776,13 +2509,8 @@ useEffect(() => {
             outline: "none", // Removes outline on focus
           }}
         />
-
       </div>
 
-
-
-      {/* Speed Slider */}
-      
       <div
         style={{
           position: "fixed", // Fixes the position relative to the viewport
@@ -2795,22 +2523,6 @@ useEffect(() => {
           textAlign: "center",
         }}
       >
-        <label
-          htmlFor="speed-slider"
-          style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}
-        >
-          Speed: {speed.current.toFixed(1)}
-        </label>
-        <input
-          id="speed-slider"
-          type="range"
-          min="0.1"
-          max="2"
-          step="0.1"
-          value={speed.current}
-          onChange={(e) => (speed.current = parseFloat(e.target.value))}
-          style={{ width: "150px" }}
-        />
         {/* Display Velocity Values */}
         <div
           style={{
@@ -2853,37 +2565,6 @@ useEffect(() => {
             }}
           />
           <div style={{ marginTop: "10px" }}>
-            <button
-              onClick={() => {
-                inDiagnostics.current = !inDiagnostics.current;
-              }}
-              style={{
-                backgroundColor: "#555555", // Off-black button background
-                color: "white", // White text
-                border: "none",
-                borderRadius: "5px",
-                padding: "5px 10px",
-                marginRight: "10px",
-                cursor: "pointer",
-              }}
-            >
-              Diagnostics
-            </button>
-            <button
-              onClick={() => {
-                inDiagnostics.current = !inDiagnostics.current;
-              }}
-              style={{
-                backgroundColor: "#555555", // Off-black button background
-                color: "white", // White text
-                border: "none",
-                borderRadius: "5px",
-                padding: "5px 10px",
-                cursor: "pointer",
-              }}
-            >
-              D
-            </button>
           </div>
 
           <style>
@@ -2979,7 +2660,7 @@ useEffect(() => {
           gap: "10px", // Space between buttons
         }}
       >
-        {[...Array(7)].map((_, index) => (
+        {[...Array(8)].map((_, index) => (
           <button
             key={index}
             style={{
@@ -3000,20 +2681,16 @@ useEffect(() => {
                   );
                   break;
                 case 1:
-                  // Action for the second button
-                  lockCursor.current = true;
-                  console.log("clicked second button");
+                  speakWords();
                   break;
+
                 case 2:
-                  showTargets.current = true;
-                  lockCursor.current = false;
-
-                  // Increment the target index and wrap around if needed
-                  targetIndex.current++;
-                  targetIndex.current =
-                    targetIndex.current % lineStartPoints.length;
-
+                  theWords.current = [];
+                  theCodes.current = [];
+                  dirtyWords.current = [];
+                  code.current = "";
                   break;
+
                 case 3:
                   // Action for the fourth button
                   inDiagnostics.current = true;
@@ -3036,10 +2713,6 @@ useEffect(() => {
                   snapBackMode.current = !snapBackMode.current;
                   break;
 
-                case 5:
-                  magicText.current = "▌";
-                  break;
-
                 case 6:
                   inDotPractice.current = true;
                   // Action for the fourth button
@@ -3053,9 +2726,18 @@ useEffect(() => {
                   timeDotLength.current = undefined;
 
                   dotCcpm.current = undefined;
-                  
+
                   startPracticeMode();
 
+                  break;
+
+                case 7:
+                  inDotPractice.current = true;
+                  inDiagnostics.current = true;
+
+                  goodDotHits.current = 0;
+                  badDotHits.current = 0;
+                  accuracy.current = undefined;
                   break;
 
                 default:
@@ -3063,14 +2745,20 @@ useEffect(() => {
               }
             }}
           >
-          {(() => {
-            switch (index) {
-              case 4:
-                return snapBackMode.current ? "snap: on" : "snap: off"
-              case 5:
-                return "clear";
-            }
-          })()}
+            {(() => {
+              switch (index) {
+                case 1:
+                  return "🗣️";
+                case 2:
+                  return "🗑️";
+                case 4:
+                  return snapBackMode.current ? "snap: on" : "snap: off";
+                case 6:
+                  return "train";
+                case 7:
+                  return "type";
+              }
+            })()}
           </button>
         ))}
       </div>
