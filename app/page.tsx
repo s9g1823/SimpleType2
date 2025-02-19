@@ -216,7 +216,7 @@ const PointerLockDemo: React.FC = () => {
     3: "▢",
     4: "🗣️",
     5: "🔤 ",
-    6: "Exit",
+    6: "Target Mode",
     7: "📝 Practice",
     8: "🕹️Game",
   };
@@ -949,6 +949,8 @@ useEffect(() => {
 
   const dotGameMode = useRef<boolean>(false);
   const dotArrowMode = useRef<boolean>(false);
+
+  const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
     5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4,
     0, 2, 0, 5, 7,
@@ -1296,7 +1298,8 @@ useEffect(() => {
         !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
-        refCode.current[indexRefCode.current] == sideIndex
+        refCode.current[indexRefCode.current] == sideIndex &&
+        !octagonTargetMode.current
       ) {
         //when not touching and in Game mode
         ctx.fillStyle = "yellow";
@@ -1331,11 +1334,22 @@ useEffect(() => {
       }
 
       if (!inDiagnostics.current) {
+
         if (activeSide.current === sideIndex) {
           ctx.strokeStyle = "white";
         } else {
           ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
         }
+
+        if (
+          octagonTargetMode.current &&
+          refCode.current &&
+          indexRefCode.current !== undefined &&
+          refCode.current[indexRefCode.current] == sideIndex
+        ) {
+          ctx.strokeStyle = "yellow";
+        }
+
         ctx.lineWidth = 14;
         ctx.beginPath();
         ctx.moveTo(side.startX, side.startY);
@@ -1960,6 +1974,19 @@ useEffect(() => {
         case 4:
           speakWords();
           break;
+        case 6:
+          if (!inPractice.current && !inLights.current && !octagonTargetMode.current) {
+            inGameMode.current = true;
+            octagonTargetMode.current = true;
+            startGameMode();
+            activePage.current = OctagonPage.Keyboard;
+          } else {
+            octagonTargetMode.current = false;
+            inGameMode.current = false;
+            stopPracticeMode();
+          }
+          break;
+
         // Practice mode
         case 7:
           if (!inPractice.current && !inLights.current) {
@@ -1969,6 +1996,7 @@ useEffect(() => {
             stopPracticeMode();
           }
           break;
+
         // Game mode
         case 8:
           if (!inLights.current && !inPractice.current) {
