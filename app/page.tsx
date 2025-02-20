@@ -39,6 +39,8 @@ interface KeyTarget {
   x: number;
   y: number;
   idx: number; // Index of side mappings this should correspond to.
+  width?: number;
+  height?: number;
 }
 
 enum KeyboardType {
@@ -107,7 +109,7 @@ const PointerLockDemo: React.FC = () => {
     DwellZoneRendering.Visible,
   );
 
-  const renderCursorTrail = useRef<boolean>(true);
+  const renderCursorTrail = useRef<boolean>(false);
 
   const radiusOct = 350;
   const dwellZoneRadius = useRef<number>(radiusOct - 50);
@@ -146,7 +148,7 @@ const PointerLockDemo: React.FC = () => {
   const maxTrail = 50;
   const cursorTrail = useRef(new Array(maxTrail).fill(null));
 
-  // Track collision so we don’t spam the same side
+  // Track collision so we don't spam the same side
   const lastHitSide = useRef<number | null>();
 
   // The lines making up the octagon, if needed for reference
@@ -381,8 +383,7 @@ const PointerLockDemo: React.FC = () => {
     let rng = Math.floor(Math.random() * sentences.length);
 
     refCode.current = [
-      2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1,
-      3, 3, 8, 1, 1, 5,
+      7, 1, 6, 8, 1, 6, 1, 4, 6, 6, 4, 7, 6, 7, 6, 6, 1, 4, 8, 1, 8, 2, 1, 6, 6, 8, 8, 2, 6, 6, 1
     ];
     sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
@@ -415,8 +416,7 @@ const PointerLockDemo: React.FC = () => {
     randomyt.current = yts[rng2];
 
     refCode.current = [
-      2, 5, 1, 3, 5, 1, 5, 6, 1, 1, 6, 2, 1, 2, 1, 1, 5, 6, 3, 5, 3, 8, 5, 1, 1,
-      3, 3, 8, 1, 1, 5,
+      7, 1, 6, 8, 1, 6, 1, 4, 6, 6, 4, 7, 6, 7, 6, 6, 1, 4, 8, 1, 8, 2, 1, 6, 6, 8, 8, 2, 6, 6, 1
     ];
     sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
 
@@ -443,6 +443,12 @@ const PointerLockDemo: React.FC = () => {
 
     textWidth.current = undefined;
     wordSubstringer.current = 0;
+
+    goodDotHits.current = 0;
+    badDotHits.current = 0;
+    timerDotStart.current = 0;
+
+    
   };
 
   //
@@ -920,6 +926,8 @@ useEffect(() => {
   }
   const inDiagnostics = useRef<boolean>(true);
 
+  const inMagicBricks = useRef<boolean>(true);
+
   const showCursor = useRef<boolean>(false);
 
   const lockCursor = useRef<boolean>(false);
@@ -950,6 +958,11 @@ useEffect(() => {
   const dotGameMode = useRef<boolean>(false);
   const dotArrowMode = useRef<boolean>(false);
 
+  //timeElapsed
+  const timeElapsed = useRef<number>();
+  const dwellBrickTime = useRef<number>(700);
+  const dwellBrickRefractory = useRef<number>(700);
+
   const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
     5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4,
@@ -969,8 +982,13 @@ useEffect(() => {
 
   // Magic keys
   const activeKeyIdx = useRef<number | null>(null);
+  const clickedKeyIdx = useRef<number | null>(null);
+  const clickedKey = useRef<KeyTarget | null>(null);
+  const justHit = useRef<boolean>(true);
 
   const inDotPractice = useRef<boolean>(false);
+
+  const refractoryStart = useRef<number>();
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -986,8 +1004,10 @@ useEffect(() => {
     // (1) DRAW THE OCTAGON AND SIDES
     //
 
+    
     const centerX = 800;
     const centerY = 600;
+    
 
     const radius = radiusOct;
     const innerRadius = dwellZoneRadius.current;
@@ -1179,7 +1199,7 @@ useEffect(() => {
 
       //display what has been typed so far
       ctx.textAlign = "left";
-      ctx.fillStyle = "yellow";
+      ctx.fillStyle = "white";
 
       if (
         sentence.current !== undefined &&
@@ -1562,7 +1582,7 @@ useEffect(() => {
     ctx.fillStyle = "#CACACA"; // Faded white color
     const buffer = inDiagnostics.current ? 90 : 0;
     if (!inLights.current && !dotArrowMode.current) {
-      ctx.fillText(theWords.current.join(" "), centerX, centerY - 200 + buffer); // Adjust Y-coordinate to place it above
+      ctx.fillText(theWords.current.join(" "), centerX, inMagicBricks.current ? centerY - 350 : centerY - 200 + buffer); // Adjust Y-coordinate to place it above
     }
 
     //Draw calculations for Game Mode
@@ -1631,7 +1651,7 @@ useEffect(() => {
     }
 
     setOctagonSides(newSides);
-
+  
     //
     // =====================================================================
     //
@@ -1639,7 +1659,7 @@ useEffect(() => {
     //
     // =====================================================================
     //
-    if (inDiagnostics.current) {
+    if (inDiagnostics.current && !inMagicBricks.current) {
       //PRACTICE MODE by little B
       let keys: KeyTarget[] = [
         {
@@ -1719,7 +1739,7 @@ useEffect(() => {
             ctx.fillStyle = "yellow";
           } else {
             // ctx.fillStyle = "#812dfa";
-            ctx.fillStyle = "purple";
+            ctx.fillStyle = "white";
           }
           // Default magic coloring
         } else if (
@@ -1825,8 +1845,9 @@ useEffect(() => {
               ) {
                 //if you hit the rite jawn
                 goodDotHits.current++;
-                new Audio("coin2.mp3")
-                  .play()
+                const audio = new Audio("coin2.mp3");
+                audio.volume = 0.3; // Reduce volume to 30%
+                audio.play()
                   .catch((error) =>
                     console.error("Error playing audio:", error),
                   );
@@ -1937,6 +1958,193 @@ useEffect(() => {
 
         return closestIndex;
       }
+    }
+
+    if (inMagicBricks.current) {
+
+      const blockWidth = 200;
+      const blockHeight = 150;
+      const horizontalGap = 50;
+      const verticalGap = 50;
+      const cornerRadius = 15; // Radius for curved corners
+      
+      // Calculate total width and height of the block arrangement
+      const totalWidth = (blockWidth * 3) + (horizontalGap * 2);
+      const totalHeight = (blockHeight * 2) + verticalGap;
+      
+      // Calculate starting position to center the blocks, shifted up by 100px
+      const startX = centerX - (totalWidth / 2);
+      const startY = centerY - (totalHeight / 2) - 40;
+
+      let keys: KeyTarget[] = [
+        {
+          labels: ["A", "B", "C", "D", "E", "F"],
+          x: startX + (0 * (blockWidth + horizontalGap)),
+          y: startY,
+          idx: 6,
+          width: blockWidth
+        },
+        {
+          labels: ["G", "H", "I", "J", "K"], 
+          x: startX + (1 * (blockWidth + horizontalGap)),
+          y: startY,
+          idx: 7,
+          width: blockWidth
+        },
+        {
+          labels: ["L", "M", "N", "O", "P"],
+          x: startX + (2 * (blockWidth + horizontalGap)), 
+          y: startY,
+          idx: 8,
+          width: blockWidth
+        },
+        {
+          labels: ["⌫"],
+          x: startX - blockWidth - horizontalGap,
+          y: startY,
+          width: blockWidth,
+          height: blockHeight * 3 + verticalGap * 2,
+          idx: 5
+        },
+        {
+          labels: ["␣"],
+          x: startX,
+          y: startY + 2 * blockHeight + 2 * verticalGap,
+          width: totalWidth, // Make space bar span full width
+          idx: 1
+        },
+        {
+          labels: ["Q", "R", "S", "T", "U"],
+          x: startX,
+          y: startY + blockHeight + verticalGap,
+          idx: 4,
+          width: blockWidth
+        },
+        {
+          labels: ["V", "W", "X", "Y", "Z"],
+          x: startX + (2 * (blockWidth + horizontalGap)),
+          y: startY + blockHeight + verticalGap,
+          idx: 2,
+          width: blockWidth
+        }
+      ];
+
+
+      ctx.fillStyle = "white";
+
+      // Draw blocks and labels
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        
+        // Draw dotted block
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]); // Create dotted line pattern
+        const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
+        const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
+        ctx.roundRect(key.x, key.y, width, height, 15);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset line pattern
+
+        // Draw labels
+        ctx.font = "32px Poppins";
+        if (refCode.current && indexRefCode.current && dotGameMode.current) {
+          if (key.idx === refCode.current[indexRefCode.current]) {
+            ctx.fillStyle = "yellow";
+          } else {
+            // ctx.fillStyle = "#812dfa";
+            ctx.fillStyle = "white";
+          }
+          // Default magic coloring
+        }        
+        ctx.textAlign = "center";
+        
+        // Center the text in the block
+        const textX = key.x + width/2; // Use width instead of blockWidth
+        const textY = key.y + height/2;
+        
+        // Draw each letter spaced out
+        const spacing = 30;
+        key.labels.forEach((label, index) => {
+          const letterX = textX - ((key.labels.length-1) * spacing)/2 + (index * spacing);
+          ctx.fillText(label, letterX, textY);
+        });
+      }
+
+      let lastActiveKeyIdx = activeKeyIdx.current;
+
+
+      // Draw blocks with highlighting
+      for (let key of keys) {
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]); // Create dotted line pattern
+        const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
+        const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
+
+        ctx.roundRect(key.x, key.y, width, height, cornerRadius);
+      
+        
+        // Check if cursor is over this key
+        if (position.current.x >= key.x && 
+            position.current.x <= key.x + width &&
+            position.current.y >= key.y && 
+            position.current.y <= key.y + height) {
+          
+          let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
+          ctx.fillStyle = key.idx === 5 ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 0, 255, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
+          // Only start timer if moving to a new key
+          if (activeKeyIdx.current !== key.idx) {
+            timerStart.current = performance.now();
+            justHit.current = false;
+            activeKeyIdx.current = key.idx;
+          }
+
+          // Check if enough time has passed since timer started
+          if (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) {
+            // Check if we're past refractory period or haven't hit yet
+            if (!refractoryStart.current || performance.now() - refractoryStart.current >= dwellBrickTime.current + dwellBrickRefractory.current) {
+              new Audio("click.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
+              
+              // Handle key click
+              if (activeKeyIdx.current !== null) {
+                clickedKey.current = keys[activeKeyIdx.current];
+                clickedKeyIdx.current = activeKeyIdx.current;
+                handleTypingInteraction(key.idx, false);
+              // Display clicked key index on canvas
+              }
+              
+              // Reset timer and set refractory period
+              timerStart.current = performance.now();
+              refractoryStart.current = performance.now();
+            }
+          }
+
+          ctx.fill();
+        } else if (lastActiveKeyIdx === key.idx) {
+          // Reset active key when leaving this key
+          activeKeyIdx.current = null;
+          timerStart.current = undefined;
+          refractoryStart.current = undefined;
+        }
+
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset line pattern
+      }
+
+      // Draw dwell timer progress if active
+      if (activeKeyIdx.current !== null && timerStart.current) {
+        ctx.font = "24px Poppins";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        timeElapsed.current = Math.floor(performance.now() - timerStart.current);
+        ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
+      }
+      
     }
   }, [
     position,
@@ -2051,37 +2259,73 @@ useEffect(() => {
     selectorIndex: number,
     pageChangeOccured: boolean,
   ) {
-    if (indexRefCode.current !== undefined) {
-      //if in Game/Practice mode, increase the Ref
-      indexRefCode.current += 1;
+    const codeChar = sideMappings[selectorIndex];
+    
+    //Game and Practice Mode handling
+    if (refCode.current !== undefined && indexRefCode.current !== undefined) {
+
+      //If correct hit
+      if (refCode.current[indexRefCode.current] === selectorIndex) {
+        //Start the timer after the first successful hit
+        if (indexRefCode.current === 0) {
+          timerDotStart.current = performance.now();
+        }
+        
+        goodDotHits.current++;
+        indexRefCode.current++;
+        wordSubstringer.current++;
+      
+        //if the correct hit is a SPACE
+        if (codeChar === " " && sentence.current !== undefined && indexSentence.current !== undefined) {
+          //Append to the words and refresh code
+          theWords.current = [...theWords.current, sentence.current[indexSentence.current],];
+          code.current = "";
+
+          //Move to the next word
+          wordSubstringer.current = 0;
+          indexSentence.current += 1;
+
+          //If its your last word
+          if (indexSentence.current === sentence.current.length) {;
+            timeDotLength.current = performance.now() - (timerDotStart.current ?? 0);
+            
+            //Calculate values
+            dotCcpm.current = (goodDotHits.current / timeDotLength.current) * 60000;
+            accuracy.current = goodDotHits.current / (goodDotHits.current + badDotHits.current);
+
+            //Add to the leaderboard
+            leederboredVals.current.push({
+              player: "borg",
+              ccpm: dotCcpm.current,
+              accuracy: accuracy.current
+            });
+
+            stopPracticeMode();
+          }
+        }
+        
+        
+        new Audio("coin2.mp3")
+          .play()
+          .catch((error) =>
+            console.error("Error playing audio:", error),
+          );
+      } else { //if incorrect hit
+        badDotHits.current++;
+        new Audio("erro.mp3")
+          .play()
+          .catch((error) =>
+            console.error("Error playing audio:", error),
+          );
+      }
+      
     }
 
-    const codeChar = sideMappings[selectorIndex];
+    
     // If side 3 => space => finalize
     if (codeChar === " ") {
       if (
-        refCode.current !== undefined &&
-        sentence.current !== undefined &&
-        indexSentence.current !== undefined
-      ) {
-        if (sentence.current[indexSentence.current]) {
-          theWords.current = [
-            ...theWords.current,
-            sentence.current[indexSentence.current],
-          ];
-        }
-
-        if (inPractice.current) {
-          wordSubstringer.current = 0;
-        }
-        indexSentence.current += 1;
-        code.current = "";
-        if (indexSentence.current === sentence.current.length) {
-          timerEnd.current = performance.now();
-          timeLength.current = timerEnd.current - (timerStart.current ?? 0);
-          stopPracticeMode();
-        }
-      } else if (
+        !refCode.current && //if not in game or practice mode
         !inLights.current &&
         activePage.current == OctagonPage.Keyboard
       ) {
@@ -2126,6 +2370,7 @@ useEffect(() => {
   interface LeaderboardEntry {
     player: string;
     ccpm: number;
+    accuracy?: number;
   }
   const leederboredVals = useRef<LeaderboardEntry[]>([
     { player: "easy E", ccpm: 52.02 },
@@ -2259,6 +2504,13 @@ useEffect(() => {
               </div>
             ))}{" "}
           </div>
+          <div>
+            {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                {entry.accuracy ? Math.round(entry.accuracy * 100) + "%" : "100%"}
+              </div>
+            ))}{" "}
+          </div>
         </div>
       </div>
       <div
@@ -2384,7 +2636,8 @@ useEffect(() => {
 
       {/* Render mode options */}
       <div
-        style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
+        style={{ 
+          position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
         <button
           onClick={() => {
@@ -2560,6 +2813,50 @@ useEffect(() => {
             background: "#333333", // Off-black background for the slider track
             borderRadius: "5px",
             outline: "none", // Removes outline on focus
+          }}
+        />
+
+      <label htmlFor="DwellBrick">Brick Dwell Time </label>
+        <input
+          id="DwellBrick"
+          type="number"
+          min={0}
+          max={2000}
+          step="50"
+          value={dwellBrickTime.current}
+          onChange={(e) => (dwellBrickTime.current = parseFloat(e.target.value))}
+          style={{
+            height: "80px", // Increased height
+            fontSize: "20px", // Larger font size
+            padding: "5px 10px", // Added padding
+            appearance: "none",
+            background: "#333333",
+            borderRadius: "5px",
+            outline: "none",
+            color: "white", // Added for better visibility
+            marginRight: "20px", // Added spacing between elements
+          }}
+        />
+
+      <label htmlFor="DwellBrick">Brick Refraction Time </label>
+        <input
+          id="DwellBrickRefractory"
+          type="number"
+          min={0}
+          max={2000}
+          step="50"
+          value={dwellBrickRefractory.current}
+          onChange={(e) => (dwellBrickRefractory.current = parseFloat(e.target.value))}
+          style={{
+            height: "80px", // Increased height
+            fontSize: "20px", // Larger font size
+            padding: "5px 10px", // Added padding
+            appearance: "none",
+            background: "#333333",
+            borderRadius: "5px",
+            outline: "none",
+            color: "white", // Added for better visibility
+            marginRight: "20px", // Added spacing between elements
           }}
         />
       </div>
