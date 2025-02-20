@@ -961,7 +961,7 @@ useEffect(() => {
   //timeElapsed
   const timeElapsed = useRef<number>();
   const dwellBrickTime = useRef<number>(700);
-  const dwellBrickRefractory = useRef<number>(700);
+  const dwellBrickRefractory = useRef<number>(500);
 
   const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -2142,7 +2142,7 @@ useEffect(() => {
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
         timeElapsed.current = Math.floor(performance.now() - timerStart.current);
-        ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
+        //ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
       }
       
     }
