@@ -416,9 +416,9 @@ const PointerLockDemo: React.FC = () => {
     randomyt.current = yts[rng2];
 
     refCode.current = [
-      7, 1, 6, 8, 1, 6, 1, 4, 6, 6, 4, 7, 6, 7, 6, 6, 1, 4, 8, 1, 8, 2, 1, 6, 6, 8, 8, 2, 6, 6, 1
+      7, 6, 8, 8, 8, 1, 2, 8, 4, 8, 6, 1
     ];
-    sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
+    sentence.current = ["hello", "world"];
 
     //calculations
     goodHits.current = 0;
@@ -2091,8 +2091,11 @@ useEffect(() => {
             position.current.y >= key.y && 
             position.current.y <= key.y + height) {
           
-          let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
-          ctx.fillStyle = key.idx === 5 ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 0, 255, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
+        let opacity = dwellClickMode.current ? 0 : Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
+        if (key.idx === clickedKeyIdx.current) {
+          opacity = 1;
+        }
+        ctx.fillStyle = key.idx === 5 ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 0, 255, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
           // Only start timer if moving to a new key
           if (activeKeyIdx.current !== key.idx) {
             timerStart.current = performance.now();
@@ -2101,7 +2104,10 @@ useEffect(() => {
           }
 
           // Check if enough time has passed since timer started
-          if (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) {
+          if (
+            (!dwellClickMode.current && timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) ||  
+            (dwellClickMode.current &&  Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current))
+            {
             // Check if we're past refractory period or haven't hit yet
             if (!refractoryStart.current || performance.now() - refractoryStart.current >= dwellBrickTime.current + dwellBrickRefractory.current) {
               new Audio("click.mp3")
@@ -2110,10 +2116,15 @@ useEffect(() => {
               
               // Handle key click
               if (activeKeyIdx.current !== null) {
+                handleTypingInteraction(key.idx, false);
+
                 clickedKey.current = keys[activeKeyIdx.current];
                 clickedKeyIdx.current = activeKeyIdx.current;
-                handleTypingInteraction(key.idx, false);
-              // Display clicked key index on canvas
+
+                setTimeout(() => {
+                  clickedKey.current = null;
+                  clickedKeyIdx.current = null;
+                }, 230);
               }
               
               // Reset timer and set refractory period
@@ -2144,6 +2155,17 @@ useEffect(() => {
         timeElapsed.current = Math.floor(performance.now() - timerStart.current);
         //ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
       }
+
+      // Set the font size and style
+      ctx.font = '16px Arial'; // You can adjust the size and font as needed
+      ctx.textAlign = 'center'; // Center the text horizontally
+
+      // Set the position for the text
+      const xPosition = canvas.width / 2; // Center text horizontally
+      const yPosition = 20; // Position text a bit below the top edge
+
+      // Draw the text on the canvas
+      ctx.fillText(`Clicked Key Index: ${clickedKeyIdx.current}`, xPosition, yPosition);
       
     }
   }, [
@@ -2765,8 +2787,8 @@ useEffect(() => {
           id="dwell-time"
           type="number"
           min={0}
-          max={300}
-          step="15"
+          max={1000}
+          step="50"
           value={dwellTimeRequired.current}
           onChange={(e) =>
             (dwellTimeRequired.current = parseFloat(e.target.value))
