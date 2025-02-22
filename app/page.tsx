@@ -191,7 +191,7 @@ const PointerLockDemo: React.FC = () => {
   const handleDwellEnd = useRef<boolean[]>(Array(nSides).fill(false));
 
   // Dwell click
-  const dwellClickMode = useRef<boolean>(true);
+  const dwellClickMode = useRef<boolean>(false);
   const dwellClicked = useRef<boolean[]>(Array(nSides).fill(false));
   const dwellClickThreshold = useRef<number>(100);
 
