@@ -129,6 +129,9 @@ const PointerLockDemo: React.FC = () => {
       }
 
       velocities.current = data;
+      const newX = position.current.x + velocities.current.final_velocity_x * speed.current * 0.015;
+      const newY = position.current.y + velocities.current.final_velocity_y * speed.current * 0.015;
+      position.current = { x: newX, y: newY };
     }
 
     zmqService.current.events.on(ZmqClient.EVENT_MESSAGE, handleDecodeData);
@@ -765,7 +768,7 @@ useEffect(() => {
           document.addEventListener("mousemove", handleMouseMove);
         } else {
           console.log("Pointer lock deactivated.");
-          document.removeEventListener("mousemve", handleMouseMove);
+          document.removeEventListener("mousemove", handleMouseMove);
         }
       };
 
