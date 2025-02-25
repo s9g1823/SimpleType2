@@ -124,9 +124,9 @@ const PointerLockDemo: React.FC = () => {
 
   useEffect(() => {
     function handleDecodeData(data: DecodePacket) {
-      // if (systemCursorEnabled) {
-      //   return;
-      // }
+      if (systemCursorEnabled) {
+        return;
+      }
 
       velocities.current = data;
     }
@@ -448,7 +448,7 @@ const PointerLockDemo: React.FC = () => {
     badDotHits.current = 0;
     timerDotStart.current = 0;
 
-    
+
   };
 
   //
@@ -750,38 +750,38 @@ useEffect(() => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // if (systemCursorEnabled) {
+    if (systemCursorEnabled) {
       const handleClick = () => {
-        // if (document.pointerLockElement === canvas) {
-        //   document.exitPointerLock(); // Exit pointer lock if already active
-        // } else {
-        //   canvas.requestPointerLock(); // Enter pointer lock if not active
-        // }
+        if (document.pointerLockElement === canvas) {
+          document.exitPointerLock(); // Exit pointer lock if already active
+        } else {
+          canvas.requestPointerLock(); // Enter pointer lock if not active
+        }
       };
 
-      // const lockChangeAlert = () => {
-      //   if (document.pointerLockElement === canvas) {
-      //     console.log("Pointer lock activated.");
-      //     document.addEventListener("mousemove", handleMouseMove);
-      //   } else {
-      //     console.log("Pointer lock deactivated.");
-      //     document.removeEventListener("mousemve", handleMouseMove);
-      //   }
-      // };
+      const lockChangeAlert = () => {
+        if (document.pointerLockElement === canvas) {
+          console.log("Pointer lock activated.");
+          document.addEventListener("mousemove", handleMouseMove);
+        } else {
+          console.log("Pointer lock deactivated.");
+          document.removeEventListener("mousemve", handleMouseMove);
+        }
+      };
 
-      // if (!velocities) {
-      //   document.addEventListener("mousemove", handleMouseMove);
-      // }
+      if (!velocities) {
+        document.addEventListener("mousemove", handleMouseMove);
+      }
       document.addEventListener("mousemove", handleMouseMove);
 
       canvas.addEventListener("click", handleClick);
-      // document.addEventListener("pointerlockchange", lockChangeAlert);
+      document.addEventListener("pointerlockchange", lockChangeAlert);
 
       return () => {
         canvas.removeEventListener("click", handleClick);
-        // document.removeEventListener("pointerlockchange", lockChangeAlert);
+        document.removeEventListener("pointerlockchange", lockChangeAlert);
       };
-    // }
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -789,20 +789,40 @@ useEffect(() => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const refractory = useRef<boolean>(false);
+  const speed = useRef<number>(1);
   const activeSide = useRef<number | null>(null);
   const selectionRefractory = useRef<boolean>(false);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // console.log("running handleMouseMove()");
-    // if (systemCursorEnabled) {
+    if (systemCursorEnabled) {
       if (!refractory.current) {
-        if (canvasRef.current === null) {
-          return;
-        }
 
-        const rect = canvasRef.current.getBoundingClientRect();
-        const newX = e.clientX - rect.left;
-        const newY = e.clientY - rect.top;
+        // Use this to update the dot X, Y based on system cursor "velocities".
+        velocities.current = {
+          raw_velocity_x: 0,
+          raw_velocity_y: 0,
+          velocity_smoothed_x: 0,
+          velocity_smoothed_y: 0,
+          final_velocity_x: e.movementX,
+          final_velocity_y: e.movementY,
+          left_click_probability_smoothed: 0,
+          raw_right_click_probability: 0,
+          right_click_probability_smoothed: 0,
+          raw_middle_click_probability: 0,
+          middle_click_probability_smoothed: 0,
+          raw_left_click_probability: 0,
+        };
+        const newX = position.current.x + velocities.current.final_velocity_x * speed.current;
+        const newY = position.current.y + velocities.current.final_velocity_y * speed.current;
+
+        // Use this to update the dot X, Y to track the user system cursor
+        // if (canvasRef.current === null) {
+        //   return;
+        // }
+        // const rect = canvasRef.current.getBoundingClientRect();
+        // const newX = e.clientX - rect.left;
+        // const newY = e.clientY - rect.top;
 
         position.current = { x: newX, y: newY };
       } else {
@@ -810,7 +830,7 @@ useEffect(() => {
           refractory.current = false;
         }, 0);
       }
-    // }
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1004,10 +1024,10 @@ useEffect(() => {
     // (1) DRAW THE OCTAGON AND SIDES
     //
 
-    
+
     const centerX = 800;
     const centerY = 600;
-    
+
 
     const radius = radiusOct;
     const innerRadius = dwellZoneRadius.current;
@@ -1651,7 +1671,7 @@ useEffect(() => {
     }
 
     setOctagonSides(newSides);
-  
+
     //
     // =====================================================================
     //
@@ -1967,11 +1987,11 @@ useEffect(() => {
       const horizontalGap = 50;
       const verticalGap = 50;
       const cornerRadius = 15; // Radius for curved corners
-      
+
       // Calculate total width and height of the block arrangement
       const totalWidth = (blockWidth * 3) + (horizontalGap * 2);
       const totalHeight = (blockHeight * 2) + verticalGap;
-      
+
       // Calculate starting position to center the blocks, shifted up by 100px
       const startX = centerX - (totalWidth / 2);
       const startY = centerY - (totalHeight / 2) - 40;
@@ -1985,7 +2005,7 @@ useEffect(() => {
           width: blockWidth
         },
         {
-          labels: ["G", "H", "I", "J", "K"], 
+          labels: ["G", "H", "I", "J", "K"],
           x: startX + (1 * (blockWidth + horizontalGap)),
           y: startY,
           idx: 7,
@@ -1993,7 +2013,7 @@ useEffect(() => {
         },
         {
           labels: ["L", "M", "N", "O", "P"],
-          x: startX + (2 * (blockWidth + horizontalGap)), 
+          x: startX + (2 * (blockWidth + horizontalGap)),
           y: startY,
           idx: 8,
           width: blockWidth
@@ -2035,7 +2055,7 @@ useEffect(() => {
       // Draw blocks and labels
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
-        
+
         // Draw dotted block
         ctx.beginPath();
         ctx.setLineDash([5, 5]); // Create dotted line pattern
@@ -2057,13 +2077,13 @@ useEffect(() => {
             ctx.fillStyle = "white";
           }
           // Default magic coloring
-        }        
+        }
         ctx.textAlign = "center";
-        
+
         // Center the text in the block
         const textX = key.x + width/2; // Use width instead of blockWidth
         const textY = key.y + height/2;
-        
+
         // Draw each letter spaced out
         const spacing = 30;
         key.labels.forEach((label, index) => {
@@ -2083,14 +2103,14 @@ useEffect(() => {
         const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
 
         ctx.roundRect(key.x, key.y, width, height, cornerRadius);
-      
-        
+
+
         // Check if cursor is over this key
-        if (position.current.x >= key.x && 
+        if (position.current.x >= key.x &&
             position.current.x <= key.x + width &&
-            position.current.y >= key.y && 
+            position.current.y >= key.y &&
             position.current.y <= key.y + height) {
-          
+
         let opacity = dwellClickMode.current ? 0 : Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
         if (key.idx === clickedKeyIdx.current) {
           opacity = 1;
@@ -2105,7 +2125,7 @@ useEffect(() => {
 
           // Check if enough time has passed since timer started
           if (
-            (!dwellClickMode.current && timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) ||  
+            (!dwellClickMode.current && timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) ||
             (dwellClickMode.current &&  Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current))
             {
             // Check if we're past refractory period or haven't hit yet
@@ -2113,7 +2133,7 @@ useEffect(() => {
               new Audio("click.mp3")
                 .play()
                 .catch((error) => console.error("Error playing audio:", error));
-              
+
               // Handle key click
               if (activeKeyIdx.current !== null) {
                 handleTypingInteraction(key.idx, false);
@@ -2126,7 +2146,7 @@ useEffect(() => {
                   clickedKeyIdx.current = null;
                 }, 230);
               }
-              
+
               // Reset timer and set refractory period
               timerStart.current = performance.now();
               refractoryStart.current = performance.now();
@@ -2166,7 +2186,7 @@ useEffect(() => {
 
       // Draw the text on the canvas
       ctx.fillText(`Clicked Key Index: ${clickedKeyIdx.current}`, xPosition, yPosition);
-      
+
     }
   }, [
     position,
@@ -2282,7 +2302,7 @@ useEffect(() => {
     pageChangeOccured: boolean,
   ) {
     const codeChar = sideMappings[selectorIndex];
-    
+
     //Game and Practice Mode handling
     if (refCode.current !== undefined && indexRefCode.current !== undefined) {
 
@@ -2292,11 +2312,11 @@ useEffect(() => {
         if (indexRefCode.current === 0) {
           timerDotStart.current = performance.now();
         }
-        
+
         goodDotHits.current++;
         indexRefCode.current++;
         wordSubstringer.current++;
-      
+
         //if the correct hit is a SPACE
         if (codeChar === " " && sentence.current !== undefined && indexSentence.current !== undefined) {
           //Append to the words and refresh code
@@ -2310,7 +2330,7 @@ useEffect(() => {
           //If its your last word
           if (indexSentence.current === sentence.current.length) {;
             timeDotLength.current = performance.now() - (timerDotStart.current ?? 0);
-            
+
             //Calculate values
             dotCcpm.current = (goodDotHits.current / timeDotLength.current) * 60000;
             accuracy.current = goodDotHits.current / (goodDotHits.current + badDotHits.current);
@@ -2325,8 +2345,8 @@ useEffect(() => {
             stopPracticeMode();
           }
         }
-        
-        
+
+
         new Audio("coin2.mp3")
           .play()
           .catch((error) =>
@@ -2340,10 +2360,10 @@ useEffect(() => {
             console.error("Error playing audio:", error),
           );
       }
-      
+
     }
 
-    
+
     // If side 3 => space => finalize
     if (codeChar === " ") {
       if (
@@ -2658,7 +2678,7 @@ useEffect(() => {
 
       {/* Render mode options */}
       <div
-        style={{ 
+        style={{
           position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
         <button
