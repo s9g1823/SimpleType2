@@ -75,12 +75,15 @@ const PointerLockDemo: React.FC = () => {
     DirectionalRendering.TrapezoidTile,
   );
 
-  const dwellDurationMs = useRef<number>(500);
+  const dwellDurationMs = useRef<number>(0);
 
-  const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Visible);
+  const dwellZoneRendering = useRef<DwellZoneRendering>(DwellZoneRendering.Never);
 
   const radiusOct = 350;
-  const dwellZoneRadius = useRef<number>(radiusOct);
+  const dwellZoneRadius = useRef<number>(radiusOct - 56);
+
+  const velocityBelowThresholdStartTime = useRef<number>(0); // Track when velocity first goes below threshold
+  const dwellTimeRequired = useRef<number>(400); // Time in milliseconds (1 second)
 
   useEffect(() => {
     zmqService.current.start();
@@ -89,6 +92,8 @@ const PointerLockDemo: React.FC = () => {
       zmqService.current.stop();
     };
   }, []);
+
+  const refractoryTime = useRef<number>(500);
 
   useEffect(() => {
     function handleDecodeData(data: DecodePacket) {
@@ -125,10 +130,6 @@ const PointerLockDemo: React.FC = () => {
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
         }
-      } else {
-        setTimeout(() => {
-          refractory.current = false;
-        }, 5);
       }
     }
 
@@ -197,7 +198,7 @@ const PointerLockDemo: React.FC = () => {
   // Dwell click
   const dwellClickMode = useRef<boolean>(false);
   const dwellClicked = useRef<boolean[]>(Array(8).fill(false));
-  const dwellClickThreshold = useRef<number>(100);
+  const dwellClickThreshold = useRef<number>(50);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -808,7 +809,7 @@ useEffect(() => {
       } else {
         setTimeout(() => {
           refractory.current = false;
-        }, 0);
+        }, refractoryTime.current);
       }
     }
   }, []);
@@ -844,7 +845,6 @@ useEffect(() => {
 
       // Dot product with the normal
       const dotProduct = dotVectorX * normalX + dotVectorY * normalY;
-
       return dotProduct > 0; // Greater than 0 means outside
     },
     [],
@@ -920,6 +920,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     code.current;
   }
   const inDiagnostics = useRef<boolean>(false);
+  const nakedMode = useRef<boolean>(false);
 
   const showCursor = useRef<boolean>(false);
 
@@ -940,6 +941,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
     { startX: 1100, startY: 780 }, // Distance 200, Angle 45 degrees (NE)
   ];
   const targetIndex = useRef<number>(-1);
+
+  const snapBackMode = useRef<boolean>(true);
 
 
   const drawScene = useCallback(() => {
@@ -1050,10 +1053,6 @@ const initialDistances = [100, 200]; // Initial distances from the center
             {x: innerOffsetStartX, y: innerOffsetStartY},
           ];
 
-          if ((dwellClickMode.current) && Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < 100) {
-            touchingVelocity = isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates) || false;
-          }
-
           let idx = i - 1;
           if (isPointInPolygon({x: position.current.x, y: position.current.y}, coordinates)) {
 
@@ -1093,8 +1092,21 @@ const initialDistances = [100, 200]; // Initial distances from the center
               coordinates
             ) || false;
             if (touchingVelocity) {
-              dwellClicked.current[idx] = true;
-            }
+              if (velocityBelowThresholdStartTime.current === 0) {
+                // Start timing if it's the first time below threshold
+                velocityBelowThresholdStartTime.current = Date.now();
+      
+              } else {
+                // Check if it has been below threshold for the required dwell time
+      
+                const timeBelowThreshold =
+                  Date.now() - velocityBelowThresholdStartTime.current;
+      
+                if (timeBelowThreshold >= dwellTimeRequired.current) {
+                  console.log("We reached low velocities");
+                  dwellClicked.current[idx] = true;
+                }
+              }
           } else {
             dwellClicked.current[idx] = false;
           }
@@ -1109,8 +1121,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
           ctx.fillStyle = style;
           ctx.fill();
+        } else {
+          velocityBelowThresholdStartTime.current = 0;
         }
-      }
+      }} 
     }
 
     // Complete the octagon shape
@@ -1158,7 +1172,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
       // }
 
       // If the dot is past the inner threshold, activate the dwell region.
-      if (touching) {
+      if (touching && !refractory.current) {
+
         if (timeLength.current !== undefined) {
           timeLength.current = undefined;
           timerEnd.current = undefined;
@@ -1340,7 +1355,18 @@ const initialDistances = [100, 200]; // Initial distances from the center
           //lastHitSide.current= sideIndex;
         }
         refractory.current = true;
-        position.current = { x: 800, y: 480 };
+        setTimeout(() => {
+          refractory.current = false;
+        }, refractoryTime.current);
+
+        if (snapBackMode.current) {
+          position.current = { x: centerX, y: centerY };
+        } else if (!snapBackMode.current && !dwellClickMode.current){ //BOUNCE
+          position.current = { x: position.current.x + (centerX - position.current.x) * 0.23, y: position.current.y + (centerY - position.current.y) * 0.23 };
+        } else if (isDotOutsideSide(position.current.x, position.current.y, side)) {
+          position.current = { x: centerX, y: centerY };
+        }
+        
         activeSide.current = sideIndex;
         setTimeout(() => {
           activeSide.current = null;
@@ -1386,10 +1412,10 @@ const initialDistances = [100, 200]; // Initial distances from the center
 
 
       } else {
-        if (activeSide.current === sideIndex) {
+        if (activeSide.current === sideIndex && !nakedMode.current) {
           ctx.strokeStyle = "white";
         } else {
-          if (inDiagnostics.current) {
+          if (inDiagnostics.current || nakedMode.current) {
             ctx.strokeStyle = "black"; // Green
           } else {
             ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
@@ -1411,7 +1437,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    if (inDiagnostics.current) {
+    if (inDiagnostics.current || nakedMode.current) {
       ctx.fillStyle = "black";
 
     } else {
@@ -1442,7 +1468,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           ? "bold 69px Poppins, sans-serif"
           : "bold 50px Poppins, sans-serif";
 
-    if (inDiagnostics.current) {
+    if (inDiagnostics.current || nakedMode.current) {
       ctx.fillStyle = "black";
 
     } else {
@@ -1491,7 +1517,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 11;
+    const cursorSize = showCursor.current ? 0 : 23;
     ctx.arc(lockCursor.current ? centerX : position.current.x, lockCursor.current ? centerY : position.current.y, cursorSize, 0, 2 * Math.PI);
     ctx.fill();
 
@@ -2005,6 +2031,40 @@ const initialDistances = [100, 200]; // Initial distances from the center
           }}
         />
 
+        <input
+          id="refractory time"
+          type="number"
+          min={0}
+          max={1000}
+          step="50"
+          value={refractoryTime.current}
+          onChange={(e) => (refractoryTime.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+      <input
+          id="dwell time below velocity"
+          type="number"
+          min={0}
+          max={1000}
+          step="25"
+          value={dwellTimeRequired.current}
+          onChange={(e) => (dwellTimeRequired.current = parseFloat(e.target.value))}
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
       </div>
 
       {/* Speed Slider */}
@@ -2080,7 +2140,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
           <div style={{ marginTop: "10px" }}>
             <button
               onClick={() => {
-                inDiagnostics.current = !inDiagnostics.current;
+                nakedMode.current = !nakedMode.current;
               }}
               style={{
                 backgroundColor: "#555555", // Off-black button background
@@ -2096,7 +2156,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
             </button>
             <button
              onClick={() => {
-              inDiagnostics.current = !inDiagnostics.current;
+              nakedMode.current = !nakedMode.current;
             }}
              style={{
                backgroundColor: "#555555", // Off-black button background
@@ -2107,7 +2167,7 @@ const initialDistances = [100, 200]; // Initial distances from the center
                cursor: "pointer",
              }}
            >
-             D
+             N
            </button>
           </div>
 
@@ -2219,8 +2279,8 @@ const initialDistances = [100, 200]; // Initial distances from the center
                 switch (index) {
                   case 0:
                     // Action for the first button
-                    showCursor.current = !showCursor.current;
-                    console.log(`Cursor is now ${showCursor.current ? 'On' : 'Off'}`);
+                    snapBackMode.current = !snapBackMode.current;
+                    refractoryTime.current = 200;
                     break;
                   case 1:
                     // Action for the second button
@@ -2244,7 +2304,11 @@ const initialDistances = [100, 200]; // Initial distances from the center
                     break;
                 }
               }}
-            ></button>
+            >
+            {index === 0 ? (snapBackMode.current ? "S" : "B") : ""}
+
+
+            </button>
           ))}
         </div>
         </div>
