@@ -2566,6 +2566,36 @@ useEffect(() => {
         }}
       >
 
+      <button
+          style={{
+            // position: "fixed",
+            // top: "10px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            zIndex: 1000000,
+          }}
+          onClick={(e) => {
+            const button = e.currentTarget as HTMLElement;
+            button.style.backgroundColor = "lightblue";
+            setTimeout(() => {
+              button.style.backgroundColor = "black";
+            }, 300);
+
+            zmqService.current.publish("cursor", "off");
+
+            // cursorOn.current = false;
+          }}
+        >
+          Cursor Off
+        </button>
+
         {/* Top-left button */}
         <button
           style={{
