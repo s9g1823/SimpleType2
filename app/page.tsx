@@ -210,7 +210,7 @@ const PointerLockDemo: React.FC = () => {
     6: "6",
     7: "7",
     8: "8",
-    9: "⌫",
+    9: " ",
   };
 
   const homeLabels: Record<number, string> = {
@@ -961,8 +961,8 @@ useEffect(() => {
 
   //timeElapsed
   const timeElapsed = useRef<number>();
-  const dwellBrickTime = useRef<number>(100);
-  const dwellBrickRefractory = useRef<number>(700);
+  const dwellBrickTime = useRef<number>(300);
+  const dwellBrickRefractory = useRef<number>(1000);
 
   const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -991,10 +991,10 @@ useEffect(() => {
 
   const refractoryStart = useRef<number>();
 
-  const blockWith = useRef<number>(200);
-  const blockHight = useRef<number>(150);
-  const horizontalGapp = useRef<number>(50);
-  const verticalGapp = useRef<number>(50);
+  const blockWith = useRef<number>(290);
+  const blockHight = useRef<number>(230);
+  const horizontalGapp = useRef<number>(90);
+  const verticalGapp = useRef<number>(85);
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1459,7 +1459,7 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 20;
+    const cursorSize = showCursor.current ? 0 : 11;
 
     const curX = lockCursor.current ? centerX : position.current.x;
     const curY = lockCursor.current ? centerY : position.current.y;
@@ -1966,7 +1966,7 @@ useEffect(() => {
       }
     }
 
-    if (inMagicBricks.current) {
+    if (inMagicBricks.current) { //MagicFlower baby!!!
 
       const blockWidth = blockWith.current;
       const blockHeight = blockHight.current;
@@ -1980,7 +1980,7 @@ useEffect(() => {
       
       // Calculate starting position to center the blocks, shifted up by 100px
       const startX = centerX - (totalWidth / 2);
-      const startY = centerY - (totalHeight / 2) - 40;
+      const startY = centerY - (totalHeight / 2) - 150;
 
       let keys: KeyTarget[] = [
         {
@@ -1993,7 +1993,7 @@ useEffect(() => {
         {
           labels: ["G", "H", "I", "J", "K"], 
           x: startX + (1 * (blockWidth + horizontalGap)),
-          y: startY - verticalGap * 2,
+          y: startY - verticalGap * 1.5,
           idx: 7,
           width: blockWidth
         },
@@ -2013,28 +2013,21 @@ useEffect(() => {
           idx: 5
         },
         {
-          labels: ["␣"],
-          x: startX + (1 * (blockWidth + horizontalGap)),          
-          y: startY + 2 * (blockHeight + verticalGap) + verticalGap * 2,
-          width: blockWidth,
-          idx: 1
-        },
-        {
           labels: ["Q", "R", "S", "T", "U"],
-          x: startX,
+          x: (startX + blockWidth + horizontalGap + blockWidth/2)/2,
           y: startY + 2 * (blockHeight + verticalGap),
           idx: 4,
           width: blockWidth
         },
         {
           labels: ["V", "W", "X", "Y", "Z"],
-          x: startX + (2 * (blockWidth + horizontalGap)),
+          x: totalWidth - (startX + blockWidth + horizontalGap + blockWidth/2)/2 + blockWidth,
           y: startY + 2 * (blockHeight + verticalGap),
           idx: 2,
           width: blockWidth
         },
         {
-          labels: ["⌫"],
+          labels: ["␣"],
           x: startX + (3 * (blockWidth + horizontalGap)), 
           y: startY,
           width: blockWidth,
@@ -2106,7 +2099,7 @@ useEffect(() => {
             position.current.y >= key.y && 
             position.current.y <= key.y + height) {
           
-        let opacity = dwellClickMode.current ? 0 : Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
+        let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
 
         ctx.fillStyle = (key.idx === 5 || key.idx === 9) ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 255, 0, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
           // Only start timer if moving to a new key
@@ -2118,8 +2111,8 @@ useEffect(() => {
 
           // Check if enough time has passed since timer started
           if (
-            (!dwellClickMode.current && timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) ||  
-            (dwellClickMode.current &&  Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current))
+            (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) &&  
+            (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current))
             {
             // Check if we're past refractory period or haven't hit yet
             if (!refractoryStart.current || performance.now() - refractoryStart.current >= dwellBrickTime.current + dwellBrickRefractory.current) {
@@ -2169,17 +2162,6 @@ useEffect(() => {
         timeElapsed.current = Math.floor(performance.now() - timerStart.current);
         //ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
       }
-
-      // Set the font size and style
-      ctx.font = '16px Arial'; // You can adjust the size and font as needed
-      ctx.textAlign = 'center'; // Center the text horizontally
-
-      // Set the position for the text
-      const xPosition = canvas.width / 2; // Center text horizontally
-      const yPosition = 20; // Position text a bit below the top edge
-
-      // Draw the text on the canvas
-      ctx.fillText(`Clicked Key Index: ${clickedKeyIdx.current}`, xPosition, yPosition);
       
     }
   }, [
@@ -2507,54 +2489,6 @@ useEffect(() => {
       </div>
       {/* Leaderboard Section */}
       <div
-        style={{
-          position: "fixed",
-          bottom: "100px", // Adjust the distance from the bottom as needed
-          left: "20px",
-          backgroundColor: "rgba(0, 42, 0, 0.7)",
-          padding: "20px",
-          color: "white",
-          zIndex: 999,
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 44 }}>Leaderboard</h3>
-        <div style={{ display: "flex", gap: "23px" }}>
-          <div>
-            {sortedLeaderboard.map((_, index) => (
-              <div key={index} style={{ fontSize: "23px" }}>
-                #{index + 1}
-              </div>
-            ))}{" "}
-          </div>
-          <div>
-            {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: "23px" }}>
-                {entry.player}
-              </div>
-            ))}
-          </div>
-          <div>
-            {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: "23px" }}>
-                {Math.round(entry.ccpm) + " CPM"}
-              </div>
-            ))}{" "}
-          </div>
-          <div>
-            {sortedLeaderboard.map((entry, index) => (
-              <div key={index} style={{ fontSize: "23px" }}>
-                {entry.accuracy ? Math.round(entry.accuracy * 100) + "%" : "100%"}
-              </div>
-            ))}{" "}
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          position: "fixed",
-          top: "10px",
-          left: "10px",
-        }}
       >
 
         {/* Top-left button */}
@@ -2677,99 +2611,27 @@ useEffect(() => {
       >
 
 
-        <label htmlFor="dwell-duration">dwell dur ms </label>
+      <label htmlFor="dwell-vel">dwell vel </label>
         <input
-          id="dwell-duration"
+          id="dwell-vel"
           type="number"
           min={0}
-          max={5000}
-          step="50"
-          value={dwellDurationMs.current}
-          onChange={(e) =>
-            (dwellDurationMs.current = parseFloat(e.target.value))
-          }
-          style={{
-            // width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
-            borderRadius: "5px",
-            outline: "none", // Removes outline on focus
-          }}
-        />
-
-        <label htmlFor="dwell-click-threshold">dwell click ms </label>
-        <input
-          id="dwell-click-threshold"
-          type="number"
-          min={0}
-          max={300}
-          step="25"
+          max={1000}
+          step="10"
           value={dwellClickThreshold.current}
           onChange={(e) =>
             (dwellClickThreshold.current = parseFloat(e.target.value))
           }
           style={{
-            // width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
+            height: "80px", // Increased height
+            fontSize: "20px", // Larger font size
+            padding: "5px 10px", // Added padding
+            appearance: "none",
+            background: "#333333",
             borderRadius: "5px",
-            outline: "none", // Removes outline on focus
-          }}
-        />
-
-        <label htmlFor="dwell-time">dwell time </label>
-        <input
-          id="dwell-time"
-          type="number"
-          min={0}
-          max={1000}
-          step="50"
-          value={dwellTimeRequired.current}
-          onChange={(e) =>
-            (dwellTimeRequired.current = parseFloat(e.target.value))
-          }
-          style={{
-            // width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
-            borderRadius: "5px",
-            outline: "none", // Removes outline on focus
-          }}
-        />
-
-        <label htmlFor="fast-threshold">fast </label>
-        <input
-          id="fast-threshold"
-          type="number"
-          min={0}
-          max={20000}
-          step="200"
-          value={fastThreshold.current}
-          onChange={(e) => (fastThreshold.current = parseFloat(e.target.value))}
-          style={{
-            // width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
-            borderRadius: "5px",
-            outline: "none", // Removes outline on focus
-          }}
-        />
-
-        <label htmlFor="Multiplier">Multiplier </label>
-        <input
-          id="multiplier"
-          type="number"
-          min={0.1}
-          max={4}
-          step="0.1"
-          value={multiplier.current}
-          onChange={(e) => (multiplier.current = parseFloat(e.target.value))}
-          style={{
-            // width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
-            borderRadius: "5px",
-            outline: "none", // Removes outline on focus
+            outline: "none",
+            color: "white", // Added for better visibility
+            marginRight: "20px", // Added spacing between elements
           }}
         />
 
@@ -2921,7 +2783,7 @@ useEffect(() => {
         {/* Display Velocity Values */}
         <div
           style={{
-            fontSize: "12px",
+            fontSize: "14px",
             color: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for discreet display
             marginBottom: "5px",
           }}
@@ -2938,76 +2800,9 @@ useEffect(() => {
             textAlign: "left",
           }}
         >
-          <label
-            htmlFor="gravity-slider"
-            style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}
-          ></label>
-          <input
-            id="gravity-slider"
-            type="range"
-            min="0"
-            max="400"
-            step="0.1"
-            value={gravity.current}
-            onChange={(e) => (gravity.current = parseFloat(e.target.value))}
-            style={{
-              width: "150px",
-              appearance: "none", // Removes default slider styles
-              background: "#333333", // Off-black background for the slider track
-              borderRadius: "5px",
-              height: "10px", // Custom track height
-              outline: "none", // Removes outline on focus
-            }}
-          />
-          <div style={{ marginTop: "10px" }}>
-          </div>
+         
 
           <style>
-            {`
-     #gravity-slider::-webkit-slider-thumb {
-       appearance: none;
-       width: 20px;
-       height: 20px;
-       border-radius: 50%;
-       background: #555555; // Off-black color for the thumb
-       border: none;
-       cursor: pointer;
-     }
-     #gravity-slider::-moz-range-thumb {
-       width: 20px;
-       height: 20px;
-       border-radius: 50%;
-       background: #555555; // Off-black color for the thumb
-       border: none;
-       cursor: pointer;
-     }
-     #gravity-slider::-ms-thumb {
-       width: 20px;
-       height: 20px;
-       border-radius: 50%;
-       background: #555555; // Off-black color for the thumb
-       border: none;
-       cursor: pointer;
-     }
-     #gravity-slider::-webkit-slider-runnable-track {
-       background: #333333; // Off-black track background
-       border-radius: 5px;
-       height: 10px; // Custom track height
-     }
-     #gravity-slider::-moz-range-track {
-       background: #333333; // Off-black track background
-       border-radius: 5px;
-       height: 10px; // Custom track height
-     }
-     #gravity-slider::-ms-track {
-       background: #333333; // Off-black track background
-       border-radius: 5px;
-       height: 10px; // Custom track height
-       border-color: transparent;
-       border-width: 0;
-       color: transparent;
-     }
-   `}
           </style>
         </div>
       </div>
@@ -3025,162 +2820,10 @@ useEffect(() => {
           zIndex: 0,
         }}
       />
-      <div
-        style={{
-          position: "absolute",
-          top: "20px",
-          right: "20px",
-          width: "50px",
-          height: "50px",
-          backgroundColor: isLocked ? "red" : "green",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          color: "white",
-          fontWeight: "bold",
-          border: "2px solid white",
-          borderRadius: "5px",
-        }}
-        onClick={togglePointerLock}
-      >
-        {isLocked ? "🔒" : "🔓"}
-      </div>
 
       {/* New Buttons Row */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row", // Align buttons horizontally
-          gap: "10px", // Space between buttons
-        }}
-      >
-        {[...Array(9)].map((_, index) => (
-          <button
-            key={index}
-            style={{
-              width: "50px",
-              height: "50px",
-              backgroundColor: "black", // Black background
-              border: "2px solid white",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              switch (index) {
-                case 0:
-                  // Action for the first button
-                  showCursor.current = !showCursor.current;
-                  console.log(
-                    `Cursor is now ${showCursor.current ? "On" : "Off"}`,
-                  );
-                  break;
-                case 1:
-                  speakWords();
-                  break;
 
-                case 2:
-                  theWords.current = [];
-                  theCodes.current = [];
-                  dirtyWords.current = [];
-                  code.current = "";
-                  break;
-
-                case 3:
-                  inDotPractice.current = true;
-                  inDiagnostics.current = true;
-                  dotGameMode.current = true;
-                  indexGameDot.current = 0;
-
-                  goodDotHits.current = 0;
-                  badDotHits.current = 0;
-                  accuracy.current = undefined;
-
-                  timerDotStart.current = undefined;
-                  timeDotLength.current = undefined;
-
-                  dotCcpm.current = undefined;
-
-                  startPracticeMode();
-                  break;
-
-                case 4:
-                  // Action for the fourth button
-                  snapBackMode.current = !snapBackMode.current;
-                  break;
-
-                case 6:
-                  inDotPractice.current = true;
-                  // Action for the fourth button
-                  inDiagnostics.current = true;
-
-                  goodDotHits.current = 0;
-                  badDotHits.current = 0;
-                  accuracy.current = undefined;
-
-                  timerDotStart.current = undefined;
-                  timeDotLength.current = undefined;
-
-                  dotCcpm.current = undefined;
-
-                  startPracticeMode();
-
-                  break;
-
-                case 7:
-                  inDotPractice.current = true;
-                  inDiagnostics.current = true;
-
-                  goodDotHits.current = 0;
-                  badDotHits.current = 0;
-                  accuracy.current = undefined;
-                  break;
-
-                case 8:
-                  inDotPractice.current = true;
-                  inDiagnostics.current = true;
-                  dotArrowMode.current = true;
-
-                  goodDotHits.current = 0;
-                  badDotHits.current = 0;
-                  accuracy.current = undefined;
-
-                  timerDotStart.current = undefined;
-                  timeDotLength.current = undefined;
-
-                  dotCcpm.current = undefined;
-
-                  startPracticeMode();
-
-                  break;
-
-                default:
-                  break;
-              }
-            }}
-          >
-            {(() => {
-              switch (index) {
-                case 1:
-                  return "🗣️";
-                case 2:
-                  return "🗑️";
-                case 3:
-                  return "Game";
-                case 4:
-                  return snapBackMode.current ? "snap: on" : "snap: off";
-                case 6:
-                  return "train";
-                case 7:
-                  return "type";
-                case 8:
-                  return "arrow";
-              }
-            })()}
-          </button>
-        ))}
       </div>
-    </div>
   );
 };
 
