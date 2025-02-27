@@ -210,6 +210,7 @@ const PointerLockDemo: React.FC = () => {
     6: "6",
     7: "7",
     8: "8",
+    9: "⌫",
   };
 
   const homeLabels: Record<number, string> = {
@@ -960,8 +961,8 @@ useEffect(() => {
 
   //timeElapsed
   const timeElapsed = useRef<number>();
-  const dwellBrickTime = useRef<number>(700);
-  const dwellBrickRefractory = useRef<number>(500);
+  const dwellBrickTime = useRef<number>(100);
+  const dwellBrickRefractory = useRef<number>(700);
 
   const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -989,6 +990,11 @@ useEffect(() => {
   const inDotPractice = useRef<boolean>(false);
 
   const refractoryStart = useRef<number>();
+
+  const blockWith = useRef<number>(200);
+  const blockHight = useRef<number>(150);
+  const horizontalGapp = useRef<number>(50);
+  const verticalGapp = useRef<number>(50);
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1962,10 +1968,10 @@ useEffect(() => {
 
     if (inMagicBricks.current) {
 
-      const blockWidth = 200;
-      const blockHeight = 150;
-      const horizontalGap = 50;
-      const verticalGap = 50;
+      const blockWidth = blockWith.current;
+      const blockHeight = blockHight.current;
+      const horizontalGap = horizontalGapp.current;
+      const verticalGap = verticalGapp.current;
       const cornerRadius = 15; // Radius for curved corners
       
       // Calculate total width and height of the block arrangement
@@ -1979,7 +1985,7 @@ useEffect(() => {
       let keys: KeyTarget[] = [
         {
           labels: ["A", "B", "C", "D", "E", "F"],
-          x: startX + (0 * (blockWidth + horizontalGap)),
+          x: startX,
           y: startY,
           idx: 6,
           width: blockWidth
@@ -1987,7 +1993,7 @@ useEffect(() => {
         {
           labels: ["G", "H", "I", "J", "K"], 
           x: startX + (1 * (blockWidth + horizontalGap)),
-          y: startY,
+          y: startY - verticalGap * 2,
           idx: 7,
           width: blockWidth
         },
@@ -2008,25 +2014,34 @@ useEffect(() => {
         },
         {
           labels: ["␣"],
-          x: startX,
-          y: startY + 2 * blockHeight + 2 * verticalGap,
-          width: totalWidth, // Make space bar span full width
+          x: startX + (1 * (blockWidth + horizontalGap)),          
+          y: startY + 2 * (blockHeight + verticalGap) + verticalGap * 2,
+          width: blockWidth,
           idx: 1
         },
         {
           labels: ["Q", "R", "S", "T", "U"],
           x: startX,
-          y: startY + blockHeight + verticalGap,
+          y: startY + 2 * (blockHeight + verticalGap),
           idx: 4,
           width: blockWidth
         },
         {
           labels: ["V", "W", "X", "Y", "Z"],
           x: startX + (2 * (blockWidth + horizontalGap)),
-          y: startY + blockHeight + verticalGap,
+          y: startY + 2 * (blockHeight + verticalGap),
           idx: 2,
           width: blockWidth
+        },
+        {
+          labels: ["⌫"],
+          x: startX + (3 * (blockWidth + horizontalGap)), 
+          y: startY,
+          width: blockWidth,
+          height: blockHeight * 3 + verticalGap * 2,
+          idx: 9
         }
+        
       ];
 
 
@@ -2092,10 +2107,8 @@ useEffect(() => {
             position.current.y <= key.y + height) {
           
         let opacity = dwellClickMode.current ? 0 : Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
-        if (key.idx === clickedKeyIdx.current) {
-          opacity = 1;
-        }
-        ctx.fillStyle = key.idx === 5 ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 0, 255, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
+
+        ctx.fillStyle = (key.idx === 5 || key.idx === 9) ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 255, 0, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
           // Only start timer if moving to a new key
           if (activeKeyIdx.current !== key.idx) {
             timerStart.current = performance.now();
@@ -2137,6 +2150,7 @@ useEffect(() => {
         } else if (lastActiveKeyIdx === key.idx) {
           // Reset active key when leaving this key
           activeKeyIdx.current = null;
+          timeElapsed.current = 0;
           timerStart.current = undefined;
           refractoryStart.current = undefined;
         }
@@ -2661,86 +2675,7 @@ useEffect(() => {
         style={{ 
           position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
-        <button
-          onClick={() => {
-            renderCursorTrail.current = !renderCursorTrail.current;
-          }}
-          style={{
-            backgroundColor: "#555555", // Off-black button background
-            color: "white", // White text
-            border: "none",
-            borderRadius: "5px",
-            padding: "5px 15px",
-            cursor: "pointer",
-            zIndex: 1000000,
-          }}
-        >
-          Cursor Trail: {renderCursorTrail.current ? "On" : "Off"}
-        </button>
 
-        <button
-          onClick={() => {
-            dwellClickMode.current = !dwellClickMode.current;
-          }}
-          style={{
-            backgroundColor: "#555555", // Off-black button background
-            color: "white", // White text
-            border: "none",
-            borderRadius: "5px",
-            padding: "5px 15px",
-            cursor: "pointer",
-            zIndex: 1000000,
-          }}
-        >
-          Dwell Click: {dwellClickMode.current ? "On" : "Off"}
-        </button>
-
-        <button
-          onClick={() => {
-            switch (dwellZoneRendering.current) {
-              case DwellZoneRendering.OnHover:
-                dwellZoneRendering.current = DwellZoneRendering.Never;
-                break;
-              case DwellZoneRendering.Never:
-                dwellZoneRendering.current = DwellZoneRendering.Visible;
-                break;
-              case DwellZoneRendering.Visible:
-                dwellZoneRendering.current = DwellZoneRendering.OnHover;
-                break;
-            }
-          }}
-          style={{
-            backgroundColor: "#555555", // Off-black button background
-            color: "white", // White text
-            border: "none",
-            borderRadius: "5px",
-            padding: "5px 15px",
-            cursor: "pointer",
-            zIndex: 1000000,
-          }}
-        >
-          Dwell Rendering: {dwellZoneRendering.current}
-        </button>
-
-        <input
-          id="dwell-zone-slider"
-          type="range"
-          min={0}
-          max={radiusOct}
-          step="5"
-          value={dwellZoneRadius.current}
-          onChange={(e) =>
-            (dwellZoneRadius.current = parseFloat(e.target.value))
-          }
-          style={{
-            width: "150px",
-            appearance: "none", // Removes default slider styles
-            background: "#333333", // Off-black background for the slider track
-            borderRadius: "5px",
-            height: "10px", // Custom track height
-            outline: "none", // Removes outline on focus
-          }}
-        />
 
         <label htmlFor="dwell-duration">dwell dur ms </label>
         <input
@@ -2881,6 +2816,94 @@ useEffect(() => {
             marginRight: "20px", // Added spacing between elements
           }}
         />
+
+        <label htmlFor="BlockWidth">Block Width </label>
+          <input
+            id="BlockWidth"
+            type="number"
+            min={50}
+            max={500}
+            step="10"
+            value={blockWith.current}
+            onChange={(e) => (blockWith.current = parseFloat(e.target.value))}
+            style={{
+              height: "80px", // Increased height
+              fontSize: "20px", // Larger font size
+              padding: "5px 10px", // Added padding
+              appearance: "none",
+              background: "#333333",
+              borderRadius: "5px",
+              outline: "none",
+              color: "white", // Added for better visibility
+              marginRight: "20px", // Added spacing between elements
+            }}
+          />
+
+          <label htmlFor="BlockHeight">Block Height </label>
+          <input
+            id="BlockHeight"
+            type="number"
+            min={50}
+            max={500}
+            step="10"
+            value={blockHight.current}
+            onChange={(e) => (blockHight.current = parseFloat(e.target.value))}
+            style={{
+              height: "80px", // Increased height
+              fontSize: "20px", // Larger font size
+              padding: "5px 10px", // Added padding
+              appearance: "none",
+              background: "#333333",
+              borderRadius: "5px",
+              outline: "none",
+              color: "white", // Added for better visibility
+              marginRight: "20px", // Added spacing between elements
+            }}
+          />
+
+          <label htmlFor="HorizontalGap">Horizontal Gap </label>
+          <input
+            id="HorizontalGap"
+            type="number"
+            min={5}
+            max={500}
+            step="5"
+            value={horizontalGapp.current}
+            onChange={(e) => (horizontalGapp.current = parseFloat(e.target.value))}
+            style={{
+              height: "80px", // Increased height
+              fontSize: "20px", // Larger font size
+              padding: "5px 10px", // Added padding
+              appearance: "none",
+              background: "#333333",
+              borderRadius: "5px",
+              outline: "none",
+              color: "white", // Added for better visibility
+              marginRight: "20px", // Added spacing between elements
+            }}
+          />
+
+          <label htmlFor="VerticalGap">Vertical Gap </label>
+          <input
+            id="VerticalGap"
+            type="number"
+            min={5}
+            max={500}
+            step="5"
+            value={verticalGapp.current}
+            onChange={(e) => (verticalGapp.current = parseFloat(e.target.value))}
+            style={{
+              height: "80px", // Increased height
+              fontSize: "20px", // Larger font size
+              padding: "5px 10px", // Added padding
+              appearance: "none",
+              background: "#333333",
+              borderRadius: "5px",
+              outline: "none",
+              color: "white", // Added for better visibility
+              marginRight: "20px", // Added spacing between elements
+            }}
+          />
       </div>
 
       <div
