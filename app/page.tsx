@@ -12,6 +12,13 @@ import { useSearchParams } from "next/navigation";
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqClient from "./ZmqClient";
 
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, // Use env variable
+  dangerouslyAllowBrowser: true, // OpenAI normally blocks API keys in the browser
+});
+
 import {
   Tree,
   allWords,
@@ -69,6 +76,7 @@ enum DwellZoneRendering {
 import "@fontsource/poppins"; // Defaults to weight 400
 import "@fontsource/press-start-2p";
 import { dot } from "node:test/reporters";
+import { first } from "lodash";
 
 const PointerLockWrapper: React.FC = () => {
   return (
@@ -210,7 +218,7 @@ const PointerLockDemo: React.FC = () => {
     6: "6",
     7: "7",
     8: "8",
-    9: " ",
+    9: ".",
   };
 
   const homeLabels: Record<number, string> = {
@@ -495,7 +503,7 @@ const PointerLockDemo: React.FC = () => {
   }, [dictionaryType]);
 
   //
-  // ───────────────────────────────────────────"─────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
   // E.2) CURRENT CODE -> WORDS LOOKUP
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -546,12 +554,13 @@ const PointerLockDemo: React.FC = () => {
         precomputedTrees.current,
         true,
       );
-      // }
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
     });
-  }, [code.current]);
+  }, [code.current, theWords.current]);
+
+
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -991,10 +1000,13 @@ useEffect(() => {
 
   const refractoryStart = useRef<number>();
 
-  const blockWith = useRef<number>(290);
-  const blockHight = useRef<number>(230);
-  const horizontalGapp = useRef<number>(90);
-  const verticalGapp = useRef<number>(85);
+  const blockWith = useRef<number>(200);
+  const blockHight = useRef<number>(140);
+  const horizontalGapp = useRef<number>(69);
+  const verticalGapp = useRef<number>(96);
+
+  //boolean for determining if you are the first word... if so, you finna make the first word capitalized
+  const firstWord = useRef<boolean>(true);
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1011,8 +1023,8 @@ useEffect(() => {
     //
 
     
-    const centerX = 800;
-    const centerY = 600;
+    const centerX = 700; 
+    const centerY = 300;
     
 
     const radius = radiusOct;
@@ -1491,7 +1503,7 @@ useEffect(() => {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
 
-      ctx.fillText(lastWord, centerX, centerY);
+      //ctx.fillText(lastWord, centerX, centerY + 150);
 
       // Only display suggestions when we are also displaying a current word.
       if (lastWord !== "") {
@@ -1519,7 +1531,7 @@ useEffect(() => {
             continue;
           }
           const buffer = inDiagnostics.current ? 65 : 0;
-          ctx.fillText(suggestions[i], centerX, currentY - buffer);
+          //ctx.fillText(suggestions[i], centerX, currentY - buffer);
           currentY += 35;
           n_suggest += 1;
           i += 1;
@@ -1544,19 +1556,20 @@ useEffect(() => {
             ctx.fillStyle = "gray";
           }
 
-          ctx.fillText(char, currentX, centerY);
+          ctx.fillText(char, currentX, centerY + 127);
           currentX += ctx.measureText(char).width;
         }
 
         if (code.current.length > 0) {
           // Draw suggestions on screen
           ctx.font = inDiagnostics.current ? "25px Monaco" : "30px Monaco";
-          const buffer = inDiagnostics.current ? 65 : 0;
+          //const buffer = inDiagnostics.current ? 65 : 0;
           ctx.fillStyle = "grey";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
-          let currentY = suggestionsY;
+          let currentY = centerY - 200;
+          let currentX = 40;
 
           // Show 3 suggestions max
           const lastWord = theWords.current[theWords.current.length - 1] || "";
@@ -1575,8 +1588,8 @@ useEffect(() => {
               i += 1;
               continue;
             }
-            ctx.fillText(suggestions[i], centerX, currentY - buffer);
-            currentY += 35;
+            //ctx.fillText(suggestions[i], currentX, currentY);
+            currentX += 69;
             n_suggest += 1;
             i += 1;
           }
@@ -1588,7 +1601,7 @@ useEffect(() => {
     ctx.fillStyle = "#CACACA"; // Faded white color
     const buffer = inDiagnostics.current ? 90 : 0;
     if (!inLights.current && !dotArrowMode.current) {
-      ctx.fillText(theWords.current.join(" "), centerX, inMagicBricks.current ? centerY - 350 : centerY - 200 + buffer); // Adjust Y-coordinate to place it above
+      //ctx.fillText(theWords.current.join(" "), centerX, inMagicBricks.current ? centerY - 350 : centerY - 200 + buffer); // Adjust Y-coordinate to place it above
     }
 
     //Draw calculations for Game Mode
@@ -1967,7 +1980,6 @@ useEffect(() => {
     }
 
     if (inMagicBricks.current) { //MagicFlower baby!!!
-
       const blockWidth = blockWith.current;
       const blockHeight = blockHight.current;
       const horizontalGap = horizontalGapp.current;
@@ -1980,61 +1992,156 @@ useEffect(() => {
       
       // Calculate starting position to center the blocks, shifted up by 100px
       const startX = centerX - (totalWidth / 2);
-      const startY = centerY - (totalHeight / 2) - 150;
+      const startY = centerY - (totalHeight / 2);
+
+      possibleWords.current = Array.from(new Set(possibleWords.current));
 
       let keys: KeyTarget[] = [
         {
           labels: ["A", "B", "C", "D", "E", "F"],
           x: startX,
-          y: startY,
+          y: startY + 1 * (blockHeight + verticalGap),
           idx: 6,
           width: blockWidth
         },
         {
           labels: ["G", "H", "I", "J", "K"], 
-          x: startX + (1 * (blockWidth + horizontalGap)),
-          y: startY - verticalGap * 1.5,
+          x: startX + (2 * (blockWidth + horizontalGap)), 
+          y: startY + 1 * (blockHeight + verticalGap), 
           idx: 7,
           width: blockWidth
         },
         {
           labels: ["L", "M", "N", "O", "P"],
-          x: startX + (2 * (blockWidth + horizontalGap)), 
-          y: startY,
+          x: startX,
+          y: startY + 2 * (blockHeight + verticalGap),        
           idx: 8,
           width: blockWidth
         },
         {
           labels: ["⌫"],
           x: startX - blockWidth - horizontalGap,
-          y: startY,
+          y: startY + 1 * (blockHeight + verticalGap),
           width: blockWidth,
-          height: blockHeight * 3 + verticalGap * 2,
+          height: blockHeight * 2 + verticalGap,
           idx: 5
         },
         {
           labels: ["Q", "R", "S", "T", "U"],
-          x: (startX + blockWidth + horizontalGap + blockWidth/2)/2,
+          x: startX + (1 * (blockWidth + horizontalGap)),
           y: startY + 2 * (blockHeight + verticalGap),
           idx: 4,
           width: blockWidth
         },
         {
           labels: ["V", "W", "X", "Y", "Z"],
-          x: totalWidth - (startX + blockWidth + horizontalGap + blockWidth/2)/2 + blockWidth,
+          x: startX + (2 * (blockWidth + horizontalGap)),
           y: startY + 2 * (blockHeight + verticalGap),
           idx: 2,
           width: blockWidth
         },
         {
-          labels: ["␣"],
+          labels: ["."],
           x: startX + (3 * (blockWidth + horizontalGap)), 
-          y: startY,
+          y: startY + 2 * (blockHeight + verticalGap),
           width: blockWidth,
-          height: blockHeight * 3 + verticalGap * 2,
           idx: 9
+        },
+        {
+          labels: ["Speak"],
+          x: startX + (3 * (blockWidth + horizontalGap)), 
+          y: startY + 1 * (blockHeight + verticalGap),
+          width: blockWidth,
+          idx: 21
+        },
+        {
+          labels: [possibleWords.current[0] || " "],
+          x: startX + (1 * (blockWidth + horizontalGap)),
+          y: startY + verticalGap * 0.5,
+          idx: 10,
+          width: blockWidth,
+          height: blockHeight * .75
+        },
+        {
+          labels: [possibleWords.current[1] || " "],
+          x: startX + (0 * (blockWidth + horizontalGap)),
+          y: startY + verticalGap * 0.5,
+          idx: 11,
+          width: blockWidth,
+          height: blockHeight * .75
+        },
+        {
+          labels: [possibleWords.current[2] || " "],
+          x: startX + (2 * (blockWidth + horizontalGap)),
+          y: startY + verticalGap * 0.5,
+          idx: 12,
+          width: blockWidth,
+          height: blockHeight * .75
+        },
+        {
+          labels: [possibleWords.current[3] || " "],
+          x: startX - (blockWidth + horizontalGap),          
+          y: startY + verticalGap * 0.5,
+          idx: 13,
+          width: blockWidth,
+          height: blockHeight * .75
+        },
+        {
+          labels: [possibleWords.current[4] || " "],
+          x: startX + (3 * (blockWidth + horizontalGap)),
+          y: startY + verticalGap * 0.5,
+          idx: 14,
+          width: blockWidth,
+          height: blockHeight * .75
+        },
+        {
+          labels: [possibleWords.current[5] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 2,
+          y: startY - verticalGap * 0.75,
+          idx: 15,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
+        },
+        {
+          labels: [possibleWords.current[6] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 1,          
+          y: startY - verticalGap * 0.75,
+          idx: 16,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
+        },
+        {
+          labels: [possibleWords.current[7] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 3,
+          y: startY - verticalGap * 0.75,
+          idx: 17,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
+        },
+        {
+          labels: [possibleWords.current[8] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap),          
+          y: startY - verticalGap * 0.75,
+          idx: 18,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
+        },
+        {
+          labels: [possibleWords.current[9] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 4,
+          y: startY - verticalGap * 0.75,
+          idx: 19,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
+        },
+        {
+          labels: [possibleWords.current[10] || " "],
+          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 5,
+          y: startY - verticalGap * 0.75,
+          idx: 20,
+          width: blockWidth * 0.75,
+          height: blockHeight * .5
         }
-        
       ];
 
 
@@ -2082,13 +2189,15 @@ useEffect(() => {
 
       let lastActiveKeyIdx = activeKeyIdx.current;
 
-
+   
+      
       // Draw blocks with highlighting
       for (let key of keys) {
         ctx.beginPath();
         ctx.setLineDash([5, 5]); // Create dotted line pattern
         const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
         const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
+        
 
         ctx.roundRect(key.x, key.y, width, height, cornerRadius);
       
@@ -2101,8 +2210,11 @@ useEffect(() => {
           
         let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
 
-        ctx.fillStyle = (key.idx === 5 || key.idx === 9) ? `rgba(255, 0, 0, ${opacity})` : `rgba(0, 255, 0, ${opacity})`; // Semi-transparent red for idx 5, blue otherwise
-          // Only start timer if moving to a new key
+        ctx.fillStyle = (key.idx > 9 && key.idx < 21) 
+        ? `rgba(86, 160, 211, ${opacity})`  // Carolina Blue if idx > 9
+        : (key.idx === 5) 
+          ? `rgba(255, 0, 0, ${opacity})`  // Red for idx 5 or 9
+          : `rgba(0, 255, 0, ${opacity})`;  // Green for all other cases          // Only start timer if moving to a new key
           if (activeKeyIdx.current !== key.idx) {
             timerStart.current = performance.now();
             justHit.current = false;
@@ -2148,7 +2260,11 @@ useEffect(() => {
           refractoryStart.current = undefined;
         }
 
-        ctx.strokeStyle = 'white';
+        if (key.idx > 9 && key.idx < 21) {
+          ctx.strokeStyle = '#56A0D3'; // Set stroke to Carolina Blue
+        } else {
+          ctx.strokeStyle = 'white'; // Otherwise, set stroke to white
+        }        
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.setLineDash([]); // Reset line pattern
@@ -2273,12 +2389,62 @@ useEffect(() => {
    * Handle a typing interaction on the keyboard
    *
    */
+
+
+  const sayThat = async () => {
+    try {
+      const response = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "ash",
+        input: theWords.current.join(" "),
+      });
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const blob = new Blob([buffer], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+
+      const audio = new Audio(url);
+      audio.play();
+
+    } catch (error) {
+      console.error("Error generating speech:", error);
+    }
+  }
+
   function handleTypingInteraction(
     selectorIndex: number,
     pageChangeOccured: boolean,
   ) {
-    const codeChar = sideMappings[selectorIndex];
+    const codeChar = sideMappings[selectorIndex] || selectorIndex;
     
+    if (selectorIndex > 9 && selectorIndex < 21) {
+      let chosenWord = possibleWords.current[selectorIndex - 10];
+      if (firstWord.current) {
+        chosenWord = chosenWord.charAt(0).toUpperCase() + chosenWord.slice(1);
+        firstWord.current = false;
+
+      }
+
+      theWords.current = [...theWords.current, chosenWord || ""];
+      theCodes.current = [...theCodes.current, code.current];
+      code.current = "";
+
+      possibleWords.current = getRankedMatches(
+        theWords.current,
+        code.current,
+        codeTree.current,
+        trigrams.current,
+        wordFreq.current,
+        precomputedTrees.current,
+        true,
+      );
+
+      return;
+    } else if (selectorIndex === 21) {
+      sayThat();
+      return;
+    }
+
     //Game and Practice Mode handling
     if (refCode.current !== undefined && indexRefCode.current !== undefined) {
 
@@ -2366,6 +2532,11 @@ useEffect(() => {
 
       /* Standard typing case: append code character */
     } else if (
+      codeChar === "."
+    ) {
+      theWords.current[theWords.current.length - 1] += ".";
+      firstWord.current = true;
+    } else if (
       codeChar &&
       !inLights.current &&
       activePage.current == OctagonPage.Keyboard &&
@@ -2374,7 +2545,7 @@ useEffect(() => {
       // Add digit to typedCodes
       code.current = code.current + codeChar;
       console.log(code.current);
-    }
+    } 
   }
 
   /*
@@ -2491,83 +2662,6 @@ useEffect(() => {
       <div
       >
 
-        {/* Top-left button */}
-        <button
-          style={{
-            // position: "fixed",
-            // top: "10px",
-            // left: "10px",
-            padding: "15px 25px",
-            fontSize: "18px",
-            color: "white",
-            border: "1px solid white", // Thin white border
-            borderRadius: "8px",
-            cursor: "pointer",
-            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-            zIndex: 1000000,
-          }}
-          onClick={(e) => {
-            inDiagnostics.current = false;
-          }}
-        >
-          Octagon
-        </button>
-
-        <button
-          style={{
-            position: "relative",
-            // left: "100%",
-            // top: "120px",
-            // left: "10px",
-            padding: "15px 25px",
-            fontSize: "18px",
-            color: "white",
-            border: "1px solid white", // Thin white border
-            borderRadius: "8px",
-            cursor: "pointer",
-            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          }}
-          onClick={(e) => {
-            inDiagnostics.current = true;
-          }}
-        >
-          Magic Dots
-        </button>
-
-        {/* Copy to clipboard button */}
-        <button
-          style={{
-            position: "relative",
-            // left: "100%",
-            // top: "120px",
-            // left: "10px",
-            padding: "15px 25px",
-            fontSize: "18px",
-            color: "white",
-            border: "1px solid white", // Thin white border
-            borderRadius: "8px",
-            cursor: "pointer",
-            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-          }}
-          onClick={(e) => {
-            const button = e.currentTarget as HTMLElement;
-            button.style.backgroundColor = "lightblue";
-            setTimeout(() => {
-              button.style.backgroundColor = "black";
-            }, 150);
-
-            try {
-              navigator.clipboard.writeText(theWords.current.join(" "));
-            } catch (err) {
-              console.error("Clipboard not supported!");
-            }
-          }}
-        >
-          📋 Copy to clipboard
-        </button>
       </div>
 
       <div style={{ textAlign: "center", color: "white" }}>
@@ -2588,21 +2682,25 @@ useEffect(() => {
         </div>
       </div>
 
-      <div style={{ marginBottom: "10px" }}>
-        <input
-          type="text"
-          readOnly
-          value={theWords.current.join(" ")}
-          style={{
-            width: "1000px",
-            textAlign: "center",
-            backgroundColor: "black",
-            color: "white",
-            padding: "5px",
-            fontSize: 30,
-          }}
-        />
-      </div>
+      <div
+  style={{
+    position: "absolute",
+    top: "127px", // Adjusts the distance from the top
+    left: "50%",
+    transform: "translateX(-50%)", // Centers it horizontally
+    width: "80%", // Makes it span most of the width
+    textAlign: "center",
+    fontFamily: "Poppins, sans-serif", // Ensures Poppins font
+    fontSize: "64px", // Hero text size
+    fontWeight: "bold", // Makes it stand out
+    color: "white", // Keeps the text white
+    backgroundColor: "transparent", // No background color
+    padding: "20px 0",
+    zIndex: 1000, // Keeps it above other elements
+  }}
+>
+  {theWords.current.join(" ")}
+</div>
 
       {/* Render mode options */}
       <div
@@ -2808,15 +2906,16 @@ useEffect(() => {
       </div>
       <canvas
         ref={canvasRef}
-        width={1600}
-        height={1200}
+        width={1400}
+        height={800}
         style={{
-          border: "1px dotted purple",
-          marginTop: "100px", // Adjust this value as needed
-          position: "relative", // Add this
+          border: "4px dotted purple",
+          //marginTop: "100px", // Adjust this value as needed
           // zIndex: 2000,         // Higher than video overlay
           opacity: 1, // Ensure canvas is fully opaque
           pointerEvents: systemCursorEnabled ? "auto" : "none",
+          position: "absolute", // Use absolute positioning to place it lower
+          top: "400px", // Adjust this value to move the canvas lower
           zIndex: 0,
         }}
       />

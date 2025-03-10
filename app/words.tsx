@@ -130,11 +130,14 @@ export function getRankedMatches(
     (word) => word.length === code.length,
   );
 
+
   // console.log("High ranked choices are: ", choices);
   // console.log("Other words are: ", additionalWords);
   return choices.length === 0
     ? [...new Set(additionalWords)]
     : [choices[0], ...new Set([...additionalWords, ...choices.slice(1)])];
+
+    
 }
 
 export async function pickWordViaGPT(
