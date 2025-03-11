@@ -970,8 +970,8 @@ useEffect(() => {
 
   //timeElapsed
   const timeElapsed = useRef<number>();
-  const dwellBrickTime = useRef<number>(300);
-  const dwellBrickRefractory = useRef<number>(1000);
+  const dwellBrickTime = useRef<number>(4);
+  const dwellBrickRefractory = useRef<number>(200);
 
   const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
@@ -1001,12 +1001,37 @@ useEffect(() => {
   const refractoryStart = useRef<number>();
 
   const blockWith = useRef<number>(200);
-  const blockHight = useRef<number>(140);
-  const horizontalGapp = useRef<number>(69);
-  const verticalGapp = useRef<number>(96);
+  const blockHight = useRef<number>(96);
+  const horizontalGapp = useRef<number>(23);
+  const verticalGapp = useRef<number>(56);
 
   //boolean for determining if you are the first word... if so, you finna make the first word capitalized
   const firstWord = useRef<boolean>(true);
+
+  const weClickin = useRef<boolean>(false);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout; // Type for the timeout ID
+
+    const handleClick = (event: MouseEvent) => {
+      console.log('Click detected at:', event.clientX, event.clientY);
+      // Your click handling logic here
+      weClickin.current = true;
+      
+      timeoutId = setTimeout(() => {
+        weClickin.current = false;
+        console.log('weClickin reset to false');
+      }, 100);
+
+    };
+
+    document.addEventListener('click', handleClick);
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
+  
 
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1471,7 +1496,7 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 11;
+    const cursorSize = showCursor.current ? 0 : 0;
 
     const curX = lockCursor.current ? centerX : position.current.x;
     const curY = lockCursor.current ? centerY : position.current.y;
@@ -1980,6 +2005,8 @@ useEffect(() => {
     }
 
     if (inMagicBricks.current) { //MagicFlower baby!!!
+    
+      
       const blockWidth = blockWith.current;
       const blockHeight = blockHight.current;
       const horizontalGap = horizontalGapp.current;
@@ -2093,54 +2120,6 @@ useEffect(() => {
           idx: 14,
           width: blockWidth,
           height: blockHeight * .75
-        },
-        {
-          labels: [possibleWords.current[5] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 2,
-          y: startY - verticalGap * 0.75,
-          idx: 15,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
-        },
-        {
-          labels: [possibleWords.current[6] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 1,          
-          y: startY - verticalGap * 0.75,
-          idx: 16,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
-        },
-        {
-          labels: [possibleWords.current[7] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 3,
-          y: startY - verticalGap * 0.75,
-          idx: 17,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
-        },
-        {
-          labels: [possibleWords.current[8] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap),          
-          y: startY - verticalGap * 0.75,
-          idx: 18,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
-        },
-        {
-          labels: [possibleWords.current[9] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 4,
-          y: startY - verticalGap * 0.75,
-          idx: 19,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
-        },
-        {
-          labels: [possibleWords.current[10] || " "],
-          x: 69 + startX - (blockWidth + horizontalGap) + blockWidth * 5,
-          y: startY - verticalGap * 0.75,
-          idx: 20,
-          width: blockWidth * 0.75,
-          height: blockHeight * .5
         }
       ];
 
@@ -2189,8 +2168,6 @@ useEffect(() => {
 
       let lastActiveKeyIdx = activeKeyIdx.current;
 
-   
-      
       // Draw blocks with highlighting
       for (let key of keys) {
         ctx.beginPath();
@@ -2198,17 +2175,18 @@ useEffect(() => {
         const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
         const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
         
-
         ctx.roundRect(key.x, key.y, width, height, cornerRadius);
-      
         
         // Check if cursor is over this key
-        if (position.current.x >= key.x && 
+        if (
+            position.current.x >= key.x && 
             position.current.x <= key.x + width &&
             position.current.y >= key.y && 
             position.current.y <= key.y + height) {
           
-        let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
+        //let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
+
+        let opacity = (weClickin.current)? 0.88 : 0.2;
 
         ctx.fillStyle = (key.idx > 9 && key.idx < 21) 
         ? `rgba(86, 160, 211, ${opacity})`  // Carolina Blue if idx > 9
@@ -2222,9 +2200,9 @@ useEffect(() => {
           }
 
           // Check if enough time has passed since timer started
-          if (
-            (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current) &&  
-            (Math.abs(velocities.current?.final_velocity_x ?? 0) + Math.abs(velocities.current?.final_velocity_y ?? 0) < dwellClickThreshold.current))
+          if ( weClickin.current &&
+            (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current)
+            )
             {
             // Check if we're past refractory period or haven't hit yet
             if (!refractoryStart.current || performance.now() - refractoryStart.current >= dwellBrickTime.current + dwellBrickRefractory.current) {
@@ -2258,7 +2236,8 @@ useEffect(() => {
           timeElapsed.current = 0;
           timerStart.current = undefined;
           refractoryStart.current = undefined;
-        }
+        } 
+
 
         if (key.idx > 9 && key.idx < 21) {
           ctx.strokeStyle = '#56A0D3'; // Set stroke to Carolina Blue
