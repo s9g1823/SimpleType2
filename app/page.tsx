@@ -12,13 +12,6 @@ import { useSearchParams } from "next/navigation";
 import VelocityZmqListener, { DecodePacket } from "./ZmqListener";
 import ZmqClient from "./ZmqClient";
 
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, // Use env variable
-  dangerouslyAllowBrowser: true, // OpenAI normally blocks API keys in the browser
-});
-
 import {
   Tree,
   allWords,
@@ -39,20 +32,6 @@ interface OctagonSide {
   startY: number;
   endX: number;
   endY: number;
-}
-
-interface KeyTarget {
-  labels: string[];
-  x: number;
-  y: number;
-  idx: number; // Index of side mappings this should correspond to.
-  width?: number;
-  height?: number;
-}
-
-enum KeyboardType {
-  Octagon = "octagon",
-  Dots = "dots",
 }
 
 enum OctagonPage {
@@ -76,7 +55,6 @@ enum DwellZoneRendering {
 import "@fontsource/poppins"; // Defaults to weight 400
 import "@fontsource/press-start-2p";
 import { dot } from "node:test/reporters";
-import { first } from "lodash";
 
 const PointerLockWrapper: React.FC = () => {
   return (
@@ -86,24 +64,21 @@ const PointerLockWrapper: React.FC = () => {
   );
 };
 
-const nSides = 8;
-
-// Cursed: without this, firefox will complain that Symbol.dispose is not found.
-// Symbol.dispose ??= Symbol.for("Symbol.dispose");
+const nSides = 4;
 
 const PointerLockDemo: React.FC = () => {
   // System cursor configuration: by default do not use it, but override if the
   // environment variable or url parameter is set.
   const searchParams = useSearchParams();
   const urlSystemCursor =
-    searchParams.get("systemCursor")?.toLowerCase() === "true";
-  require("dotenv").config();
+    searchParams?.get("systemCursor")?.toLowerCase() === "true";
   const envSystemCursor = process.env.NEXT_PUBLIC_USE_SYSTEM_CURSOR === "1";
   const systemCursorEnabled = urlSystemCursor || envSystemCursor;
 
   //ZMQ setup for Link
   const zmqService = useRef(VelocityZmqListener.factory());
   const velocities = useRef<DecodePacket | null>(null);
+  const sideLikelihoods = useRef<number[]>(Array(nSides).fill(0));
 
   const directionalMode = useRef<boolean>(false);
   // const directionalRendering = useRef<DirectionalRendering>(DirectionalRendering.CenterOutGradient);
@@ -114,13 +89,15 @@ const PointerLockDemo: React.FC = () => {
   const dwellDurationMs = useRef<number>(500);
 
   const dwellZoneRendering = useRef<DwellZoneRendering>(
-    DwellZoneRendering.Visible,
+    DwellZoneRendering.Never,
   );
 
   const renderCursorTrail = useRef<boolean>(false);
 
-  const radiusOct = 350;
-  const dwellZoneRadius = useRef<number>(radiusOct - 50);
+  const [squareSize, setSquareSize] = useState(350);
+  const [showSquare, setShowSquare] = useState(false);
+  const [constrained, setConstrained] = useState(true);
+  const dwellZoneRadius = useRef<number>(350);
 
   useEffect(() => {
     zmqService.current.start();
@@ -132,11 +109,53 @@ const PointerLockDemo: React.FC = () => {
 
   useEffect(() => {
     function handleDecodeData(data: DecodePacket) {
-      // if (systemCursorEnabled) {
-      //   return;
-      // }
+      if (systemCursorEnabled) {
+        return;
+      }
 
       velocities.current = data;
+      //console.log('Received velocity data:', data);
+
+      // Map hacked click values to the corresponding sides
+      // Numbering goes clockwise starting from space
+      sideLikelihoods.current[0] =
+        velocities.current.left_click_probability_smoothed;
+      sideLikelihoods.current[1] = velocities.current.velocity_smoothed_x;
+      sideLikelihoods.current[2] =
+        velocities.current.raw_left_click_probability;
+      sideLikelihoods.current[3] = velocities.current.velocity_smoothed_y;
+      sideLikelihoods.current[4] =
+        velocities.current.middle_click_probability_smoothed;
+      sideLikelihoods.current[5] =
+        velocities.current.raw_middle_click_probability;
+      sideLikelihoods.current[6] =
+        velocities.current.right_click_probability_smoothed;
+      sideLikelihoods.current[7] =
+        velocities.current.raw_right_click_probability;
+
+      if (!refractory.current) {
+        const newX =
+          position.current.x +
+          velocities.current.final_velocity_x * speed.current * 0.015;
+        // velocities.current.final_velocity_x * speed.current * 0.01;
+        const newY =
+          position.current.y +
+          velocities.current.final_velocity_y * speed.current * 0.015;
+        // velocities.current.final_velocity_y * speed.current * 0.01;
+
+        if (!directionalMode.current) {
+          position.current = { x: newX, y: newY };
+          if (constrained) {
+            const half = squareSize * Math.SQRT1_2;
+            position.current.x = Math.max(centerX - half, Math.min(centerX + half, position.current.x));
+            position.current.y = Math.max(centerY - half, Math.min(centerY + half, position.current.y));
+          }
+        }
+      } else {
+        setTimeout(() => {
+          refractory.current = false;
+        }, 5);
+      }
     }
 
     zmqService.current.events.on(ZmqClient.EVENT_MESSAGE, handleDecodeData);
@@ -144,6 +163,7 @@ const PointerLockDemo: React.FC = () => {
     return () => {
       zmqService.current.events.off(ZmqClient.EVENT_MESSAGE, handleDecodeData);
     };
+  // }, [velocities.current]);
   }, []);
 
   //
@@ -156,7 +176,7 @@ const PointerLockDemo: React.FC = () => {
   const maxTrail = 50;
   const cursorTrail = useRef(new Array(maxTrail).fill(null));
 
-  // Track collision so we don't spam the same side
+  // Track collision so we don’t spam the same side
   const lastHitSide = useRef<number | null>();
 
   // The lines making up the octagon, if needed for reference
@@ -199,7 +219,7 @@ const PointerLockDemo: React.FC = () => {
   const handleDwellEnd = useRef<boolean[]>(Array(nSides).fill(false));
 
   // Dwell click
-  const dwellClickMode = useRef<boolean>(false);
+  const dwellClickMode = useRef<boolean>(true);
   const dwellClicked = useRef<boolean[]>(Array(nSides).fill(false));
   const dwellClickThreshold = useRef<number>(100);
 
@@ -218,7 +238,6 @@ const PointerLockDemo: React.FC = () => {
     6: "6",
     7: "7",
     8: "8",
-    9: ".",
   };
 
   const homeLabels: Record<number, string> = {
@@ -227,7 +246,7 @@ const PointerLockDemo: React.FC = () => {
     3: "▢",
     4: "🗣️",
     5: "🔤 ",
-    6: "Target Mode",
+    6: "Exit",
     7: "📝 Practice",
     8: "🕹️Game",
   };
@@ -236,8 +255,8 @@ const PointerLockDemo: React.FC = () => {
     1: "Threshold on",
     2: "Threshold off",
     3: "▢",
-    4: "",
-    5: "",
+    4: "Speed-",
+    5: "Speed+",
     6: "",
     7: "",
     8: "",
@@ -391,10 +410,8 @@ const PointerLockDemo: React.FC = () => {
 
     let rng = Math.floor(Math.random() * sentences.length);
 
-    refCode.current = [
-      7, 1, 6, 8, 1, 6, 1, 4, 6, 6, 4, 7, 6, 7, 6, 6, 1, 4, 8, 1, 8, 2, 1, 6, 6, 8, 8, 2, 6, 6, 1
-    ];
-    sentence.current = ["I", "am", "a", "sacrifice", "to", "my", "beloved"];
+    refCode.current = sentenceToCodes(sentences[rng], dictionaryType);
+    sentence.current = sentences[rng].split(" ");
 
     //calculations
     goodHits.current = 0;
@@ -409,11 +426,13 @@ const PointerLockDemo: React.FC = () => {
     dirtyWords.current = [];
     code.current = "";
 
-    // isPlaying.current = true;
-    isPlaying.current = false;
+    isPlaying.current = true;
     setVideoOpacity(0);
 
     console.log("runs");
+    theCodes.current = [];
+    theWords.current = [];
+    code.current = "";
 
     inPractice.current = true;
     indexRefCode.current = 0;
@@ -424,20 +443,14 @@ const PointerLockDemo: React.FC = () => {
 
     randomyt.current = yts[rng2];
 
-    refCode.current = [
-      7, 6, 8, 8, 8, 1, 2, 8, 4, 8, 6, 1
-    ];
-    sentence.current = ["hello", "world"];
+    refCode.current = sentenceToCodes(sentences[rng2], dictionaryType);
+    sentence.current = sentences[rng2].split(" ");
 
     //calculations
     goodHits.current = 0;
     badHits.current = 0;
 
     timerStart.current = performance.now();
-
-    //debug
-    console.log("index ref code: " + indexRefCode.current);
-    console.log("ref code: " + refCode.current);
   };
 
   const stopPracticeMode = (): void => {
@@ -452,12 +465,6 @@ const PointerLockDemo: React.FC = () => {
 
     textWidth.current = undefined;
     wordSubstringer.current = 0;
-
-    goodDotHits.current = 0;
-    badDotHits.current = 0;
-    timerDotStart.current = 0;
-
-    
   };
 
   //
@@ -503,7 +510,7 @@ const PointerLockDemo: React.FC = () => {
   }, [dictionaryType]);
 
   //
-  // ────────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────"─────────────────────────────────
   // E.2) CURRENT CODE -> WORDS LOOKUP
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -554,13 +561,12 @@ const PointerLockDemo: React.FC = () => {
         precomputedTrees.current,
         true,
       );
+      // }
 
       console.log("Ranked: ", possibleWords.current);
       console.timeEnd("getRankedMatches Execution Time");
     });
-  }, [code.current, theWords.current]);
-
-
+  }, [code.current]);
 
   //
   // ─────────────────────────────────────────────────────────────────────────────
@@ -594,8 +600,7 @@ useEffect(() => {
   //Then moving slider will also be able to adjust accordingly
   //Closin button will make it go 2% closer each hit
 
-  // const gravityDefault = 0.27 * radiusOct;
-  const gravityDefault = 0.27 * radiusOct;
+  const gravityDefault = 0.27 * squareSize;
   const gravity = useRef<number>(gravityDefault);
 
   const finalizeCurrentWord = useCallback(async () => {
@@ -738,7 +743,6 @@ useEffect(() => {
     "cowboy hat from gucci wrangler on my booty",
     "wanna be a gun slinger dont be a rock singer",
     "i program my home computer beam myself into the future",
-    "it was an experiment in psychogeography",
   ];
 
   const sentenceToCodes = (sentence: string, type: string): number[] => {
@@ -760,38 +764,37 @@ useEffect(() => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // if (systemCursorEnabled) {
+    if (systemCursorEnabled) {
       const handleClick = () => {
-        // if (document.pointerLockElement === canvas) {
-        //   document.exitPointerLock(); // Exit pointer lock if already active
-        // } else {
-        //   canvas.requestPointerLock(); // Enter pointer lock if not active
-        // }
+        if (document.pointerLockElement === canvas) {
+          document.exitPointerLock(); // Exit pointer lock if already active
+        } else {
+          canvas.requestPointerLock(); // Enter pointer lock if not active
+        }
       };
 
-      // const lockChangeAlert = () => {
-      //   if (document.pointerLockElement === canvas) {
-      //     console.log("Pointer lock activated.");
-      //     document.addEventListener("mousemove", handleMouseMove);
-      //   } else {
-      //     console.log("Pointer lock deactivated.");
-      //     document.removeEventListener("mousemve", handleMouseMove);
-      //   }
-      // };
+      const lockChangeAlert = () => {
+        if (document.pointerLockElement === canvas) {
+          console.log("Pointer lock activated.");
+          document.addEventListener("mousemove", handleMouseMove);
+        } else {
+          console.log("Pointer lock deactivated.");
+          document.removeEventListener("mousemove", handleMouseMove);
+        }
+      };
 
-      // if (!velocities) {
-      //   document.addEventListener("mousemove", handleMouseMove);
-      // }
-      document.addEventListener("mousemove", handleMouseMove);
+      if (!velocities) {
+        document.addEventListener("mousemove", handleMouseMove);
+      }
 
       canvas.addEventListener("click", handleClick);
-      // document.addEventListener("pointerlockchange", lockChangeAlert);
+      document.addEventListener("pointerlockchange", lockChangeAlert);
 
       return () => {
         canvas.removeEventListener("click", handleClick);
-        // document.removeEventListener("pointerlockchange", lockChangeAlert);
+        document.removeEventListener("pointerlockchange", lockChangeAlert);
       };
-    // }
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -799,28 +802,40 @@ useEffect(() => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const refractory = useRef<boolean>(false);
+  const speed = useRef<number>(1);
   const activeSide = useRef<number | null>(null);
-  const selectionRefractory = useRef<boolean>(false);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // console.log("running handleMouseMove()");
-    // if (systemCursorEnabled) {
+    if (systemCursorEnabled) {
       if (!refractory.current) {
-        if (canvasRef.current === null) {
-          return;
-        }
 
-        const rect = canvasRef.current.getBoundingClientRect();
-        const newX = e.clientX - rect.left;
-        const newY = e.clientY - rect.top;
+        velocities.current = {
+          final_velocity_x: e.movementX,
+          final_velocity_y: e.movementY,
+        };
+
+        console.log("Speed " + e.movementX + " " + e.movementY);
+
+        const newX =
+          position.current.x +
+          velocities.current.final_velocity_x * speed.current;
+        const newY =
+          position.current.y +
+          velocities.current.final_velocity_y * speed.current;
 
         position.current = { x: newX, y: newY };
+        if (constrained) {
+          const half = squareSize * Math.SQRT1_2;
+          position.current.x = Math.max(centerX - half, Math.min(centerX + half, position.current.x));
+          position.current.y = Math.max(centerY - half, Math.min(centerY + half, position.current.y));
+        }
       } else {
         setTimeout(() => {
           refractory.current = false;
         }, 0);
       }
-    // }
+    }
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -865,7 +880,7 @@ useEffect(() => {
       dotX: number,
       dotY: number,
       side: OctagonSide,
-      cutoff = 0.11 * radiusOct,
+      cutoff = 0.11 * squareSize,
     ) => {
       if (inDiagnostics.current) {
         return;
@@ -891,8 +906,6 @@ useEffect(() => {
     },
     [],
   );
-
-  const multiplier = useRef<number>(0.7);
 
   type Point = { x: number; y: number };
 
@@ -934,9 +947,7 @@ useEffect(() => {
   function predictTheWord() {
     code.current;
   }
-  const inDiagnostics = useRef<boolean>(true);
-
-  const inMagicBricks = useRef<boolean>(true);
+  const inDiagnostics = useRef<boolean>(false);
 
   const showCursor = useRef<boolean>(false);
 
@@ -962,18 +973,9 @@ useEffect(() => {
   const dwellTimeRequired = useRef<number>(60); // Time in milliseconds (1 second)
   const fast = useRef<boolean>(false);
   ``;
-  // const fastThreshold = useRef<number>(300);
   const fastThreshold = useRef<number>(300);
 
   const dotGameMode = useRef<boolean>(false);
-  const dotArrowMode = useRef<boolean>(false);
-
-  //timeElapsed
-  const timeElapsed = useRef<number>();
-  const dwellBrickTime = useRef<number>(4);
-  const dwellBrickRefractory = useRef<number>(200);
-
-  const octagonTargetMode = useRef<boolean>(false);
   const gameDotSequence = [
     5, 2, 7, 2, 1, 0, 5, 4, 1, 4, 7, 0, 4, 5, 0, 4, 0, 2, 4, 1, 5, 2, 0, 5, 4,
     0, 2, 0, 5, 7,
@@ -990,49 +992,6 @@ useEffect(() => {
   const dotCcpm = useRef<number>();
   const snapBackMode = useRef<boolean>(false);
 
-  // Magic keys
-  const activeKeyIdx = useRef<number | null>(null);
-  const clickedKeyIdx = useRef<number | null>(null);
-  const clickedKey = useRef<KeyTarget | null>(null);
-  const justHit = useRef<boolean>(true);
-
-  const inDotPractice = useRef<boolean>(false);
-
-  const refractoryStart = useRef<number>();
-
-  const blockWith = useRef<number>(200);
-  const blockHight = useRef<number>(96);
-  const horizontalGapp = useRef<number>(23);
-  const verticalGapp = useRef<number>(56);
-
-  //boolean for determining if you are the first word... if so, you finna make the first word capitalized
-  const firstWord = useRef<boolean>(true);
-
-  const weClickin = useRef<boolean>(false);
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout; // Type for the timeout ID
-
-    const handleClick = (event: MouseEvent) => {
-      console.log('Click detected at:', event.clientX, event.clientY);
-      // Your click handling logic here
-      weClickin.current = true;
-      
-      timeoutId = setTimeout(() => {
-        weClickin.current = false;
-        console.log('weClickin reset to false');
-      }, 100);
-
-    };
-
-    document.addEventListener('click', handleClick);
-
-    return () => {
-      document.removeEventListener('click', handleClick);
-    };
-  }, []);
-  
-
   const drawScene = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1047,17 +1006,15 @@ useEffect(() => {
     // (1) DRAW THE OCTAGON AND SIDES
     //
 
-    
-    const centerX = 700; 
-    const centerY = 300;
-    
+    const centerX = 800;
+    const centerY = 600;
 
-    const radius = radiusOct;
+    const radius = squareSize;
     const innerRadius = dwellZoneRadius.current;
 
     const sides = nSides;
     const angleStep = (2 * Math.PI) / sides;
-    const rotation = Math.PI / 8;
+    const rotation = Math.PI / 4;
 
     // Anchors for suggestion words
     const suggestionsY = centerY + canvas.height / 2 / 5;
@@ -1129,6 +1086,8 @@ useEffect(() => {
             (startOffsetX + endOffsetX) / 2,
             (startOffsetY + endOffsetY) / 2,
           );
+
+          const alpha = sideLikelihoods.current[i - 1] * 0.65;
 
           let style: CanvasGradient | string | undefined;
 
@@ -1206,16 +1165,17 @@ useEffect(() => {
             dwellClicked.current[idx] = false;
           }
 
-          // Draw trapezoid
-          ctx.beginPath();
-          ctx.moveTo(startOffsetX, startOffsetY);
-          ctx.lineTo(endOffsetX, endOffsetY);
-          ctx.lineTo(innerOffsetEndX, innerOffsetEndY);
-          ctx.lineTo(innerOffsetStartX, innerOffsetStartY);
-          ctx.closePath();
+          if (showSquare) {
+            ctx.beginPath();
+            ctx.moveTo(startOffsetX, startOffsetY);
+            ctx.lineTo(endOffsetX, endOffsetY);
+            ctx.lineTo(innerOffsetEndX, innerOffsetEndY);
+            ctx.lineTo(innerOffsetStartX, innerOffsetStartY);
+            ctx.closePath();
 
-          ctx.fillStyle = style;
-          ctx.fill();
+            ctx.fillStyle = style;
+            ctx.fill();
+          }
         }
       }
     }
@@ -1227,7 +1187,6 @@ useEffect(() => {
 
     if (
       inPractice.current &&
-      !dotArrowMode.current &&
       sentence.current !== undefined &&
       indexSentence.current !== undefined
     ) {
@@ -1242,56 +1201,27 @@ useEffect(() => {
 
       //display what has been typed so far
       ctx.textAlign = "left";
-      ctx.fillStyle = "white";
-
-      if (
-        sentence.current !== undefined &&
-        indexSentence.current !== undefined &&
-        wordSubstringer.current !== 0
-      )
-        ctx.fillText(
-          sentence.current[indexSentence.current].substring(
-            0,
-            wordSubstringer.current,
-          ),
-          centerX - textWidth.current / 2,
-          centerY,
-        );
+      ctx.fillStyle = "yellow";
+      ctx.fillText(
+        sentence.current[indexSentence.current].substring(
+          0,
+          wordSubstringer.current,
+        ),
+        centerX - textWidth.current / 2,
+        centerY,
+      );
       ctx.textAlign = "center";
       ctx.fillStyle = "gray";
     }
 
     //
-    // (2) CHECK COLLISIONS
+    // (2) CHECK COLLISIONS (disabled — sides are non-functional)
     //
 
     newSides.forEach((side, index) => {
       const sideIndex = index + 1;
 
-      let touching = false;
-      // let touching = isDotOutsideSide(position.current.x, position.current.y, side)
-      // isDotTouchingSide(position.current.x, position.current.y, side) ||
-
-      if (
-        !dwellClickMode.current &&
-        handleDwellEnd.current[index] &&
-        isInDwell.current[index]
-      ) {
-        touching = true;
-        handleDwellEnd.current[index] = false;
-      }
-
-      if (dwellClickMode.current && dwellClicked.current[index]) {
-        touching = true;
-        dwellClicked.current[index] = false;
-      }
-
-      if (selectionRefractory.current) {
-        touching = false;
-      }
-
-      // If the dot is past the inner threshold, activate the dwell region.
-      if (touching) {
+      if (false) {
         if (timeLength.current !== undefined) {
           timeLength.current = undefined;
           timerEnd.current = undefined;
@@ -1300,8 +1230,94 @@ useEffect(() => {
           badHits.current = undefined;
         }
 
-        const pageChangeOccured = handlePageInteractions(sideIndex);
-        console.log("PAGE CHANGE: " + pageChangeOccured);
+        // =========== Handle page-dependent interactions with buttons
+        let startingPage = activePage.current;
+        if (activePage.current === OctagonPage.Keyboard) {
+          // Transistion keyboard -> home menu
+          if (sideIndex == 3) {
+            activePage.current = OctagonPage.Home;
+          }
+        } else if (activePage.current === OctagonPage.Home) {
+          switch (sideIndex) {
+            // Transistion home -> keyboard
+            case 5:
+              activePage.current = OctagonPage.Keyboard; // Hack: just used for tracking display
+              break;
+            // Transistion home -> settings
+            case 2:
+              activePage.current = OctagonPage.Settings;
+              break;
+            // Speak
+            case 4:
+              speakWords();
+              break;
+            // Practice mode
+            case 7:
+              if (!inPractice.current && !inLights.current) {
+                startPracticeMode();
+                activePage.current = OctagonPage.Keyboard;
+              } else {
+                stopPracticeMode();
+              }
+              break;
+            // Game mode
+            case 8:
+              if (!inLights.current && !inPractice.current) {
+                // startPracticeMode();
+                inGameMode.current = true;
+                startGameMode();
+                activePage.current = OctagonPage.Keyboard;
+              } else {
+                inGameMode.current = false;
+                stopPracticeMode();
+              }
+              break;
+            // Clear all
+            case 1:
+              console.log("Clearing all text!");
+              theWords.current = [];
+              theCodes.current = [];
+              dirtyWords.current = [];
+              code.current = "";
+              break;
+
+            // Exit octagon: cursor on
+            case 6:
+              try {
+                zmqService.current.publish("cursor", "on");
+              } catch (err) {
+                console.error("Cannot turn off cursor" + err);
+              }
+              break;
+          }
+        } else if (activePage.current === OctagonPage.Settings) {
+          switch (sideIndex) {
+            // Transistion settings -> home
+            case 3:
+              activePage.current = OctagonPage.Home;
+              break;
+            // Speed -
+            case 4:
+              speed.current = speed.current - 0.1;
+              break;
+            // Speed +
+            case 5:
+              speed.current = speed.current + 0.1;
+              break;
+
+            // Radius on
+            case 1:
+              gravity.current = 0.4 * squareSize;
+              break;
+
+            // Radius off
+            case 2:
+              gravity.current = gravityDefault;
+              break;
+          }
+        }
+        const pageChange = activePage.current != startingPage;
+        console.log("PAGE CHANGE: " + pageChange);
 
         if (
           //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
@@ -1331,38 +1347,81 @@ useEffect(() => {
             indexRefCode.current !== undefined &&
             sideIndex === refCode.current[indexRefCode.current])
         ) {
-          handleTypingInteraction(sideIndex, pageChangeOccured);
+          if (indexRefCode.current !== undefined) {
+            //if in Game/Practice mode, increase the Ref
+            indexRefCode.current += 1;
+          }
+          const codeChar = sideMappings[sideIndex];
+          // If side 3 => space => finalize
+          if (codeChar === " ") {
+            if (
+              refCode.current !== undefined &&
+              sentence.current !== undefined &&
+              indexSentence.current !== undefined
+            ) {
+              if (sentence.current[indexSentence.current]) {
+                theWords.current = [
+                  ...theWords.current,
+                  sentence.current[indexSentence.current],
+                ];
+              }
+
+              if (inPractice.current) {
+                wordSubstringer.current = 0;
+              }
+              indexSentence.current += 1;
+              code.current = "";
+              if (indexSentence.current === sentence.current.length) {
+                timerEnd.current = performance.now();
+                timeLength.current =
+                  timerEnd.current - (timerStart.current ?? 0);
+                stopPracticeMode();
+              }
+            } else if (
+              !inLights.current &&
+              activePage.current == OctagonPage.Keyboard
+            ) {
+              finalizeCurrentWord();
+            }
+
+            // Backspace: Only allow in keyboard mode
+          } else if (
+            codeChar === "⌫" &&
+            activePage.current === OctagonPage.Keyboard &&
+            !pageChange
+          ) {
+            if (code.current) {
+              console.log("trying to remove just the last letter");
+              code.current = code.current.substring(0, code.current.length - 1);
+            } else {
+              theWords.current.pop();
+              theCodes.current.pop();
+            }
+
+            // Standard typing case: append code character
+          } else if (
+            codeChar &&
+            !inLights.current &&
+            activePage.current == OctagonPage.Keyboard &&
+            !pageChange
+          ) {
+            // Add digit to typedCodes
+            code.current = code.current + codeChar;
+            console.log(code.current);
+          }
+          //lastHitSide.current= sideIndex;
         }
-        refractory.current = true;
-
-        let refractoryTimeout = 50;
-        if (snapBackMode.current) {
-          // position.current = { x: 800, y: 600 };
-        } else {
-          const snapX = (position.current.x + 800) / 2;
-          const snapY = (position.current.y + 600) / 2;
-
-          // position.current = { x: snapX, y: snapY };
-          refractoryTimeout = 200;
-        }
-
         activeSide.current = sideIndex;
         setTimeout(() => {
           activeSide.current = null;
-        }, refractoryTimeout);
-
-        selectionRefractory.current = true;
-        setTimeout(() => {
-          selectionRefractory.current = false;
-        }, 500);
+        }, 50);
 
         // No collision
       } else if (
         !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
-        refCode.current[indexRefCode.current] == sideIndex &&
-        !octagonTargetMode.current
+        refCode.current[indexRefCode.current] == sideIndex
       ) {
         //when not touching and in Game mode
         ctx.fillStyle = "yellow";
@@ -1394,94 +1453,24 @@ useEffect(() => {
             break;
         }
         ctx.fillStyle = "white";
-      }
-
-      if (!inDiagnostics.current) {
-
+      } else {
         if (activeSide.current === sideIndex) {
           ctx.strokeStyle = "white";
         } else {
-          ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
+          if (inDiagnostics.current) {
+            ctx.strokeStyle = "black"; // Green
+          } else {
+            ctx.strokeStyle = "rgba(0, 124, 56)"; // Green
+          }
         }
-
-        if (
-          octagonTargetMode.current &&
-          refCode.current &&
-          indexRefCode.current !== undefined &&
-          refCode.current[indexRefCode.current] == sideIndex
-        ) {
-          ctx.strokeStyle = "yellow";
-        }
-
+      }
+      if (showSquare) {
         ctx.lineWidth = 14;
         ctx.beginPath();
         ctx.moveTo(side.startX, side.startY);
         ctx.lineTo(side.endX, side.endY);
+        ctx.strokeStyle = "rgba(0, 124, 56)";
         ctx.stroke();
-      }
-
-    });
-
-    //
-    // 3) Draw Labels
-    //
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    if (inDiagnostics.current) {
-      // ctx.fillStyle = "black";
-      ctx.fillStyle = "white";
-    } else {
-      ctx.fillStyle = "white";
-    }
-
-    newSides.forEach((side, index) => {
-      const sideIndex = index + 1;
-
-      if (!sideLabels[sideIndex]) return;
-
-      const midX = (side.startX + side.endX) / 2;
-      const midY = (side.startY + side.endY) / 2;
-      const dx = side.endX - side.startX;
-      const dy = side.endY - side.startY;
-      const length = Math.sqrt(dx * dx + dy * dy) || 1;
-      const ndx = dy / length;
-      const ndy = -dx / length;
-
-      // Different offsets for cardinal and angled sides
-      const offset = [2, 4, 6, 8].includes(sideIndex) ? 120 : 35; // Cardinal: 70px, Angled: 50px
-      const labelX = midX + offset * ndx;
-      const labelY = midY + offset * ndy;
-
-      ctx.font =
-        activeSide.current === sideIndex
-          ? "bold 69px Poppins, sans-serif"
-          : "bold 50px Poppins, sans-serif";
-
-      // Only render labels inside octagon for now.
-      if (!inDiagnostics.current) {
-        ctx.fillStyle = "white";
-        switch (activePage.current) {
-          case OctagonPage.Keyboard:
-            ctx.fillText(sideLabels[sideIndex], labelX, labelY);
-            break;
-          case OctagonPage.Home:
-            // Handle practice mode
-            if (inPractice.current && sideIndex == 7) {
-              ctx.font = "bold 30px Poppins, sans-serif";
-              ctx.fillText("❌ Quit Practice", labelX, labelY);
-            } else if (inGameMode.current && sideIndex == 8) {
-              ctx.font = "bold 30px Poppins, sans-serif";
-              ctx.fillText("❌ Quit Game", labelX, labelY);
-            } else {
-              ctx.fillText(homeLabels[sideIndex], labelX, labelY);
-            }
-            break;
-          case OctagonPage.Settings:
-            ctx.fillText(settingsLabels[sideIndex], labelX, labelY);
-            break;
-        }
       }
     });
 
@@ -1496,7 +1485,7 @@ useEffect(() => {
     ctx.beginPath();
 
     // const cursorSize = directionalMode.current ? 0 : 11;
-    const cursorSize = showCursor.current ? 0 : 0;
+    const cursorSize = showCursor.current ? 0 : 11;
 
     const curX = lockCursor.current ? centerX : position.current.x;
     const curY = lockCursor.current ? centerY : position.current.y;
@@ -1519,7 +1508,7 @@ useEffect(() => {
     }
 
     // Using monospace font because it is easier to render– sorry Sehej BRUH
-    ctx.font = inDiagnostics.current ? "40px Monaco" : "80px Monaco";
+    ctx.font = "80px Monaco";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -1528,12 +1517,12 @@ useEffect(() => {
       // Display last word from theWords.current if it exists
       const lastWord = theWords.current[theWords.current.length - 1] || "";
 
-      //ctx.fillText(lastWord, centerX, centerY + 150);
+      ctx.fillText(lastWord, centerX, centerY);
 
       // Only display suggestions when we are also displaying a current word.
       if (lastWord !== "") {
         // Draw suggestions on screen
-        ctx.font = inDiagnostics.current ? "25px Monaco" : "30px Monaco";
+        ctx.font = "30px Monaco";
         ctx.fillStyle = "grey";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -1555,14 +1544,15 @@ useEffect(() => {
             i += 1;
             continue;
           }
-          const buffer = inDiagnostics.current ? 65 : 0;
-          //ctx.fillText(suggestions[i], centerX, currentY - buffer);
+          ctx.fillText(suggestions[i], centerX, currentY);
           currentY += 35;
           n_suggest += 1;
           i += 1;
         }
       }
 
+      // } else if (code.current.length === 1 && !inPractice.current) {
+      //   ctx.fillText(getSideLabels(dictionaryType)[parseInt(code.current)]?.charAt(0).toLowerCase(), centerX, centerY);
     } else {
       if (possibleWords.current.length > 0 && !inPractice.current) {
         const bestWord = possibleWords.current[0];
@@ -1581,20 +1571,18 @@ useEffect(() => {
             ctx.fillStyle = "gray";
           }
 
-          ctx.fillText(char, currentX, centerY + 127);
+          ctx.fillText(char, currentX, centerY);
           currentX += ctx.measureText(char).width;
         }
 
         if (code.current.length > 0) {
           // Draw suggestions on screen
-          ctx.font = inDiagnostics.current ? "25px Monaco" : "30px Monaco";
-          //const buffer = inDiagnostics.current ? 65 : 0;
+          ctx.font = "30px Monaco";
           ctx.fillStyle = "grey";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
-          let currentY = centerY - 200;
-          let currentX = 40;
+          let currentY = suggestionsY;
 
           // Show 3 suggestions max
           const lastWord = theWords.current[theWords.current.length - 1] || "";
@@ -1613,8 +1601,8 @@ useEffect(() => {
               i += 1;
               continue;
             }
-            //ctx.fillText(suggestions[i], currentX, currentY);
-            currentX += 69;
+            ctx.fillText(suggestions[i], centerX, currentY);
+            currentY += 35;
             n_suggest += 1;
             i += 1;
           }
@@ -1622,15 +1610,14 @@ useEffect(() => {
       }
     }
 
-    ctx.font = inDiagnostics.current ? "27px Poppins" : "32px Poppins";
+    ctx.font = "32px Poppins"; // Smaller font size
     ctx.fillStyle = "#CACACA"; // Faded white color
-    const buffer = inDiagnostics.current ? 90 : 0;
-    if (!inLights.current && !dotArrowMode.current) {
-      //ctx.fillText(theWords.current.join(" "), centerX, inMagicBricks.current ? centerY - 350 : centerY - 200 + buffer); // Adjust Y-coordinate to place it above
+    if (!inLights.current) {
+      ctx.fillText(theWords.current.join(" "), centerX, centerY - 200); // Adjust Y-coordinate to place it above
     }
 
     //Draw calculations for Game Mode
-    if (timerEnd.current) {
+    if (timerEnd.current !== undefined) {
       ctx.font = "69px Poppins";
       ctx.fillStyle = "lightgreen"; // Set the text color
       ctx.textAlign = "center"; // Align the text to the left
@@ -1695,7 +1682,7 @@ useEffect(() => {
     }
 
     setOctagonSides(newSides);
-  
+
     //
     // =====================================================================
     //
@@ -1703,148 +1690,47 @@ useEffect(() => {
     //
     // =====================================================================
     //
-    if (inDiagnostics.current && !inMagicBricks.current) {
-      //PRACTICE MODE by little B
-      let keys: KeyTarget[] = [
-        {
-          labels: ["A", "B", "C", "D", "E", "F"],
-          x: 1 / 2 - (1 / 5) * multiplier.current,
-          y: 1 / 2 - (4 / 15) * multiplier.current,
-          idx: 6,
-        },
-        {
-          labels: ["G", "H", "I", "J", "K"],
-          x: 1 / 2,
-          y: 1 / 2 - (4 / 15) * multiplier.current,
-          idx: 7,
-        },
-        {
-          labels: ["L", "M", "N", "O", "P"],
-          x: 1 / 2 + (1 / 5) * multiplier.current,
-          y: 1 / 2 - (4 / 15) * multiplier.current,
-          idx: 8,
-        },
-        { labels: ["⌫"], x: 1 / 2 - (1 / 5) * multiplier.current, y: 1 / 2, idx: 5 },
-        { labels: ["␣"], x: 1 / 2 + (1 / 5) * multiplier.current, y: 1 / 2, idx: 1 },
-        {
-          labels: ["Q", "R", "S", "T", "U"],
-          x: 1 / 2 - (1 / 5) * multiplier.current,
-          y: 1 / 2 + (4 / 15) * multiplier.current,
-          idx: 4,
-        },
-        { labels: [" "], x: 1 / 2, y: 1 / 2 + (4 / 15) * multiplier.current, idx: -1 },
-        {
-          labels: ["V", "W", "X", "Y", "Z"],
-          x: 1 / 2 + (1 / 5) * multiplier.current,
-          y: 1 / 2 + (4 / 15) * multiplier.current,
-          idx: 2,
-        },
+    if (inDiagnostics.current) {
+      let coordinatesTargets = [
+        { x: 3 / 10, y: 1 / 2 - 4 / 15 },
+        { x: 1 / 2, y: 1 / 2 - 4 / 15 },
+        { x: 7 / 10, y: 1 / 2 - 4 / 15 },
+        { x: 3 / 10, y: 1 / 2 },
+        { x: 7 / 10, y: 1 / 2 },
+        { x: 3 / 10, y: 1 / 2 + 4 / 15 },
+        { x: 1 / 2, y: 1 / 2 + 4 / 15 },
+        { x: 7 / 10, y: 1 / 2 + 4 / 15 },
       ];
 
-      keys.forEach((key) => {
-        key.x *= canvas.width;
-        key.y *= canvas.height;
+      let scaledCoordinates = coordinatesTargets.map((coord) => {
+        return {
+          x: coord.x * canvas.width,
+          y: coord.y * canvas.height,
+        };
       });
 
-      for (let i = 0; i < keys.length; i++) {
-        /*
-         *  Render Text
-         *
-         */
-        let nEntries = keys[i].labels.length;
-        for (let selector = 0; selector < nEntries; selector++) {
-          const row = Math.floor(selector / 3);
-          const col = selector % 3;
-
-          let sep = 30;
-          let fsize = multiplier.current * 56;
-          ctx.font = `${fsize}px Poppins`;
-          if (activeKeyIdx.current !== null && activeKeyIdx.current === i) {
-            sep = 50;
-            ctx.fillStyle = "lightgray";
-          } else if (activeKeyIdx.current !== null) {
-            ctx.fillStyle = "rgb(200, 200, 200)";
-          } else {
-            ctx.fillStyle = "lightgray";
-          }
-
-          ctx.fillText(
-            keys[i].labels[selector],
-            keys[i].x - sep + 1.5 * col * sep,
-            keys[i].y - sep + 1.5 * row * sep,
-          );
-        }
-
+      for (let i = 0; i < coordinatesTargets.length; i++) {
         ctx.beginPath();
-        // if (dotGameMode.current) {
-        //   if (i === gameDotSequence[indexGameDot.current]) {
-        if (refCode.current && indexRefCode.current && dotGameMode.current) {
-          if (i+1 === refCode.current[indexRefCode.current]) {
-            ctx.fillStyle = "yellow";
-          } else {
-            // ctx.fillStyle = "#812dfa";
-            ctx.fillStyle = "white";
-          }
-          // Default magic coloring
-        } else if (
-          dotArrowMode.current &&
-          refCode.current &&
-          indexRefCode.current !== undefined
+        if (
+          dotGameMode.current &&
+          i === gameDotSequence[indexGameDot.current]
         ) {
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.font = '127px Poppins'; // You can adjust the font size and style as needed
-
-          let arrow = "";
-          // switch (refCode.current[indexRefCode.current] - 1) {
-          switch (refCode.current[indexRefCode.current] - 1) {
-              case 0: // top left
-                  arrow = '↖';
-                  break;
-              case 1: // upwards
-                  arrow = '↑';
-                  break;
-              case 2: // top right
-                  arrow = '↗';
-                  break;
-              case 3: // left
-                  arrow = '←';
-                  break;
-              case 4: // right
-                  arrow = '→';
-                  break;
-              case 5: // bottom left
-                  arrow = '↙';
-                  break;
-              case 6: // bottom
-                  arrow = '↓';
-                  break;
-              case 7: // bottom right
-                  arrow = '↘';
-                  break;
-              default:
-                  // Done
-                  break;
-          }
-          ctx.fillText(arrow, centerX, centerY);
+          ctx.fillStyle = "yellow";
         } else {
-          ctx.fillStyle = "lightgreen";
+          ctx.fillStyle = "#812dfa";
         }
 
-        if (!(activeKeyIdx.current !== null && activeKeyIdx.current === i)) {
-          ctx.globalAlpha = 0.23;
-
-          let size = 22;
-          if (activeSide.current !== null && activeSide.current === i) {
-            size = 100;
-          }
-          ctx.arc(keys[i].x, keys[i].y, size, 0, 2 * Math.PI);
-
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
+        ctx.globalAlpha = 0.56;
+        ctx.arc(
+          scaledCoordinates[i].x,
+          scaledCoordinates[i].y,
+          22,
+          0,
+          2 * Math.PI,
+        );
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
-
       if (
         Math.abs(velocities.current?.final_velocity_x ?? 0) +
           Math.abs(velocities.current?.final_velocity_y ?? 0) <
@@ -1862,69 +1748,51 @@ useEffect(() => {
           const timeBelowThreshold =
             Date.now() - velocityBelowThresholdStartTime.current;
           if (timeBelowThreshold >= dwellTimeRequired.current && fast.current) {
-            console.log("We reached low velocities in Practisch");
+            console.log("We reached low velocities");
 
             fast.current = false;
             let hitCircleIndex = findClosestCircle();
 
-            console.log("hitCircleIndex " + hitCircleIndex);
+            if (!dotGameMode.current) {
+              new Audio("click.mp3")
+                .play()
+                .catch((error) => console.error("Error playing audio:", error));
 
-            activeSide.current = hitCircleIndex;
-            setTimeout(() => {
-              activeSide.current = null;
-            }, 200);
-
-            // In game mode
-            if (
-              refCode.current !== undefined &&
-              indexRefCode.current !== undefined
-            ) {
-              console.log(
-                "refCode.current[indexRefCode.current] " +
-                  refCode.current[indexRefCode.current],
-              );
-              if (
-                hitCircleIndex + 1 ===
-                refCode.current[indexRefCode.current]
-              ) {
-                //if you hit the rite jawn
+              if (snapBackMode.current) {
+                position.current = { x: centerX, y: centerY };
+              }
+            } else if (dotGameMode.current) {
+              if (hitCircleIndex === gameDotSequence[indexGameDot.current]) {
                 goodDotHits.current++;
-                const audio = new Audio("coin2.mp3");
-                audio.volume = 0.3; // Reduce volume to 30%
-                audio.play()
-                  .catch((error) =>
-                    console.error("Error playing audio:", error),
-                  );
 
                 if (timerDotStart.current === undefined) {
                   //start timer
                   timerDotStart.current = performance.now();
+                } else if (
+                  indexGameDot.current ===
+                  gameDotSequence.length - 1
+                ) {
+                  //terminate game and display metrics
+                  timeDotLength.current =
+                    performance.now() - timerDotStart.current;
+                  dotCcpm.current =
+                    (goodDotHits.current / timeDotLength.current) * 60000;
+                  accuracy.current =
+                    (goodDotHits.current /
+                      (goodDotHits.current + badDotHits.current)) *
+                    100;
                 }
 
-                if (wordSubstringer.current !== undefined) {
-                  //If you are in practice mode, append the next character
-                  wordSubstringer.current += 1;
+                new Audio("coin2.mp3")
+                  .play()
+                  .catch((error) =>
+                    console.error("Error playing audio:", error),
+                  );
+                indexGameDot.current++;
+
+                //terminate the game
+                if (indexGameDot.current === gameDotSequence.length) {
                 }
-                if (
-                  hitCircleIndex === 4 &&
-                  indexSentence.current !== undefined &&
-                  sentence.current !== undefined
-                ) {
-                  wordSubstringer.current = 0;
-                  indexSentence.current++;
-                  if (indexSentence.current === sentence.current.length) {
-                    //if last character
-                    timeDotLength.current =
-                      performance.now() - timerDotStart.current;
-                    dotCcpm.current =
-                      (goodDotHits.current / timeDotLength.current) * 60000;
-                    accuracy.current =
-                      (goodDotHits.current /
-                        (goodDotHits.current + badDotHits.current)) *
-                      100;
-                  }
-                }
-                indexRefCode.current++;
               } else {
                 badDotHits.current++;
                 new Audio("erro.mp3")
@@ -1934,20 +1802,13 @@ useEffect(() => {
                   );
               }
               if (snapBackMode.current) {
-                // position.current = { x: centerX, y: centerY };
+                position.current = { x: centerX, y: centerY };
               }
-            } else {
-              handleTypingInteraction(keys[hitCircleIndex].idx, false);
-              new Audio("click.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
-
             }
-
             ctx.beginPath();
             ctx.arc(
-              keys[hitCircleIndex].x * canvas.width,
-              keys[hitCircleIndex].y * canvas.height,
+              coordinatesTargets[hitCircleIndex].x * canvas.width,
+              coordinatesTargets[hitCircleIndex].y * canvas.height,
               99,
               0,
               2 * Math.PI,
@@ -1971,15 +1832,10 @@ useEffect(() => {
       if (dotCcpm.current !== undefined && accuracy.current !== undefined) {
         ctx.font = "69px Poppins"; // Smaller font size
         ctx.fillStyle = "lightgreen"; // Text color
-        ctx.fillText(
-          `${dotCcpm.current.toFixed(2)} DPM`,
-          centerX,
-          centerY + 100,
-        );
+        ctx.fillText(`${dotCcpm.current.toFixed(2)} DPM`, centerX, centerY);
         ctx.font = "32px Poppins"; // Smaller font size
         ctx.fillStyle = "white"; // Text color
-        ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 175);
-
+        ctx.fillText(`${accuracy.current.toFixed(2)}%`, centerX, centerY + 200);
       }
 
       function findClosestCircle() {
@@ -1987,8 +1843,8 @@ useEffect(() => {
         let closestIndex = -1;
         let smallestDistance = Infinity;
 
-        for (let i = 0; i < keys.length; i++) {
-          let target = keys[i];
+        for (let i = 0; i < coordinatesTargets.length; i++) {
+          let target = scaledCoordinates[i];
           let distance = Math.sqrt(
             Math.pow(target.x - position.current.x, 2) +
               Math.pow(target.y - position.current.y, 2),
@@ -2003,264 +1859,9 @@ useEffect(() => {
         return closestIndex;
       }
     }
-
-    if (inMagicBricks.current) { //MagicFlower baby!!!
-    
-      
-      const blockWidth = blockWith.current;
-      const blockHeight = blockHight.current;
-      const horizontalGap = horizontalGapp.current;
-      const verticalGap = verticalGapp.current;
-      const cornerRadius = 15; // Radius for curved corners
-      
-      // Calculate total width and height of the block arrangement
-      const totalWidth = (blockWidth * 3) + (horizontalGap * 2);
-      const totalHeight = (blockHeight * 2) + verticalGap;
-      
-      // Calculate starting position to center the blocks, shifted up by 100px
-      const startX = centerX - (totalWidth / 2);
-      const startY = centerY - (totalHeight / 2);
-
-      possibleWords.current = Array.from(new Set(possibleWords.current));
-
-      let keys: KeyTarget[] = [
-        {
-          labels: ["A", "B", "C", "D", "E", "F"],
-          x: startX,
-          y: startY + 1 * (blockHeight + verticalGap),
-          idx: 6,
-          width: blockWidth
-        },
-        {
-          labels: ["G", "H", "I", "J", "K"], 
-          x: startX + (2 * (blockWidth + horizontalGap)), 
-          y: startY + 1 * (blockHeight + verticalGap), 
-          idx: 7,
-          width: blockWidth
-        },
-        {
-          labels: ["L", "M", "N", "O", "P"],
-          x: startX,
-          y: startY + 2 * (blockHeight + verticalGap),        
-          idx: 8,
-          width: blockWidth
-        },
-        {
-          labels: ["⌫"],
-          x: startX - blockWidth - horizontalGap,
-          y: startY + 1 * (blockHeight + verticalGap),
-          width: blockWidth,
-          height: blockHeight * 2 + verticalGap,
-          idx: 5
-        },
-        {
-          labels: ["Q", "R", "S", "T", "U"],
-          x: startX + (1 * (blockWidth + horizontalGap)),
-          y: startY + 2 * (blockHeight + verticalGap),
-          idx: 4,
-          width: blockWidth
-        },
-        {
-          labels: ["V", "W", "X", "Y", "Z"],
-          x: startX + (2 * (blockWidth + horizontalGap)),
-          y: startY + 2 * (blockHeight + verticalGap),
-          idx: 2,
-          width: blockWidth
-        },
-        {
-          labels: ["."],
-          x: startX + (3 * (blockWidth + horizontalGap)), 
-          y: startY + 2 * (blockHeight + verticalGap),
-          width: blockWidth,
-          idx: 9
-        },
-        {
-          labels: ["Speak"],
-          x: startX + (3 * (blockWidth + horizontalGap)), 
-          y: startY + 1 * (blockHeight + verticalGap),
-          width: blockWidth,
-          idx: 21
-        },
-        {
-          labels: [possibleWords.current[0] || " "],
-          x: startX + (1 * (blockWidth + horizontalGap)),
-          y: startY + verticalGap * 0.5,
-          idx: 10,
-          width: blockWidth,
-          height: blockHeight * .75
-        },
-        {
-          labels: [possibleWords.current[1] || " "],
-          x: startX + (0 * (blockWidth + horizontalGap)),
-          y: startY + verticalGap * 0.5,
-          idx: 11,
-          width: blockWidth,
-          height: blockHeight * .75
-        },
-        {
-          labels: [possibleWords.current[2] || " "],
-          x: startX + (2 * (blockWidth + horizontalGap)),
-          y: startY + verticalGap * 0.5,
-          idx: 12,
-          width: blockWidth,
-          height: blockHeight * .75
-        },
-        {
-          labels: [possibleWords.current[3] || " "],
-          x: startX - (blockWidth + horizontalGap),          
-          y: startY + verticalGap * 0.5,
-          idx: 13,
-          width: blockWidth,
-          height: blockHeight * .75
-        },
-        {
-          labels: [possibleWords.current[4] || " "],
-          x: startX + (3 * (blockWidth + horizontalGap)),
-          y: startY + verticalGap * 0.5,
-          idx: 14,
-          width: blockWidth,
-          height: blockHeight * .75
-        }
-      ];
-
-
-      ctx.fillStyle = "white";
-
-      // Draw blocks and labels
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        
-        // Draw dotted block
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]); // Create dotted line pattern
-        const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
-        const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
-        ctx.roundRect(key.x, key.y, width, height, 15);
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset line pattern
-
-        // Draw labels
-        ctx.font = "32px Poppins";
-        if (refCode.current && indexRefCode.current && dotGameMode.current) {
-          if (key.idx === refCode.current[indexRefCode.current]) {
-            ctx.fillStyle = "yellow";
-          } else {
-            // ctx.fillStyle = "#812dfa";
-            ctx.fillStyle = "white";
-          }
-          // Default magic coloring
-        }        
-        ctx.textAlign = "center";
-        
-        // Center the text in the block
-        const textX = key.x + width/2; // Use width instead of blockWidth
-        const textY = key.y + height/2;
-        
-        // Draw each letter spaced out
-        const spacing = 30;
-        key.labels.forEach((label, index) => {
-          const letterX = textX - ((key.labels.length-1) * spacing)/2 + (index * spacing);
-          ctx.fillText(label, letterX, textY);
-        });
-      }
-
-      let lastActiveKeyIdx = activeKeyIdx.current;
-
-      // Draw blocks with highlighting
-      for (let key of keys) {
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]); // Create dotted line pattern
-        const width = key.width || blockWidth; // Use key.width if specified, otherwise use blockWidth
-        const height = key.height || blockHeight; // Use key.height if specified, otherwise use blockHeight
-        
-        ctx.roundRect(key.x, key.y, width, height, cornerRadius);
-        
-        // Check if cursor is over this key
-        if (
-            position.current.x >= key.x && 
-            position.current.x <= key.x + width &&
-            position.current.y >= key.y && 
-            position.current.y <= key.y + height) {
-          
-        //let opacity = Math.min(((timeElapsed.current || 0) - (refractoryStart.current ? dwellBrickRefractory.current : 0)) / dwellBrickTime.current, 1);
-
-        let opacity = (weClickin.current)? 0.88 : 0.2;
-
-        ctx.fillStyle = (key.idx > 9 && key.idx < 21) 
-        ? `rgba(86, 160, 211, ${opacity})`  // Carolina Blue if idx > 9
-        : (key.idx === 5) 
-          ? `rgba(255, 0, 0, ${opacity})`  // Red for idx 5 or 9
-          : `rgba(0, 255, 0, ${opacity})`;  // Green for all other cases          // Only start timer if moving to a new key
-          if (activeKeyIdx.current !== key.idx) {
-            timerStart.current = performance.now();
-            justHit.current = false;
-            activeKeyIdx.current = key.idx;
-          }
-
-          // Check if enough time has passed since timer started
-          if ( weClickin.current &&
-            (timerStart.current && performance.now() - timerStart.current >= dwellBrickTime.current)
-            )
-            {
-            // Check if we're past refractory period or haven't hit yet
-            if (!refractoryStart.current || performance.now() - refractoryStart.current >= dwellBrickTime.current + dwellBrickRefractory.current) {
-              new Audio("click.mp3")
-                .play()
-                .catch((error) => console.error("Error playing audio:", error));
-              
-              // Handle key click
-              if (activeKeyIdx.current !== null) {
-                handleTypingInteraction(key.idx, false);
-
-                clickedKey.current = keys[activeKeyIdx.current];
-                clickedKeyIdx.current = activeKeyIdx.current;
-
-                setTimeout(() => {
-                  clickedKey.current = null;
-                  clickedKeyIdx.current = null;
-                }, 230);
-              }
-              
-              // Reset timer and set refractory period
-              timerStart.current = performance.now();
-              refractoryStart.current = performance.now();
-            }
-          }
-
-          ctx.fill();
-        } else if (lastActiveKeyIdx === key.idx) {
-          // Reset active key when leaving this key
-          activeKeyIdx.current = null;
-          timeElapsed.current = 0;
-          timerStart.current = undefined;
-          refractoryStart.current = undefined;
-        } 
-
-
-        if (key.idx > 9 && key.idx < 21) {
-          ctx.strokeStyle = '#56A0D3'; // Set stroke to Carolina Blue
-        } else {
-          ctx.strokeStyle = 'white'; // Otherwise, set stroke to white
-        }        
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset line pattern
-      }
-
-      // Draw dwell timer progress if active
-      if (activeKeyIdx.current !== null && timerStart.current) {
-        ctx.font = "24px Poppins";
-        ctx.fillStyle = "white";
-        ctx.textAlign = "center";
-        timeElapsed.current = Math.floor(performance.now() - timerStart.current);
-        //ctx.fillText(`${timeElapsed.current}ms`, position.current.x, position.current.y - 20);
-      }
-      
-    }
   }, [
     position,
+    sideLikelihoods,
     lastHitSide,
     finalizeCurrentWord,
     sideMappings,
@@ -2268,277 +1869,11 @@ useEffect(() => {
     code,
   ]);
 
-  /*
-   * Handle navigation interactions based on the selection index.
-   *
-   * Returns whether or not the page changed as a result of this interaction.
-   */
-  function handlePageInteractions(selectorIndex: number): boolean {
-    // =========== Handle page-dependent interactions with buttons
-    let startingPage = activePage.current;
-    if (activePage.current === OctagonPage.Keyboard) {
-      // Transistion keyboard -> home menu
-      if (selectorIndex == 3) {
-        activePage.current = OctagonPage.Home;
-      }
-    } else if (activePage.current === OctagonPage.Home) {
-      switch (selectorIndex) {
-        // Transistion home -> keyboard
-        case 5:
-          activePage.current = OctagonPage.Keyboard; // Hack: just used for tracking display
-          break;
-        // Transistion home -> settings
-        case 2:
-          activePage.current = OctagonPage.Settings;
-          break;
-        // Speak
-        case 4:
-          speakWords();
-          break;
-        case 6:
-          if (!inPractice.current && !inLights.current && !octagonTargetMode.current) {
-            inGameMode.current = true;
-            octagonTargetMode.current = true;
-            startGameMode();
-            activePage.current = OctagonPage.Keyboard;
-          } else {
-            octagonTargetMode.current = false;
-            inGameMode.current = false;
-            stopPracticeMode();
-          }
-          break;
-
-        // Practice mode
-        case 7:
-          if (!inPractice.current && !inLights.current) {
-            startPracticeMode();
-            activePage.current = OctagonPage.Keyboard;
-          } else {
-            stopPracticeMode();
-          }
-          break;
-
-        // Game mode
-        case 8:
-          if (!inLights.current && !inPractice.current) {
-            // startPracticeMode();
-            inGameMode.current = true;
-            startGameMode();
-            activePage.current = OctagonPage.Keyboard;
-          } else {
-            inGameMode.current = false;
-            stopPracticeMode();
-          }
-          break;
-        // Clear all
-        case 1:
-          console.log("Clearing all text!");
-          theWords.current = [];
-          theCodes.current = [];
-          dirtyWords.current = [];
-          code.current = "";
-          break;
-      }
-    } else if (activePage.current === OctagonPage.Settings) {
-      switch (selectorIndex) {
-        // Transistion settings -> home
-        case 3:
-          activePage.current = OctagonPage.Home;
-          break;
-
-        // Radius on
-        case 1:
-          gravity.current = 0.4 * radiusOct;
-          break;
-
-        // Radius off
-        case 2:
-          gravity.current = gravityDefault;
-          break;
-      }
-    }
-
-    const pageChange = activePage.current != startingPage;
-    console.log("PAGE CHANGE: " + pageChange);
-
-    return pageChange;
-  }
-
-  /*
-   * Handle a typing interaction on the keyboard
-   *
-   */
-
-
-  const sayThat = async () => {
-    try {
-      const response = await openai.audio.speech.create({
-        model: "tts-1",
-        voice: "ash",
-        input: theWords.current.join(" "),
-      });
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const blob = new Blob([buffer], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-
-      const audio = new Audio(url);
-      audio.play();
-
-    } catch (error) {
-      console.error("Error generating speech:", error);
-    }
-  }
-
-  function handleTypingInteraction(
-    selectorIndex: number,
-    pageChangeOccured: boolean,
-  ) {
-    const codeChar = sideMappings[selectorIndex] || selectorIndex;
-    
-    if (selectorIndex > 9 && selectorIndex < 21) {
-      let chosenWord = possibleWords.current[selectorIndex - 10];
-      if (firstWord.current) {
-        chosenWord = chosenWord.charAt(0).toUpperCase() + chosenWord.slice(1);
-        firstWord.current = false;
-
-      }
-
-      theWords.current = [...theWords.current, chosenWord || ""];
-      theCodes.current = [...theCodes.current, code.current];
-      code.current = "";
-
-      possibleWords.current = getRankedMatches(
-        theWords.current,
-        code.current,
-        codeTree.current,
-        trigrams.current,
-        wordFreq.current,
-        precomputedTrees.current,
-        true,
-      );
-
-      return;
-    } else if (selectorIndex === 21) {
-      sayThat();
-      return;
-    }
-
-    //Game and Practice Mode handling
-    if (refCode.current !== undefined && indexRefCode.current !== undefined) {
-
-      //If correct hit
-      if (refCode.current[indexRefCode.current] === selectorIndex) {
-        //Start the timer after the first successful hit
-        if (indexRefCode.current === 0) {
-          timerDotStart.current = performance.now();
-        }
-        
-        goodDotHits.current++;
-        indexRefCode.current++;
-        wordSubstringer.current++;
-      
-        //if the correct hit is a SPACE
-        if (codeChar === " " && sentence.current !== undefined && indexSentence.current !== undefined) {
-          //Append to the words and refresh code
-          theWords.current = [...theWords.current, sentence.current[indexSentence.current],];
-          code.current = "";
-
-          //Move to the next word
-          wordSubstringer.current = 0;
-          indexSentence.current += 1;
-
-          //If its your last word
-          if (indexSentence.current === sentence.current.length) {;
-            timeDotLength.current = performance.now() - (timerDotStart.current ?? 0);
-            
-            //Calculate values
-            dotCcpm.current = (goodDotHits.current / timeDotLength.current) * 60000;
-            accuracy.current = goodDotHits.current / (goodDotHits.current + badDotHits.current);
-
-            //Add to the leaderboard
-            leederboredVals.current.push({
-              player: "borg",
-              ccpm: dotCcpm.current,
-              accuracy: accuracy.current
-            });
-
-            stopPracticeMode();
-          }
-        }
-        
-        
-        new Audio("coin2.mp3")
-          .play()
-          .catch((error) =>
-            console.error("Error playing audio:", error),
-          );
-      } else { //if incorrect hit
-        badDotHits.current++;
-        new Audio("erro.mp3")
-          .play()
-          .catch((error) =>
-            console.error("Error playing audio:", error),
-          );
-      }
-      
-    }
-
-    
-    // If side 3 => space => finalize
-    if (codeChar === " ") {
-      if (
-        !refCode.current && //if not in game or practice mode
-        !inLights.current &&
-        activePage.current == OctagonPage.Keyboard
-      ) {
-        finalizeCurrentWord();
-      }
-
-      /* Backspace: Only allow in keyboard mode */
-    } else if (
-      codeChar === "⌫" &&
-      activePage.current === OctagonPage.Keyboard &&
-      !pageChangeOccured
-    ) {
-      if (code.current) {
-        console.log("trying to remove just the last letter");
-        code.current = code.current.substring(0, code.current.length - 1);
-      } else {
-        theWords.current.pop();
-        theCodes.current.pop();
-      }
-
-      /* Standard typing case: append code character */
-    } else if (
-      codeChar === "."
-    ) {
-      theWords.current[theWords.current.length - 1] += ".";
-      firstWord.current = true;
-    } else if (
-      codeChar &&
-      !inLights.current &&
-      activePage.current == OctagonPage.Keyboard &&
-      !pageChangeOccured
-    ) {
-      // Add digit to typedCodes
-      code.current = code.current + codeChar;
-      console.log(code.current);
-    } 
-  }
-
-  /*
-   * Render typing
-   *
-   */
-  function renderTyping() {}
-
   //Leaderboard jawns
 
   interface LeaderboardEntry {
     player: string;
     ccpm: number;
-    accuracy?: number;
   }
   const leederboredVals = useRef<LeaderboardEntry[]>([
     { player: "easy E", ccpm: 52.02 },
@@ -2560,7 +1895,7 @@ useEffect(() => {
   const [videoOpacity, setVideoOpacity] = useState(0);
   //useless edit
 
-  const isPlaying = useRef<boolean>(false);
+  const isPlaying = useRef<boolean>(true);
   const yts = [
     "ekr2nIex040",
     "VCTOpdlZJ8U",
@@ -2627,7 +1962,7 @@ useEffect(() => {
           alignItems: "center", // Center the video vertically
         }}
       >
-        {/*<iframe
+        <iframe
           width="560"
           height="315"
           src={`https://www.youtube.com/embed/${randomyt.current}?controls=0&loop=1&autoplay=${isPlaying.current ? 1 : 0}`}
@@ -2635,12 +1970,113 @@ useEffect(() => {
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-        />*/}
+        />
       </div>
       {/* Leaderboard Section */}
       <div
+        style={{
+          position: "fixed",
+          bottom: "100px", // Adjust the distance from the bottom as needed
+          left: "20px",
+          backgroundColor: "rgba(0, 42, 0, 0.7)",
+          padding: "20px",
+          color: "white",
+          zIndex: 999,
+        }}
       >
+        <h3 style={{ margin: 0, fontSize: 44 }}>Leaderboard</h3>
+        <div style={{ display: "flex", gap: "23px" }}>
+          <div>
+            {sortedLeaderboard.map((_, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                #{index + 1}
+              </div>
+            ))}{" "}
+          </div>
+          <div>
+            {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                {entry.player}
+              </div>
+            ))}
+          </div>
+          <div>
+            {sortedLeaderboard.map((entry, index) => (
+              <div key={index} style={{ fontSize: "23px" }}>
+                {Math.round(entry.ccpm) + " CPM"}
+              </div>
+            ))}{" "}
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          position: "fixed",
+          top: "10px",
+          left: "10px",
+        }}
+      >
+        {/* Top-left button */}
+        <button
+          style={{
+            // position: "fixed",
+            // top: "10px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+            zIndex: 1000000,
+          }}
+          onClick={(e) => {
+            const button = e.currentTarget as HTMLElement;
+            button.style.backgroundColor = "lightblue";
+            setTimeout(() => {
+              button.style.backgroundColor = "black";
+            }, 300);
 
+            zmqService.current.publish("cursor", "off");
+          }}
+        >
+          Cursor Off
+        </button>
+
+        {/* Copy to clipboard button */}
+        <button
+          style={{
+            position: "relative",
+            // left: "100%",
+            // top: "120px",
+            // left: "10px",
+            padding: "15px 25px",
+            fontSize: "18px",
+            color: "white",
+            border: "1px solid white", // Thin white border
+            borderRadius: "8px",
+            cursor: "pointer",
+            boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+            transition: "background-color 0.3s ease, box-shadow 0.3s ease",
+          }}
+          onClick={(e) => {
+            const button = e.currentTarget as HTMLElement;
+            button.style.backgroundColor = "lightblue";
+            setTimeout(() => {
+              button.style.backgroundColor = "black";
+            }, 150);
+
+            try {
+              navigator.clipboard.writeText(theWords.current.join(" "));
+            } catch (err) {
+              console.error("Clipboard not supported!");
+            }
+          }}
+        >
+          📋 Copy to clipboard
+        </button>
       </div>
 
       <div style={{ textAlign: "center", color: "white" }}>
@@ -2661,190 +2097,231 @@ useEffect(() => {
         </div>
       </div>
 
-      <div
-  style={{
-    position: "absolute",
-    top: "127px", // Adjusts the distance from the top
-    left: "50%",
-    transform: "translateX(-50%)", // Centers it horizontally
-    width: "80%", // Makes it span most of the width
-    textAlign: "center",
-    fontFamily: "Poppins, sans-serif", // Ensures Poppins font
-    fontSize: "64px", // Hero text size
-    fontWeight: "bold", // Makes it stand out
-    color: "white", // Keeps the text white
-    backgroundColor: "transparent", // No background color
-    padding: "20px 0",
-    zIndex: 1000, // Keeps it above other elements
-  }}
->
-  {theWords.current.join(" ")}
-</div>
+      <div style={{ marginBottom: "10px" }}>
+        <input
+          type="text"
+          readOnly
+          value={theWords.current.join(" ")}
+          style={{
+            width: "1000px",
+            textAlign: "center",
+            backgroundColor: "black",
+            color: "white",
+            padding: "5px",
+            fontSize: 30,
+          }}
+        />
+      </div>
 
       {/* Render mode options */}
       <div
-        style={{ 
-          position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
+        style={{ position: "fixed", bottom: 0, left: 0, padding: "5px 10px" }}
       >
+        <button
+          onClick={() => {
+            renderCursorTrail.current = !renderCursorTrail.current;
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Cursor Trail: {renderCursorTrail.current ? "On" : "Off"}
+        </button>
 
+        <button
+          onClick={() => {
+            dwellClickMode.current = !dwellClickMode.current;
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Dwell Click: {dwellClickMode.current ? "On" : "Off"}
+        </button>
 
-      <label htmlFor="dwell-vel">dwell vel </label>
+        <button
+          onClick={() => {
+            switch (dwellZoneRendering.current) {
+              case DwellZoneRendering.OnHover:
+                dwellZoneRendering.current = DwellZoneRendering.Never;
+                break;
+              case DwellZoneRendering.Never:
+                dwellZoneRendering.current = DwellZoneRendering.Visible;
+                break;
+              case DwellZoneRendering.Visible:
+                dwellZoneRendering.current = DwellZoneRendering.OnHover;
+                break;
+            }
+          }}
+          style={{
+            backgroundColor: "#555555", // Off-black button background
+            color: "white", // White text
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Dwell Rendering: {dwellZoneRendering.current}
+        </button>
+
         <input
-          id="dwell-vel"
+          id="dwell-zone-slider"
+          type="range"
+          min={0}
+          max={squareSize}
+          step="5"
+          value={dwellZoneRadius.current}
+          onChange={(e) =>
+            (dwellZoneRadius.current = parseFloat(e.target.value))
+          }
+          style={{
+            width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            height: "10px", // Custom track height
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+        <button
+          onClick={() => setShowSquare(!showSquare)}
+          style={{
+            backgroundColor: showSquare ? "#555555" : "#222222",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Square: {showSquare ? "On" : "Off"}
+        </button>
+
+        <button
+          onClick={() => setConstrained(!constrained)}
+          style={{
+            backgroundColor: constrained ? "#555555" : "#222222",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            padding: "5px 15px",
+            cursor: "pointer",
+            zIndex: 1000000,
+          }}
+        >
+          Constrained: {constrained ? "On" : "Off"}
+        </button>
+
+        <input
+          id="square-size-slider"
+          type="range"
+          min={100}
+          max={600}
+          step="10"
+          value={squareSize}
+          onChange={(e) => setSquareSize(parseFloat(e.target.value))}
+          style={{
+            width: "150px",
+            appearance: "none",
+            background: "#333333",
+            borderRadius: "5px",
+            height: "10px",
+            outline: "none",
+          }}
+        />
+
+        <input
+          id="dwell-duration"
           type="number"
           min={0}
-          max={1000}
-          step="10"
+          max={5000}
+          step="50"
+          value={dwellDurationMs.current}
+          onChange={(e) =>
+            (dwellDurationMs.current = parseFloat(e.target.value))
+          }
+          style={{
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
+            borderRadius: "5px",
+            outline: "none", // Removes outline on focus
+          }}
+        />
+
+        <input
+          id="dwell-click-threshold"
+          type="number"
+          min={0}
+          max={300}
+          step="25"
           value={dwellClickThreshold.current}
           onChange={(e) =>
             (dwellClickThreshold.current = parseFloat(e.target.value))
           }
           style={{
-            height: "80px", // Increased height
-            fontSize: "20px", // Larger font size
-            padding: "5px 10px", // Added padding
-            appearance: "none",
-            background: "#333333",
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
             borderRadius: "5px",
-            outline: "none",
-            color: "white", // Added for better visibility
-            marginRight: "20px", // Added spacing between elements
+            outline: "none", // Removes outline on focus
           }}
         />
 
-      <label htmlFor="DwellBrick">Brick Dwell Time </label>
         <input
-          id="DwellBrick"
+          id="dwell-click-threshold"
           type="number"
           min={0}
-          max={2000}
-          step="50"
-          value={dwellBrickTime.current}
-          onChange={(e) => (dwellBrickTime.current = parseFloat(e.target.value))}
+          max={300}
+          step="15"
+          value={dwellTimeRequired.current}
+          onChange={(e) =>
+            (dwellTimeRequired.current = parseFloat(e.target.value))
+          }
           style={{
-            height: "80px", // Increased height
-            fontSize: "20px", // Larger font size
-            padding: "5px 10px", // Added padding
-            appearance: "none",
-            background: "#333333",
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
             borderRadius: "5px",
-            outline: "none",
-            color: "white", // Added for better visibility
-            marginRight: "20px", // Added spacing between elements
+            outline: "none", // Removes outline on focus
           }}
         />
 
-      <label htmlFor="DwellBrick">Brick Refraction Time </label>
         <input
-          id="DwellBrickRefractory"
+          id="dwell-click-threshold"
           type="number"
           min={0}
-          max={2000}
-          step="50"
-          value={dwellBrickRefractory.current}
-          onChange={(e) => (dwellBrickRefractory.current = parseFloat(e.target.value))}
+          max={20000}
+          step="200"
+          value={fastThreshold.current}
+          onChange={(e) => (fastThreshold.current = parseFloat(e.target.value))}
           style={{
-            height: "80px", // Increased height
-            fontSize: "20px", // Larger font size
-            padding: "5px 10px", // Added padding
-            appearance: "none",
-            background: "#333333",
+            // width: "150px",
+            appearance: "none", // Removes default slider styles
+            background: "#333333", // Off-black background for the slider track
             borderRadius: "5px",
-            outline: "none",
-            color: "white", // Added for better visibility
-            marginRight: "20px", // Added spacing between elements
+            outline: "none", // Removes outline on focus
           }}
         />
-
-        <label htmlFor="BlockWidth">Block Width </label>
-          <input
-            id="BlockWidth"
-            type="number"
-            min={50}
-            max={500}
-            step="10"
-            value={blockWith.current}
-            onChange={(e) => (blockWith.current = parseFloat(e.target.value))}
-            style={{
-              height: "80px", // Increased height
-              fontSize: "20px", // Larger font size
-              padding: "5px 10px", // Added padding
-              appearance: "none",
-              background: "#333333",
-              borderRadius: "5px",
-              outline: "none",
-              color: "white", // Added for better visibility
-              marginRight: "20px", // Added spacing between elements
-            }}
-          />
-
-          <label htmlFor="BlockHeight">Block Height </label>
-          <input
-            id="BlockHeight"
-            type="number"
-            min={50}
-            max={500}
-            step="10"
-            value={blockHight.current}
-            onChange={(e) => (blockHight.current = parseFloat(e.target.value))}
-            style={{
-              height: "80px", // Increased height
-              fontSize: "20px", // Larger font size
-              padding: "5px 10px", // Added padding
-              appearance: "none",
-              background: "#333333",
-              borderRadius: "5px",
-              outline: "none",
-              color: "white", // Added for better visibility
-              marginRight: "20px", // Added spacing between elements
-            }}
-          />
-
-          <label htmlFor="HorizontalGap">Horizontal Gap </label>
-          <input
-            id="HorizontalGap"
-            type="number"
-            min={5}
-            max={500}
-            step="5"
-            value={horizontalGapp.current}
-            onChange={(e) => (horizontalGapp.current = parseFloat(e.target.value))}
-            style={{
-              height: "80px", // Increased height
-              fontSize: "20px", // Larger font size
-              padding: "5px 10px", // Added padding
-              appearance: "none",
-              background: "#333333",
-              borderRadius: "5px",
-              outline: "none",
-              color: "white", // Added for better visibility
-              marginRight: "20px", // Added spacing between elements
-            }}
-          />
-
-          <label htmlFor="VerticalGap">Vertical Gap </label>
-          <input
-            id="VerticalGap"
-            type="number"
-            min={5}
-            max={500}
-            step="5"
-            value={verticalGapp.current}
-            onChange={(e) => (verticalGapp.current = parseFloat(e.target.value))}
-            style={{
-              height: "80px", // Increased height
-              fontSize: "20px", // Larger font size
-              padding: "5px 10px", // Added padding
-              appearance: "none",
-              background: "#333333",
-              borderRadius: "5px",
-              outline: "none",
-              color: "white", // Added for better visibility
-              marginRight: "20px", // Added spacing between elements
-            }}
-          />
       </div>
 
+      {/* Speed Slider */}
       <div
         style={{
           position: "fixed", // Fixes the position relative to the viewport
@@ -2857,10 +2334,26 @@ useEffect(() => {
           textAlign: "center",
         }}
       >
+        <label
+          htmlFor="speed-slider"
+          style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}
+        >
+          Speed: {speed.current.toFixed(1)}
+        </label>
+        <input
+          id="speed-slider"
+          type="range"
+          min="0.1"
+          max="2"
+          step="0.1"
+          value={speed.current}
+          onChange={(e) => (speed.current = parseFloat(e.target.value))}
+          style={{ width: "150px" }}
+        />
         {/* Display Velocity Values */}
         <div
           style={{
-            fontSize: "14px",
+            fontSize: "12px",
             color: "rgba(255, 255, 255, 0.5)", // Semi-transparent white for discreet display
             marginBottom: "5px",
           }}
@@ -2877,31 +2370,220 @@ useEffect(() => {
             textAlign: "left",
           }}
         >
-         
+          <label
+            htmlFor="gravity-slider"
+            style={{ display: "block", marginBottom: "5px", fontSize: "35px" }}
+          ></label>
+          <input
+            id="gravity-slider"
+            type="range"
+            min="0"
+            max="400"
+            step="0.1"
+            value={gravity.current}
+            onChange={(e) => (gravity.current = parseFloat(e.target.value))}
+            style={{
+              width: "150px",
+              appearance: "none", // Removes default slider styles
+              background: "#333333", // Off-black background for the slider track
+              borderRadius: "5px",
+              height: "10px", // Custom track height
+              outline: "none", // Removes outline on focus
+            }}
+          />
+          <div style={{ marginTop: "10px" }}>
+            <button
+              onClick={() => {
+                inDiagnostics.current = !inDiagnostics.current;
+              }}
+              style={{
+                backgroundColor: "#555555", // Off-black button background
+                color: "white", // White text
+                border: "none",
+                borderRadius: "5px",
+                padding: "5px 10px",
+                marginRight: "10px",
+                cursor: "pointer",
+              }}
+            >
+              Diagnostics
+            </button>
+            <button
+              onClick={() => {
+                inDiagnostics.current = !inDiagnostics.current;
+              }}
+              style={{
+                backgroundColor: "#555555", // Off-black button background
+                color: "white", // White text
+                border: "none",
+                borderRadius: "5px",
+                padding: "5px 10px",
+                cursor: "pointer",
+              }}
+            >
+              D
+            </button>
+          </div>
 
           <style>
+            {`
+     #gravity-slider::-webkit-slider-thumb {
+       appearance: none;
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-moz-range-thumb {
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-ms-thumb {
+       width: 20px;
+       height: 20px;
+       border-radius: 50%;
+       background: #555555; // Off-black color for the thumb
+       border: none;
+       cursor: pointer;
+     }
+     #gravity-slider::-webkit-slider-runnable-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+     }
+     #gravity-slider::-moz-range-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+     }
+     #gravity-slider::-ms-track {
+       background: #333333; // Off-black track background
+       border-radius: 5px;
+       height: 10px; // Custom track height
+       border-color: transparent;
+       border-width: 0;
+       color: transparent;
+     }
+   `}
           </style>
         </div>
       </div>
       <canvas
         ref={canvasRef}
-        width={1400}
-        height={800}
+        width={1600}
+        height={1200}
         style={{
-          border: "4px dotted purple",
-          //marginTop: "100px", // Adjust this value as needed
+          border: "1px dotted purple",
+          marginTop: "100px", // Adjust this value as needed
+          position: "relative", // Add this
           // zIndex: 2000,         // Higher than video overlay
           opacity: 1, // Ensure canvas is fully opaque
           pointerEvents: systemCursorEnabled ? "auto" : "none",
-          position: "absolute", // Use absolute positioning to place it lower
-          top: "400px", // Adjust this value to move the canvas lower
           zIndex: 0,
         }}
       />
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          width: "50px",
+          height: "50px",
+          backgroundColor: isLocked ? "red" : "green",
+          cursor: "pointer",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          color: "white",
+          fontWeight: "bold",
+          border: "2px solid white",
+          borderRadius: "5px",
+        }}
+        onClick={togglePointerLock}
+      >
+        {isLocked ? "🔒" : "🔓"}
+      </div>
 
       {/* New Buttons Row */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row", // Align buttons horizontally
+          gap: "10px", // Space between buttons
+        }}
+      >
+        {[...Array(5)].map((_, index) => (
+          <button
+            key={index}
+            style={{
+              width: "50px",
+              height: "50px",
+              backgroundColor: "black", // Black background
+              border: "2px solid white",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              switch (index) {
+                case 0:
+                  // Action for the first button
+                  showCursor.current = !showCursor.current;
+                  console.log(
+                    `Cursor is now ${showCursor.current ? "On" : "Off"}`,
+                  );
+                  break;
+                case 1:
+                  // Action for the second button
+                  lockCursor.current = true;
+                  console.log("clicked second button");
+                  break;
+                case 2:
+                  showTargets.current = true;
+                  lockCursor.current = false;
 
+                  // Increment the target index and wrap around if needed
+                  targetIndex.current++;
+                  targetIndex.current =
+                    targetIndex.current % lineStartPoints.length;
+
+                  break;
+                case 3:
+                  // Action for the fourth button
+                  inDiagnostics.current = true;
+                  dotGameMode.current = true;
+                  indexGameDot.current = 0;
+
+                  goodDotHits.current = 0;
+                  badDotHits.current = 0;
+                  accuracy.current = undefined;
+
+                  timerDotStart.current = undefined;
+                  timerDotStart.current = undefined;
+                  timeDotLength.current = undefined;
+
+                  dotCcpm.current = undefined;
+
+                  break;
+
+                case 4:
+                  // Action for the fourth button
+                  snapBackMode.current = !snapBackMode.current;
+
+                  break;
+                default:
+                  break;
+              }
+            }}
+          ></button>
+        ))}
       </div>
+    </div>
   );
 };
 
