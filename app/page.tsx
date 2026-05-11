@@ -813,6 +813,16 @@ useEffect(() => {
         velocities.current = {
           final_velocity_x: e.movementX,
           final_velocity_y: e.movementY,
+          raw_velocity_x: 0,
+          raw_velocity_y: 0,
+          velocity_smoothed_x: 0,
+          velocity_smoothed_y: 0,
+          left_click_probability_smoothed: 0,
+          raw_right_click_probability: 0,
+          right_click_probability_smoothed: 0,
+          raw_middle_click_probability: 0,
+          middle_click_probability_smoothed: 0,
+          raw_left_click_probability: 0,
         };
 
         console.log("Speed " + e.movementX + " " + e.movementY);
