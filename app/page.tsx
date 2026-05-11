@@ -97,13 +97,30 @@ const PointerLockDemo: React.FC = () => {
   const [squareSize, setSquareSize] = useState(350);
   const [showSquare, setShowSquare] = useState(false);
   const [constrained, setConstrained] = useState(true);
+  const [useRawVelocity, setUseRawVelocity] = useState(false);
+  const [isZmqConnected, setIsZmqConnected] = useState(false);
+  const zmqTimeoutRef = useRef<NodeJS.Timeout>();
   const dwellZoneRadius = useRef<number>(350);
+
+  // Helper function to get velocity values based on current mode
+  const getVelocityX = () => {
+    if (!velocities.current) return 0;
+    return useRawVelocity ? velocities.current.raw_velocity_x : velocities.current.final_velocity_x;
+  };
+
+  const getVelocityY = () => {
+    if (!velocities.current) return 0;
+    return useRawVelocity ? velocities.current.raw_velocity_y : velocities.current.final_velocity_y;
+  };
 
   useEffect(() => {
     zmqService.current.start();
 
     return () => {
       zmqService.current.stop();
+      if (zmqTimeoutRef.current) {
+        clearTimeout(zmqTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -114,6 +131,24 @@ const PointerLockDemo: React.FC = () => {
       }
 
       velocities.current = data;
+      setIsZmqConnected(true);
+      
+      // Reset the timeout - if no ZMQ data for 3 seconds, switch to mouse mode
+      if (zmqTimeoutRef.current) {
+        clearTimeout(zmqTimeoutRef.current);
+      }
+      zmqTimeoutRef.current = setTimeout(() => {
+        setIsZmqConnected(false);
+        console.log('ZMQ connection timeout - switching to mouse mode');
+      }, 3000);
+      
+      // Debug: Log if raw and final velocities are different
+      if (data.raw_velocity_x !== data.final_velocity_x || data.raw_velocity_y !== data.final_velocity_y) {
+        console.log('ZMQ: Raw vs Final velocity difference detected:', {
+          raw: [data.raw_velocity_x, data.raw_velocity_y],
+          final: [data.final_velocity_x, data.final_velocity_y]
+        });
+      }
       //console.log('Received velocity data:', data);
 
       // Map hacked click values to the corresponding sides
@@ -136,11 +171,11 @@ const PointerLockDemo: React.FC = () => {
       if (!refractory.current) {
         const newX =
           position.current.x +
-          velocities.current.final_velocity_x * speed.current * 0.015;
+          getVelocityX() * speed.current * 0.015;
         // velocities.current.final_velocity_x * speed.current * 0.01;
         const newY =
           position.current.y +
-          velocities.current.final_velocity_y * speed.current * 0.015;
+          getVelocityY() * speed.current * 0.015;
         // velocities.current.final_velocity_y * speed.current * 0.01;
 
         if (!directionalMode.current) {
@@ -810,11 +845,20 @@ useEffect(() => {
     if (systemCursorEnabled) {
       if (!refractory.current) {
 
+        // Simulate the difference between raw and final velocity in mouse mode
+        const rawX = e.movementX;
+        const rawY = e.movementY;
+        // Simulate smoothing and gain (final velocity is smoothed and amplified)
+        const smoothedX = rawX * 0.8; // Simulate lighter smoothing effect
+        const smoothedY = rawY * 0.8;
+        const gainedX = smoothedX * 1.2; // Simulate gain application
+        const gainedY = smoothedY * 1.2;
+        
         velocities.current = {
-          final_velocity_x: e.movementX,
-          final_velocity_y: e.movementY,
-          raw_velocity_x: 0,
-          raw_velocity_y: 0,
+          final_velocity_x: gainedX,
+          final_velocity_y: gainedY,
+          raw_velocity_x: rawX,
+          raw_velocity_y: rawY,
           velocity_smoothed_x: 0,
           velocity_smoothed_y: 0,
           left_click_probability_smoothed: 0,
@@ -825,14 +869,14 @@ useEffect(() => {
           raw_left_click_probability: 0,
         };
 
-        console.log("Speed " + e.movementX + " " + e.movementY);
+        console.log("MOUSE MODE: Speed " + e.movementX + " " + e.movementY + " (raw=final)");
 
         const newX =
           position.current.x +
-          velocities.current.final_velocity_x * speed.current;
+          getVelocityX() * speed.current;
         const newY =
           position.current.y +
-          velocities.current.final_velocity_y * speed.current;
+          getVelocityY() * speed.current;
 
         position.current = { x: newX, y: newY };
         if (constrained) {
@@ -1110,8 +1154,8 @@ useEffect(() => {
 
           if (
             dwellClickMode.current &&
-            Math.abs(velocities.current?.final_velocity_x ?? 0) +
-              Math.abs(velocities.current?.final_velocity_y ?? 0) <
+            Math.abs(getVelocityX()) +
+              Math.abs(getVelocityY()) <
               100
           ) {
             touchingVelocity =
@@ -1159,8 +1203,8 @@ useEffect(() => {
 
           if (
             dwellClickMode.current &&
-            Math.abs(velocities.current?.final_velocity_x ?? 0) +
-              Math.abs(velocities.current?.final_velocity_y ?? 0) <
+            Math.abs(getVelocityX()) +
+              Math.abs(getVelocityY()) <
               dwellClickThreshold.current
           ) {
             let touchingVelocity =
@@ -1742,8 +1786,8 @@ useEffect(() => {
         ctx.globalAlpha = 1;
       }
       if (
-        Math.abs(velocities.current?.final_velocity_x ?? 0) +
-          Math.abs(velocities.current?.final_velocity_y ?? 0) <
+        Math.abs(getVelocityX()) +
+          Math.abs(getVelocityY()) <
           dwellClickThreshold.current &&
         (position.current.x < centerX - 120 ||
           position.current.x > centerX + 120 ||
@@ -1831,8 +1875,8 @@ useEffect(() => {
       } else {
         // Reset if velocity goes above threshold
         if (
-          Math.abs(velocities.current?.final_velocity_x ?? 0) +
-            Math.abs(velocities.current?.final_velocity_y ?? 0) >
+          Math.abs(getVelocityX()) +
+            Math.abs(getVelocityY()) >
           fastThreshold.current
         ) {
           fast.current = true;
@@ -2360,6 +2404,41 @@ useEffect(() => {
           onChange={(e) => (speed.current = parseFloat(e.target.value))}
           style={{ width: "150px" }}
         />
+        
+        {/* Velocity Mode Toggle */}
+        <div
+          style={{
+            marginTop: "15px",
+            marginBottom: "10px",
+          }}
+        >
+          <label
+            style={{ 
+              display: "block", 
+              marginBottom: "5px", 
+              fontSize: "16px",
+              color: "white"
+            }}
+          >
+            Velocity Mode:
+          </label>
+          <button
+            onClick={() => setUseRawVelocity(!useRawVelocity)}
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              backgroundColor: useRawVelocity ? "#ff6b6b" : "#4ecdc4",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {useRawVelocity ? "Raw Velocity" : "Final Velocity"}
+          </button>
+        </div>
+
         {/* Display Velocity Values */}
         <div
           style={{
@@ -2368,8 +2447,33 @@ useEffect(() => {
             marginBottom: "5px",
           }}
         >
-          Vx: {(velocities.current?.final_velocity_x ?? 0).toFixed(2)}, Vy:{" "}
-          {(velocities.current?.final_velocity_y ?? 0).toFixed(2)}
+          {useRawVelocity ? 'Raw' : 'Final'} Vx: {getVelocityX().toFixed(2)}, Vy:{" "}
+          {getVelocityY().toFixed(2)}
+        </div>
+        
+        {/* Connection Status */}
+        <div
+          style={{
+            fontSize: "12px",
+            color: isZmqConnected ? "#4ecdc4" : "#ff6b6b",
+            marginBottom: "5px",
+            fontWeight: "bold",
+          }}
+        >
+          ● {isZmqConnected ? "ZMQ Connected" : "Mouse Mode"}
+        </div>
+        
+        {/* Debug: Show both raw and final values */}
+        <div
+          style={{
+            fontSize: "10px",
+            color: "rgba(255, 255, 255, 0.3)",
+            marginBottom: "5px",
+            fontFamily: "monospace",
+          }}
+        >
+          Debug - Raw: ({(velocities.current?.raw_velocity_x ?? 0).toFixed(2)}, {(velocities.current?.raw_velocity_y ?? 0).toFixed(2)}) | 
+          Final: ({(velocities.current?.final_velocity_x ?? 0).toFixed(2)}, {(velocities.current?.final_velocity_y ?? 0).toFixed(2)})
         </div>
         {/* Discrete tally below speed slider */}
         <div

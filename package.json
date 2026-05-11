@@ -12,6 +12,8 @@
     "@fontsource/poppins": "^5.1.1",
     "@fontsource/press-start-2p": "^5.1.1",
     "@msgpack/msgpack": "^3.0.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "axios": "^1.7.7",
     "dotenv": "^16.4.7",
     "elevenlabs": "^1.53.0",
@@ -22,7 +24,9 @@
     "next": "^15.0.2",
     "openai": "^4.86.2",
     "react": "^19.0.0-rc-02c0e824-20241028",
-    "react-dom": "^19.0.0-rc-02c0e824-20241028"
+    "react-dom": "^19.0.0-rc-02c0e824-20241028",
+    "three": "^0.184.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",
