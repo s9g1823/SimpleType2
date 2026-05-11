@@ -1374,10 +1374,9 @@ useEffect(() => {
         console.log("PAGE CHANGE: " + pageChange);
 
         if (
-          //If you are in Game or Practice mode, you only get the right hit sound if you hit the right one
           refCode.current &&
           indexRefCode.current !== undefined &&
-          sideIndex !== refCode.current[indexRefCode.current]
+          sideIndex !== refCode.current![indexRefCode.current]
         ) {
           new Audio("erro.mp3")
             .play()
@@ -1399,7 +1398,7 @@ useEffect(() => {
           indexRefCode.current === undefined ||
           (refCode.current &&
             indexRefCode.current !== undefined &&
-            sideIndex === refCode.current[indexRefCode.current])
+            sideIndex === refCode.current![indexRefCode.current])
         ) {
           if (indexRefCode.current !== undefined) {
             //if in Game/Practice mode, increase the Ref
@@ -1475,12 +1474,11 @@ useEffect(() => {
         !inPractice.current &&
         refCode.current &&
         indexRefCode.current !== undefined &&
-        refCode.current[indexRefCode.current] == sideIndex
+        refCode.current![indexRefCode.current] == sideIndex
       ) {
-        //when not touching and in Game mode
         ctx.fillStyle = "yellow";
         ctx.font = "127px Arial";
-        switch (refCode.current[indexRefCode.current]) {
+        switch (refCode.current![indexRefCode.current]) {
           case 1:
             ctx.fillText("→", centerX, centerY);
             break;
