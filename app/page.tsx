@@ -102,6 +102,11 @@ const PointerLockDemo: React.FC = () => {
   const zmqTimeoutRef = useRef<NodeJS.Timeout>();
   const dwellZoneRadius = useRef<number>(350);
 
+  const squareSizeRef = useRef(squareSize);
+  const showSquareRef = useRef(showSquare);
+  useEffect(() => { squareSizeRef.current = squareSize; }, [squareSize]);
+  useEffect(() => { showSquareRef.current = showSquare; }, [showSquare]);
+
   // Helper function to get velocity values based on current mode
   const getVelocityX = () => {
     if (!velocities.current) return 0;
@@ -180,8 +185,8 @@ const PointerLockDemo: React.FC = () => {
 
         if (!directionalMode.current) {
           position.current = { x: newX, y: newY };
-          if (constrained) {
-            const half = squareSize * Math.SQRT1_2;
+          if (showSquareRef.current) {
+            const half = squareSizeRef.current * Math.SQRT1_2;
             position.current.x = Math.max(centerX - half, Math.min(centerX + half, position.current.x));
             position.current.y = Math.max(centerY - half, Math.min(centerY + half, position.current.y));
           }
@@ -879,8 +884,8 @@ useEffect(() => {
           getVelocityY() * speed.current;
 
         position.current = { x: newX, y: newY };
-        if (constrained) {
-          const half = squareSize * Math.SQRT1_2;
+        if (showSquareRef.current) {
+          const half = squareSizeRef.current * Math.SQRT1_2;
           position.current.x = Math.max(centerX - half, Math.min(centerX + half, position.current.x));
           position.current.y = Math.max(centerY - half, Math.min(centerY + half, position.current.y));
         }
