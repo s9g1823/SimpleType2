@@ -316,10 +316,30 @@ function DwellHandler({ onHit, dwellTime, dwellRef, aimRef }: {
   return null;
 }
 
-const COLOR_IDLE = new THREE.Color("#ff2266");
-const COLOR_HOVER = new THREE.Color("#44ff88");
-const EMISSIVE_IDLE = new THREE.Color("#ff0044");
-const EMISSIVE_HOVER = new THREE.Color("#22cc66");
+// ---------- Red dot target texture ----------
+// A simple solid red circle on a transparent background, shared by all targets.
+let _redDotTexture: THREE.CanvasTexture | null = null;
+
+function getRedDotTexture(): THREE.CanvasTexture {
+  if (_redDotTexture) return _redDotTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, "#ff4444");
+  grad.addColorStop(0.85, "#ff1a1a");
+  grad.addColorStop(1, "rgba(255,26,26,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(128, 128, 128, 0, Math.PI * 2);
+  ctx.fill();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  _redDotTexture = tex;
+  return tex;
+}
 
 function TaggedTarget({ position, radius, dwellRef, moving, precise, preciseSpeedRef }: {
   position: [number, number, number];
@@ -329,8 +349,8 @@ function TaggedTarget({ position, radius, dwellRef, moving, precise, preciseSpee
   precise: boolean;
   preciseSpeedRef: React.MutableRefObject<number>;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const spriteRef = useRef<THREE.Sprite>(null);
+  const matRef = useRef<THREE.SpriteMaterial>(null);
   const motionSeed = useRef({
     f1: 0.3 + Math.random() * 0.3,
     f2: 0.35 + Math.random() * 0.35,
@@ -342,13 +362,13 @@ function TaggedTarget({ position, radius, dwellRef, moving, precise, preciseSpee
   const virtTime = useRef(0);
 
   useEffect(() => {
-    if (meshRef.current) {
-      (meshRef.current as any).__isTarget = true;
+    if (spriteRef.current) {
+      (spriteRef.current as any).__isTarget = true;
     }
   }, []);
 
   useFrame(({ clock }, delta) => {
-    if (meshRef.current) {
+    if (spriteRef.current) {
       if (precise) {
         virtTime.current += delta * (preciseSpeedRef.current ?? 1);
         const t = virtTime.current;
@@ -356,31 +376,46 @@ function TaggedTarget({ position, radius, dwellRef, moving, precise, preciseSpee
         const xSpan = 9;
         const ySpan = 2.5;
         const yCenter = 3.5;
-        meshRef.current.position.x = Math.sin(t * s.f1 + s.p1) * xSpan;
-        meshRef.current.position.y = yCenter + Math.sin(t * s.f2 + s.p2) * ySpan;
-        meshRef.current.position.z = -TARGET_DIST + Math.cos(t * s.f3 + s.p3) * 0.5;
+        spriteRef.current.position.x = Math.sin(t * s.f1 + s.p1) * xSpan;
+        spriteRef.current.position.y = yCenter + Math.sin(t * s.f2 + s.p2) * ySpan;
+        spriteRef.current.position.z = -TARGET_DIST + Math.cos(t * s.f3 + s.p3) * 0.5;
       } else {
         const t = clock.elapsedTime;
-        meshRef.current.position.x = position[0];
-        meshRef.current.position.z = position[2];
-        meshRef.current.position.y = moving
+        spriteRef.current.position.x = position[0];
+        spriteRef.current.position.z = position[2];
+        spriteRef.current.position.y = moving
           ? position[1] + Math.sin(t * 2) * 0.3
           : position[1];
       }
+      const hoverScale = 1 + dwellRef.current * 0.18;
+      const s = radius * 2 * hoverScale;
+      spriteRef.current.scale.set(s, s, 1);
     }
     if (matRef.current) {
       const t = dwellRef.current;
-      matRef.current.color.copy(COLOR_IDLE).lerp(COLOR_HOVER, t);
-      matRef.current.emissive.copy(EMISSIVE_IDLE).lerp(EMISSIVE_HOVER, t);
-      matRef.current.emissiveIntensity = 0.8 + t * 0.6;
+      matRef.current.color.setRGB(1, 1 - t * 0.3, 1 - t * 0.3);
     }
   });
 
+  const dotTexture = useMemo(
+    () => (typeof window !== "undefined" ? getRedDotTexture() : null),
+    [],
+  );
+
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[radius, 32, 32]} />
-      <meshStandardMaterial ref={matRef} color="#ff2266" emissive="#ff0044" emissiveIntensity={0.8} />
-    </mesh>
+    <sprite
+      ref={spriteRef}
+      position={position}
+      scale={[radius * 2, radius * 2, 1]}
+    >
+      <spriteMaterial
+        ref={matRef}
+        map={dotTexture ?? undefined}
+        color="#ffffff"
+        transparent
+        depthWrite={false}
+      />
+    </sprite>
   );
 }
 
